@@ -34,7 +34,6 @@ interface ProfileScreenProps {
   onPrivacyToggle?: () => void;
   onAccountSettings?: () => void;
   onLogout?: () => void;
-  onNavPress?: (tab: string) => void;
 }
 
 const DEFAULT_PROFILE: ProfileData = {
@@ -73,12 +72,10 @@ const InfoField: React.FC<{ label: string; value: string }> = ({ label, value })
 // ── Component ──
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
   profile = DEFAULT_PROFILE, onMenuPress, onPrivacyToggle,
-  onAccountSettings, onLogout, onNavPress,
+  onAccountSettings, onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState('Profile');
   const [hiddenNotif, setHiddenNotif] = useState(true);
   const [biometricLock, setBiometricLock] = useState(true);
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -205,25 +202,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 90 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
-
-      {/* ═══ BOTTOM NAV ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Home' }, { icon: 'medication', label: 'Schedule' },
-          { icon: 'edit-note', label: 'Log' }, { icon: 'chat', label: 'Chat' }, { icon: 'person', label: 'Profile' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24} color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
     </SafeAreaView>
   );
 };
@@ -339,18 +319,7 @@ const st = StyleSheet.create({
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: C.error },
 
-  // Bottom Nav
-  bottomNav: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 12, paddingBottom: 16,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: C.outlineVariant,
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  navItemActive: { backgroundColor: '#eff6ff' },
-  navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8', fontWeight: '600' },
+
 });
 
 export default ProfileScreen;

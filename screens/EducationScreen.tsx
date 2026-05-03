@@ -35,7 +35,6 @@ interface EducationScreenProps {
   onVideoPress?: (id: string) => void;
   onViewAllStress?: () => void;
   onViewAllHiv?: () => void;
-  onNavPress?: (tab: string) => void;
 }
 
 // ── Sample Data ──
@@ -58,11 +57,9 @@ const VIDEOS: VideoItem[] = [
 // ── Component ──
 const EducationScreen: React.FC<EducationScreenProps> = ({
   onMenuPress, onPrivacyToggle, onSearch, onStartBreathing, onJournal, onMeditation,
-  onArticlePress, onVideoPress, onViewAllStress, onViewAllHiv, onNavPress,
+  onArticlePress, onVideoPress, onViewAllStress, onViewAllHiv,
 }) => {
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState('Log');
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -210,25 +207,8 @@ const EducationScreen: React.FC<EducationScreenProps> = ({
           />
         </View>
 
-        <View style={{ height: 90 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
-
-      {/* ═══ BOTTOM NAV ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Home' }, { icon: 'medication', label: 'Schedule' },
-          { icon: 'edit-note', label: 'Log' }, { icon: 'chat', label: 'Chat' }, { icon: 'person', label: 'Profile' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24} color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
     </SafeAreaView>
   );
 };
@@ -329,16 +309,7 @@ const st = StyleSheet.create({
   smallVideoTitle: { fontSize: 12, fontWeight: '700', color: C.onSurface },
   smallVideoDuration: { fontSize: 10, color: C.tertiary, marginTop: 2 },
 
-  // Bottom Nav
-  bottomNav: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 12, paddingBottom: 16,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: C.outlineVariant, borderTopLeftRadius: 12, borderTopRightRadius: 12,
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  navItemActive: { backgroundColor: '#eff6ff' },
-  navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8', fontWeight: '700' },
+
 });
 
 export default EducationScreen;

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, StatusBar, Image, Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -36,7 +37,6 @@ interface DashboardScreenProps {
   onSearchFacility?: () => void;
   onViewAllTips?: () => void;
   onFabPress?: () => void;
-  onNavPress?: (tab: string) => void;
 }
 
 // ── Circular Progress ──
@@ -69,11 +69,9 @@ const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: n
 const DashboardScreen: React.FC<DashboardScreenProps> = ({
   userName = 'Patient User', compliancePercent = 98, complianceDelta = '+2% dari minggu lalu',
   onMenuPress, onPrivacyToggle, onProfilePress, onTakeMedicine,
-  onChatNakes, onEducation, onSearchFacility, onViewAllTips, onFabPress, onNavPress,
+  onChatNakes, onEducation, onSearchFacility, onViewAllTips, onFabPress,
 }) => {
-  const [activeTab, setActiveTab] = useState('Beranda');
-
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
+  const navigation = useNavigation();
 
   return (
     <SafeAreaView style={st.safe}>
@@ -91,7 +89,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <TouchableOpacity onPress={onPrivacyToggle} style={st.iconBtn} activeOpacity={0.7}>
             <MaterialIcons name="visibility-off" size={24} color={C.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onProfilePress} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile' as never)} activeOpacity={0.7}>
             <View style={st.avatar}>
               <MaterialIcons name="person" size={20} color={C.onPrimary} />
             </View>
@@ -165,7 +163,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickTitle}>Chat dengan Nakes</Text>
                 <Text style={st.quickSub}>Dukungan profesional 24/7</Text>
               </View>
-              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.secondary }]} onPress={onChatNakes} activeOpacity={0.85}>
+              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.secondary }]} onPress={() => navigation.navigate('Chat' as never)} activeOpacity={0.85}>
                 <Text style={st.quickBtnText}>Chat Sekarang</Text>
               </TouchableOpacity>
             </View>
@@ -176,7 +174,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickTitle}>Edukasi</Text>
                 <Text style={st.quickSub}>Tips & sumber daya perawatan</Text>
               </View>
-              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary }]} onPress={onEducation} activeOpacity={0.85}>
+              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary }]} onPress={() => navigation.navigate('Education' as never)} activeOpacity={0.85}>
                 <Text style={st.quickBtnText}>Jelajahi</Text>
               </TouchableOpacity>
             </View>
@@ -191,7 +189,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickSub}>Temukan klinik & RS terdekat</Text>
               </View>
             </View>
-            <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 16 }]} onPress={onSearchFacility} activeOpacity={0.85}>
+            <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 16 }]} onPress={() => navigation.navigate('HealthFacility' as never)} activeOpacity={0.85}>
               <Text style={st.quickBtnText}>Cari</Text>
             </TouchableOpacity>
           </View>
@@ -218,35 +216,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </View>
         </View>
 
-        {/* Bottom spacer for nav bar */}
-        <View style={{ height: 100 }} />
+        {/* Bottom spacer */}
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       {/* ═══ FAB ═══ */}
       <TouchableOpacity style={st.fab} onPress={onFabPress} activeOpacity={0.85}>
         <MaterialIcons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-
-      {/* ═══ BOTTOM NAV BAR ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Beranda' },
-          { icon: 'medication', label: 'Jadwal' },
-          { icon: 'edit-note', label: 'Log' },
-          { icon: 'chat', label: 'Chat' },
-          { icon: 'person', label: 'Profil' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24}
-                color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
     </SafeAreaView>
   );
 };
@@ -360,23 +337,10 @@ const st = StyleSheet.create({
 
   // FAB
   fab: {
-    position: 'absolute', bottom: 96, right: 24, width: 56, height: 56, borderRadius: 28,
+    position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28,
     backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
     shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-
-  // Bottom Nav
-  bottomNav: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 12, paddingBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)', borderTopWidth: 1, borderTopColor: '#e2e8f0',
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  navItemActive: { backgroundColor: '#eff6ff' },
-  navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8' },
 });
 
 export default DashboardScreen;

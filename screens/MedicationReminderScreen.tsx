@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, StatusBar, Image,
@@ -29,7 +29,6 @@ interface MedicationReminderScreenProps {
   todayDate?: string;
   onMenuPress?: () => void;
   onPrivacyToggle?: () => void;
-  onNavPress?: (tab: string) => void;
 }
 
 // ── Circular Progress ──
@@ -57,10 +56,8 @@ const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, 
 const MedicationReminderScreen: React.FC<MedicationReminderScreenProps> = ({
   compliancePercent = 98, morningDoseTime = '08:02 AM',
   refillDaysLeft = 12, refillDate = '05 Nov 2023', todayDate = 'Oct 24, 2023',
-  onMenuPress, onPrivacyToggle, onNavPress,
+  onMenuPress, onPrivacyToggle,
 }) => {
-  const [activeTab, setActiveTab] = useState('Jadwal');
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -177,28 +174,8 @@ const MedicationReminderScreen: React.FC<MedicationReminderScreenProps> = ({
         </View>
 
         {/* Bottom spacer */}
-        <View style={{ height: 90 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
-
-      {/* ═══ BOTTOM NAV BAR ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Beranda' },
-          { icon: 'medication', label: 'Jadwal' },
-          { icon: 'edit-note', label: 'Log' },
-          { icon: 'chat', label: 'Chat' },
-          { icon: 'person', label: 'Profil' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24} color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
     </SafeAreaView>
   );
 };
@@ -304,18 +281,7 @@ const st = StyleSheet.create({
   privacyImg: { width: '100%', height: '100%', opacity: 0.6 },
   privacyText: { fontSize: 14, color: C.primary, textAlign: 'center', maxWidth: 200 },
 
-  // Bottom Nav
-  bottomNav: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 12, paddingBottom: 16,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0',
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  navItemActive: { backgroundColor: '#eff6ff' },
-  navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8', fontWeight: '700' },
+
 });
 
 export default MedicationReminderScreen;
