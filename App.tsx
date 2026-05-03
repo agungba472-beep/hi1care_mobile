@@ -1,20 +1,15 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Alert } from 'react-native';
+import ProfileScreen from './screens/ProfileScreen';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <ProfileScreen
+      onMenuPress={() => Alert.alert('Menu', 'Drawer menu')}
+      onPrivacyToggle={() => Alert.alert('Privacy', 'Toggle privacy')}
+      onAccountSettings={() => Alert.alert('Settings', 'Membuka pengaturan akun...')}
+      onLogout={() => Alert.alert('Logout', 'Apakah Anda yakin ingin keluar?')}
+      onNavPress={(tab) => Alert.alert('Nav', `Tab: ${tab}`)}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
