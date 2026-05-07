@@ -208,7 +208,7 @@ const LoginScreen: React.FC = () => {
                     isIdentifierFocused && styles.labelFocused,
                   ]}
                 >
-                  Username atau Email
+                  Username
                 </Text>
                 <View
                   style={[

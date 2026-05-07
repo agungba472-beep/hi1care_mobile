@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import api from '../api';
+import { RootStackParamList } from '../App';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -19,10 +21,8 @@ const C = {
 
 const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
-// ── Props ──
-interface RegisterScreenProps {
-  onLogin?: () => void;
-}
+// ── Navigation Type ──
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // ── Reusable Input Field ──
 const InputField: React.FC<{
@@ -46,8 +46,8 @@ const InputField: React.FC<{
 };
 
 // ── Component ──
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLogin }) => {
-  const navigation = useNavigation();
+const RegisterScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
 
   const [regNumber, setRegNumber] = useState('');
   const [username, setUsername] = useState('');
@@ -71,7 +71,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      const response = await api.post('/register', {
+      const response = await api.post('/register-pasien', {
         no_reg_hiv: regNumber,
         username: username,
         password: password,
@@ -84,14 +84,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLogin }) => {
         [
           {
             text: 'OK',
-            onPress: () => {
-              // Navigasi kembali ke Login
-              if (onLogin) {
-                onLogin();
-              } else {
-                navigation.navigate('Login' as never);
-              }
-            },
+            onPress: () => navigation.navigate('Login'),
           },
         ]
       );
@@ -171,13 +164,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLogin }) => {
               <View style={st.footerRow}>
                 <Text style={st.footerText}>Sudah punya akun HI!-CARE? </Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    if (onLogin) {
-                      onLogin();
-                    } else {
-                      navigation.navigate('Login' as never);
-                    }
-                  }}
+                  onPress={() => navigation.navigate('Login')}
                   activeOpacity={0.7}
                 >
                   <Text style={st.footerLink}>Masuk di sini</Text>
