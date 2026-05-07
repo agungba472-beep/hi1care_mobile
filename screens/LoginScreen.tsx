@@ -10,8 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../api';
+import { RootStackParamList } from '../App';
 
 // ────────────────────────────────────────────
 // Design Tokens (from DESIGN.md – Serene Assurance)
@@ -97,31 +103,52 @@ const Spacing = {
 } as const;
 
 // ────────────────────────────────────────────
-// Props Interface
-// ────────────────────────────────────────────
-interface LoginScreenProps {
-  onLogin?: (identifier: string, password: string) => void;
-  onRegister?: () => void;
-  onForgotPassword?: () => void;
-}
-
-// ────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────
-const LoginScreen: React.FC<LoginScreenProps> = ({
-  onLogin,
-  onRegister,
-  onForgotPassword,
-}) => {
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-  const handleLogin = () => {
-    onLogin?.(identifier, password);
+  const handleLogin = async () => {
+    // Validasi input kosong
+    if (!identifier.trim() || !password.trim()) {
+      Alert.alert('Peringatan', 'Username dan password tidak boleh kosong.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await api.post('/login', {
+        username: identifier,
+        password: password,
+      });
+
+      const { token } = response.data;
+
+      // Simpan token ke AsyncStorage
+      await AsyncStorage.setItem('userToken', token);
+
+      // Navigasi ke MainTabs
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        'Terjadi kesalahan. Silakan coba lagi.';
+      Alert.alert('Login Gagal', message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -155,7 +182,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               <Text style={styles.brandTitle}>HI!-CARE</Text>
               <View style={styles.brandSubRow}>
                 <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
-                <TouchableOpacity onPress={onRegister} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
                   <Text style={styles.linkBold}>Daftar</Text>
                 </TouchableOpacity>
               </View>
@@ -205,6 +232,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                     onBlur={() => setIsIdentifierFocused(false)}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={!isLoading}
                   />
                 </View>
               </View>
@@ -241,6 +269,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                     onBlur={() => setIsPasswordFocused(false)}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    editable={!isLoading}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword((v) => !v)}
@@ -282,7 +311,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
                 {/* Forgot Password */}
                 <TouchableOpacity
-                  onPress={onForgotPassword}
+                  onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
@@ -292,11 +321,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               {/* ── Login Button ── */}
               <View style={styles.actionSection}>
                 <TouchableOpacity
-                  style={styles.loginButton}
+                  style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
                   onPress={handleLogin}
                   activeOpacity={0.85}
+                  disabled={isLoading}
                 >
-                  <Text style={styles.loginButtonText}>Masuk</Text>
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? 'Memproses...' : 'Masuk'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -310,7 +342,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               {/* ── Register CTA ── */}
               <View style={styles.registerRow}>
                 <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
-                <TouchableOpacity onPress={onRegister} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
                   <Text style={styles.linkBold}>Daftar</Text>
                 </TouchableOpacity>
               </View>
@@ -607,6 +639,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     fontFamily: 'Manrope',

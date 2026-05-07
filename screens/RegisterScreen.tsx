@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import api from '../api';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -19,7 +21,6 @@ const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
 // ── Props ──
 interface RegisterScreenProps {
-  onRegister?: (data: { regNumber: string; email: string; username: string; password: string }) => void;
   onLogin?: () => void;
 }
 
@@ -27,8 +28,8 @@ interface RegisterScreenProps {
 const InputField: React.FC<{
   label: string; icon: keyof typeof MaterialIcons.glyphMap;
   placeholder: string; value: string; onChangeText: (t: string) => void;
-  secureTextEntry?: boolean; keyboardType?: 'default' | 'email-address';
-}> = ({ label, icon, placeholder, value, onChangeText, secureTextEntry, keyboardType }) => {
+  secureTextEntry?: boolean; editable?: boolean;
+}> = ({ label, icon, placeholder, value, onChangeText, secureTextEntry, editable = true }) => {
   const [focused, setFocused] = useState(false);
   return (
     <View style={st.fieldGroup}>
@@ -37,7 +38,7 @@ const InputField: React.FC<{
         <MaterialIcons name={icon} size={22} color={focused ? C.primary : C.outline} style={st.inputIcon} />
         <TextInput style={st.textInput} placeholder={placeholder} placeholderTextColor={`${C.outline}99`}
           value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType} autoCapitalize="none" autoCorrect={false}
+          autoCapitalize="none" autoCorrect={false} editable={editable}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
       </View>
     </View>
@@ -45,15 +46,63 @@ const InputField: React.FC<{
 };
 
 // ── Component ──
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) => {
+const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLogin }) => {
+  const navigation = useNavigation();
+
   const [regNumber, setRegNumber] = useState('');
-  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = () => {
-    onRegister?.({ regNumber, email, username, password });
+  const handleRegister = async () => {
+    // Validasi: semua field wajib diisi
+    if (!regNumber.trim() || !username.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert('Peringatan', 'Semua field wajib diisi.');
+      return;
+    }
+
+    // Validasi: password harus sama dengan konfirmasi
+    if (password !== confirmPassword) {
+      Alert.alert('Peringatan', 'Kata sandi dan konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await api.post('/register', {
+        no_reg_hiv: regNumber,
+        username: username,
+        password: password,
+      });
+
+      // Sukses (201)
+      Alert.alert(
+        'Registrasi Berhasil',
+        response.data?.message || 'Akun Anda berhasil dibuat. Silakan login.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigasi kembali ke Login
+              if (onLogin) {
+                onLogin();
+              } else {
+                navigation.navigate('Login' as never);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        'Terjadi kesalahan saat registrasi. Silakan coba lagi.';
+      Alert.alert('Registrasi Gagal', message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -91,21 +140,28 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
 
             {/* ═══ REGISTRATION FORM ═══ */}
             <View style={st.formCard}>
-              <InputField label="No. Registrasi Puskesmas" icon="badge" placeholder="Masukkan nomor registrasi"
-                value={regNumber} onChangeText={setRegNumber} />
-              <InputField label="Email" icon="mail" placeholder="example@email.com"
-                value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <InputField label="No. Registrasi HIV" icon="badge" placeholder="Masukkan nomor registrasi HIV"
+                value={regNumber} onChangeText={setRegNumber} editable={!isLoading} />
               <InputField label="Nama Pengguna" icon="account-circle" placeholder="Pilih alias yang aman"
-                value={username} onChangeText={setUsername} />
+                value={username} onChangeText={setUsername} editable={!isLoading} />
               <InputField label="Kata Sandi" icon="lock" placeholder="••••••••"
-                value={password} onChangeText={setPassword} secureTextEntry />
+                value={password} onChangeText={setPassword} secureTextEntry editable={!isLoading} />
               <InputField label="Konfirmasi Kata Sandi" icon="lock-reset" placeholder="••••••••"
-                value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+                value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry editable={!isLoading} />
 
               {/* Submit */}
               <View style={{ paddingTop: S.sm }}>
-                <TouchableOpacity style={st.submitBtn} onPress={handleRegister} activeOpacity={0.85}>
-                  <Text style={st.submitBtnText}>Buat Akun Aman</Text>
+                <TouchableOpacity
+                  style={[st.submitBtn, isLoading && st.submitBtnDisabled]}
+                  onPress={handleRegister}
+                  activeOpacity={0.85}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={C.onPrimary} />
+                  ) : (
+                    <Text style={st.submitBtnText}>Buat Akun Aman</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -114,7 +170,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
             <View style={st.footer}>
               <View style={st.footerRow}>
                 <Text style={st.footerText}>Sudah punya akun HI!-CARE? </Text>
-                <TouchableOpacity onPress={onLogin} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (onLogin) {
+                      onLogin();
+                    } else {
+                      navigation.navigate('Login' as never);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
                   <Text style={st.footerLink}>Masuk di sini</Text>
                 </TouchableOpacity>
               </View>
@@ -183,6 +248,9 @@ const st = StyleSheet.create({
     width: '100%', paddingVertical: 16, backgroundColor: C.primary, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
+  },
+  submitBtnDisabled: {
+    opacity: 0.7,
   },
   submitBtnText: { fontSize: 16, fontWeight: '600', color: C.onPrimary },
 
