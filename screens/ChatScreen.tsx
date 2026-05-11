@@ -1,11 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert,
+  ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import api from '../api';
 
-// ── Design Tokens (DESIGN.md – Serene Assurance) ──
+// ── Design Tokens ──
 const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
   surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff',
@@ -14,271 +18,401 @@ const C = {
   primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff',
   secondary: '#6b4ab2', background: '#f8f9ff',
+  error: '#ba1a1a', botBg: '#f1f5f9', botText: '#475569',
 } as const;
 
 const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
 // ── Types ──
 interface ChatMessage {
-  id: string;
-  text: string;
-  time: string;
-  sender: 'user' | 'nakes';
-  read?: boolean;
+  id: number | string; pesan: string; sender: 'pasien' | 'nakes' | 'bot';
+  waktu: string; nakes_nama?: string | null;
+}
+interface NakesSchedule {
+  id: number; nakes_id: number; hari: string; jam_mulai: string; jam_selesai: string;
+  nakes: { id: number; nama: string; profesi: string; user?: { nama: string } };
+}
+interface MyConsultation {
+  id: number; nakes_nama: string; nakes_profesi: string; tanggal: string;
+  waktu: string; status: string; chat_status: string; last_message: string;
 }
 
-interface TipCard {
-  title: string;
-  description: string;
-  onReadMore?: () => void;
-}
-
-interface ChatScreenProps {
-  nakesName?: string;
-  nakesRole?: string;
-  nakesAvatarUri?: string;
-  isOnline?: boolean;
-  messages?: ChatMessage[];
-  tipCard?: TipCard | null;
-  onBack?: () => void;
-  onVideoCall?: () => void;
-  onVoiceCall?: () => void;
-  onMore?: () => void;
-  onSend?: (text: string) => void;
-  onAttach?: () => void;
-  onImage?: () => void;
-}
-
-// ── Sample Data ──
-const SAMPLE_MESSAGES: ChatMessage[] = [
-  { id: '1', text: 'Selamat pagi. Bagaimana kabar Anda hari ini? Sudahkah jadwal minum obat pagi ini terpenuhi dengan baik?', time: '08:15', sender: 'nakes' },
-  { id: '2', text: 'Selamat pagi, Bidan Siti. Kabar saya baik. Tadi pagi sudah saya minum jam 7 tepat. Cuma saya agak khawatir sedikit soal efek sampingnya.', time: '08:17', sender: 'user', read: true },
-  { id: '3', text: 'Sangat bagus Anda tetap disiplin! Kekhawatiran itu wajar. Bisa ceritakan lebih detail apa yang Anda rasakan? Apakah mual atau sedikit pusing?', time: '08:20', sender: 'nakes' },
-  { id: '4', text: 'Iya, terasa agak mual kalau perut kosong. Terima kasih sarannya, Bidan. Saya akan coba besok pagi dengan sarapan dulu.', time: '08:25', sender: 'user', read: true },
-];
-
-const SAMPLE_TIP: TipCard = {
-  title: 'Tips Mengelola Mual',
-  description: 'Cobalah minum obat setelah makan ringan atau sebelum tidur untuk mengurangi sensasi mual di siang hari.',
-};
+type ScreenPhase = 'select_nakes' | 'chat';
 
 // ── Component ──
-const ChatScreen: React.FC<ChatScreenProps> = ({
-  nakesName = 'Bidan Siti', nakesRole = 'Konselor ARV',
-  nakesAvatarUri = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDCKiVXujqK8F9V9xrIgvvO_JBMlsEn-uV9MsCD7ux0huAFt8fLnFLClKUC7cR5QrBoqu5JqiTi9aGj3voEYhp7_WYIRmvsHZSA7DREXNY79pibpbbMIpb6i6yCvfu13c7_f7vlV9Wex_aXYA-s3XKP6KC_Akk7aUudPpAewKqxYEhvISfKIVu6wVtHj8KYdBrA-feKHldHhYrhC0P43ZrbIKYrKGuqg9ztL-gKR8Al3biAb83oCyIMqpWd1KKi6IVxNOBPGv0-RI00',
-  isOnline = true, messages = SAMPLE_MESSAGES, tipCard = SAMPLE_TIP,
-  onBack, onVideoCall, onVoiceCall, onMore, onSend, onAttach, onImage,
-}) => {
-  const [inputText, setInputText] = useState('');
+const ChatScreen: React.FC = () => {
+  const navigation = useNavigation();
   const scrollRef = useRef<ScrollView>(null);
 
-  const handleSend = () => {
-    const trimmed = inputText.trim();
-    if (!trimmed) return;
-    onSend?.(trimmed);
-    setInputText('');
+  // Phase state
+  const [phase, setPhase] = useState<ScreenPhase>('select_nakes');
+
+  // Phase 1: Select Nakes
+  const [nakesSchedules, setNakesSchedules] = useState<NakesSchedule[]>([]);
+  const [myConsultations, setMyConsultations] = useState<MyConsultation[]>([]);
+  const [isLoadingNakes, setIsLoadingNakes] = useState(true);
+  const [isBooking, setIsBooking] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
+  // Phase 2: Chat
+  const [konsultasiId, setKonsultasiId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [chatInfo, setChatInfo] = useState<{ nakes_nama: string; nakes_profesi: string; chat_status: string }>({
+    nakes_nama: '', nakes_profesi: '', chat_status: 'bot',
+  });
+
+  // ── Fetch data on focus ──
+  useFocusEffect(useCallback(() => {
+    if (phase === 'select_nakes') { fetchNakesSchedules(); fetchMyConsultations(); }
+  }, [phase]));
+
+  // ── Polling for messages ──
+  useEffect(() => {
+    if (phase !== 'chat' || !konsultasiId) return;
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [phase, konsultasiId]);
+
+  // ═══ API CALLS ═══
+
+  const fetchNakesSchedules = async () => {
+    setIsLoadingNakes(true);
+    try {
+      const res = await api.get('/patient/nakes-schedules');
+      setNakesSchedules(res.data.data || []);
+    } catch (e: any) { console.log('[Chat] fetch nakes error:', e.message); }
+    finally { setIsLoadingNakes(false); }
   };
 
-  return (
-    <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+  const fetchMyConsultations = async () => {
+    try {
+      const res = await api.get('/patient/my-consultations');
+      setMyConsultations(res.data.data || []);
+    } catch (e: any) { console.log('[Chat] fetch consultations error:', e.message); }
+  };
 
-      {/* ═══ TOP APP BAR ═══ */}
-      <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity onPress={onBack} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="arrow-back" size={24} color="#64748b" />
-          </TouchableOpacity>
-          <View style={st.avatarWrap}>
-            <Image source={{ uri: nakesAvatarUri }} style={st.avatar} />
-            {isOnline && <View style={st.onlineDot} />}
-          </View>
-          <View>
-            <Text style={st.nakesName}>{nakesName}</Text>
-            <Text style={st.nakesRole}>{nakesRole}</Text>
-          </View>
+  const handleBooking = async (schedule: NakesSchedule) => {
+    setIsBooking(true);
+    try {
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const res = await api.post('/patient/booking', {
+        nakes_id: schedule.nakes_id,
+        tanggal: tomorrow.toISOString().split('T')[0],
+        waktu: schedule.jam_mulai,
+      });
+      const newId = res.data.data?.id;
+      Alert.alert('Booking Berhasil! 🎉', `Konsultasi berhasil dijadwalkan.`);
+      setShowBookingModal(false);
+      if (newId) { enterChat(newId); }
+      else { fetchMyConsultations(); }
+    } catch (e: any) {
+      Alert.alert('Booking Gagal', e.response?.data?.message || 'Silakan coba lagi.');
+    } finally { setIsBooking(false); }
+  };
+
+  const enterChat = (id: number) => {
+    setKonsultasiId(id);
+    setPhase('chat');
+  };
+
+  const fetchMessages = async () => {
+    if (!konsultasiId) return;
+    try {
+      const res = await api.get(`/chat/${konsultasiId}/messages`);
+      const data = res.data.data;
+      setMessages(data.messages || []);
+      if (data.konsultasi) {
+        setChatInfo({
+          nakes_nama: data.konsultasi.nakes_nama,
+          nakes_profesi: data.konsultasi.nakes_profesi,
+          chat_status: data.konsultasi.chat_status,
+        });
+      }
+    } catch (e: any) { console.log('[Chat] fetch messages error:', e.message); }
+  };
+
+  const handleSend = async () => {
+    const trimmed = inputText.trim();
+    if (!trimmed || !konsultasiId || isSending) return;
+    setIsSending(true);
+    const optimistic: ChatMessage = { id: `temp-${Date.now()}`, pesan: trimmed, sender: 'pasien', waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) };
+    setMessages(prev => [...prev, optimistic]);
+    setInputText('');
+    try {
+      await api.post('/chat/send', { konsultasi_id: konsultasiId, pesan: trimmed });
+      await fetchMessages();
+    } catch (e: any) { Alert.alert('Gagal', 'Pesan gagal dikirim.'); }
+    finally { setIsSending(false); }
+  };
+
+  const goBack = () => { setPhase('select_nakes'); setKonsultasiId(null); setMessages([]); };
+
+  // ═══ RENDER ═══
+
+  if (phase === 'chat') return renderChatPhase();
+  return renderSelectPhase();
+
+  // ── Phase 1: Select Nakes ──
+  function renderSelectPhase() {
+    return (
+      <SafeAreaView style={st.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+        <View style={st.header}>
+          <Text style={st.headerTitle}>💬 Chat & Konsultasi</Text>
         </View>
-        <View style={st.headerRight}>
-          <TouchableOpacity onPress={onVideoCall} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="videocam" size={24} color="#2563eb" />
+        <ScrollView contentContainerStyle={st.selectScroll} showsVerticalScrollIndicator={false}>
+          {/* Booking CTA */}
+          <TouchableOpacity style={st.bookingCta} onPress={() => setShowBookingModal(true)} activeOpacity={0.85}>
+            <View style={st.bookingCtaIcon}><MaterialIcons name="add-circle" size={28} color={C.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.bookingCtaTitle}>Booking Konsultasi Baru</Text>
+              <Text style={st.bookingCtaSub}>Pilih jadwal nakes & mulai chat</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={C.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onVoiceCall} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="call" size={24} color="#2563eb" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onMore} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="more-vert" size={24} color="#2563eb" />
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* ═══ CHAT CONTENT ═══ */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-        <ScrollView ref={scrollRef} contentContainerStyle={st.chatScroll} showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
-
-          {/* Privacy Badge */}
-          <View style={st.privacyBadge}>
-            <MaterialIcons name="verified-user" size={16} color={C.primary} />
-            <Text style={st.privacyText}>Chat ini terlindungi enkripsi end-to-end</Text>
-          </View>
-
-          {/* Date Separator */}
-          <View style={st.dateSep}>
-            <View style={st.dateLine} />
-            <Text style={st.dateText}>HARI INI</Text>
-            <View style={st.dateLine} />
-          </View>
-
-          {/* Messages */}
-          {messages.map((msg, idx) => {
-            const isUser = msg.sender === 'user';
-            // Insert tip card before last user message (index 3)
-            const showTip = tipCard && idx === 3;
-            return (
-              <React.Fragment key={msg.id}>
-                {showTip && (
-                  <View style={st.tipCard}>
-                    <View style={st.tipIconWrap}>
-                      <MaterialIcons name="lightbulb" size={24} color={C.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={st.tipTitle}>{tipCard.title}</Text>
-                      <Text style={st.tipDesc}>{tipCard.description}</Text>
-                      <TouchableOpacity style={st.tipLink} onPress={tipCard.onReadMore} activeOpacity={0.7}>
-                        <Text style={st.tipLinkText}>Baca Selengkapnya</Text>
-                        <MaterialIcons name="chevron-right" size={14} color={C.primary} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-                <View style={[st.bubbleRow, isUser && st.bubbleRowUser]}>
-                  <View style={[st.bubbleCol, isUser && st.bubbleColUser]}>
-                    <View style={[st.bubble, isUser ? st.bubbleUser : st.bubbleNakes]}>
-                      <Text style={[st.bubbleText, isUser && st.bubbleTextUser]}>{msg.text}</Text>
-                    </View>
-                    <View style={[st.timeRow, isUser && st.timeRowUser]}>
-                      <Text style={st.timeText}>{msg.time}</Text>
-                      {isUser && msg.read && (
-                        <MaterialIcons name="done-all" size={14} color={C.primary} />
-                      )}
-                    </View>
-                  </View>
+          {/* Active Consultations */}
+          <Text style={st.sectionTitle}>Konsultasi Aktif</Text>
+          {myConsultations.length === 0 ? (
+            <View style={st.emptyState}>
+              <MaterialIcons name="chat-bubble-outline" size={48} color={C.outlineVariant} />
+              <Text style={st.emptyText}>Belum ada konsultasi aktif</Text>
+              <Text style={st.emptySubtext}>Booking jadwal untuk memulai chat</Text>
+            </View>
+          ) : (
+            myConsultations.map(c => (
+              <TouchableOpacity key={c.id} style={st.consultCard} onPress={() => enterChat(c.id)} activeOpacity={0.7}>
+                <View style={st.consultIcon}>
+                  <MaterialIcons name="person" size={24} color={C.primary} />
                 </View>
-              </React.Fragment>
-            );
-          })}
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={st.consultName}>{c.nakes_nama}</Text>
+                    <View style={[st.statusBadge, c.chat_status === 'bot' ? st.badgeBot : st.badgeNakes]}>
+                      <Text style={[st.statusBadgeText, c.chat_status === 'bot' ? st.badgeBotText : st.badgeNakesText]}>
+                        {c.chat_status === 'bot' ? '🤖 Bot' : '👨‍⚕️ Nakes'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={st.consultProfesi}>{c.nakes_profesi} • {c.tanggal}</Text>
+                  <Text style={st.consultLastMsg} numberOfLines={1}>{c.last_message}</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={24} color={C.outline} />
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
 
-        {/* ═══ INPUT BAR ═══ */}
-        <View style={st.inputBar}>
-          <TouchableOpacity onPress={onAttach} style={st.inputIconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="add-circle" size={26} color="#94a3b8" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onImage} style={st.inputIconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="image" size={26} color="#94a3b8" />
-          </TouchableOpacity>
-          <View style={st.inputWrap}>
-            <TextInput style={st.textInput} placeholder="Ketik pesan..." placeholderTextColor="#94a3b8"
-              value={inputText} onChangeText={setInputText} returnKeyType="send" onSubmitEditing={handleSend} />
+        {/* Booking Modal */}
+        <Modal visible={showBookingModal} animationType="slide" transparent>
+          <View style={st.modalOverlay}>
+            <View style={st.modalContent}>
+              <View style={st.modalHeader}>
+                <Text style={st.modalTitle}>Pilih Jadwal Nakes</Text>
+                <TouchableOpacity onPress={() => setShowBookingModal(false)}><MaterialIcons name="close" size={24} color={C.onSurfaceVariant} /></TouchableOpacity>
+              </View>
+              <Text style={st.modalSubtitle}>Pilih jadwal yang tersedia untuk booking:</Text>
+              {isLoadingNakes ? (
+                <View style={{ paddingVertical: S.xl, alignItems: 'center' }}><ActivityIndicator color={C.primary} /><Text style={{ marginTop: S.sm, fontSize: 12, color: C.outline }}>Memuat...</Text></View>
+              ) : nakesSchedules.length === 0 ? (
+                <View style={{ paddingVertical: S.xl, alignItems: 'center' }}><MaterialIcons name="event-busy" size={48} color={C.outlineVariant} /><Text style={{ marginTop: S.md, fontSize: 14, color: C.outline, textAlign: 'center' }}>Belum ada jadwal tersedia.</Text></View>
+              ) : (
+                <FlatList data={nakesSchedules} keyExtractor={i => String(i.id)} style={{ maxHeight: 350 }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={st.scheduleCard} onPress={() => handleBooking(item)} activeOpacity={0.7} disabled={isBooking}>
+                      <View style={st.scheduleLeft}>
+                        <View style={st.scheduleIconWrap}><MaterialIcons name="person" size={20} color={C.primary} /></View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.scheduleName}>{item.nakes?.user?.nama || item.nakes?.nama || 'Nakes'}</Text>
+                          <Text style={st.scheduleProfesi}>{item.nakes?.profesi || '-'}</Text>
+                          <Text style={st.scheduleTime}>{item.hari} • {item.jam_mulai} - {item.jam_selesai}</Text>
+                        </View>
+                      </View>
+                      <View style={st.bookBtn}><Text style={st.bookBtnText}>{isBooking ? '...' : 'Book'}</Text></View>
+                    </TouchableOpacity>
+                  )} />
+              )}
+            </View>
           </View>
-          <TouchableOpacity style={st.sendBtn} onPress={handleSend} activeOpacity={0.85}>
-            <MaterialIcons name="send" size={22} color="#fff" />
-          </TouchableOpacity>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Phase 2: Live Chat ──
+  function renderChatPhase() {
+    return (
+      <SafeAreaView style={st.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+        {/* Chat Header */}
+        <View style={st.header}>
+          <View style={st.headerLeft}>
+            <TouchableOpacity onPress={goBack} style={st.iconBtn}><MaterialIcons name="arrow-back" size={24} color="#64748b" /></TouchableOpacity>
+            <View style={st.avatarWrap}>
+              <View style={[st.avatar, { backgroundColor: C.primaryContainer, alignItems: 'center', justifyContent: 'center' }]}>
+                <MaterialIcons name="person" size={22} color="#fff" />
+              </View>
+              <View style={st.onlineDot} />
+            </View>
+            <View>
+              <Text style={st.nakesName} numberOfLines={1}>{chatInfo.nakes_nama || 'Tenaga Kesehatan'}</Text>
+              <Text style={st.nakesRole}>{chatInfo.chat_status === 'bot' ? '🤖 Mode Chatbot' : `👨‍⚕️ ${chatInfo.nakes_profesi}`}</Text>
+            </View>
+          </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView ref={scrollRef} contentContainerStyle={st.chatScroll} showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+            {/* Privacy Badge */}
+            <View style={st.privacyBadge}>
+              <MaterialIcons name="verified-user" size={16} color={C.primary} />
+              <Text style={st.privacyText}>Chat ini terlindungi enkripsi end-to-end</Text>
+            </View>
+            {/* Mode Banner */}
+            <View style={[st.modeBanner, chatInfo.chat_status === 'nakes' && st.modeBannerNakes]}>
+              <MaterialIcons name={chatInfo.chat_status === 'bot' ? 'smart-toy' : 'medical-services'} size={18} color={chatInfo.chat_status === 'bot' ? C.botText : C.primary} />
+              <Text style={[st.modeBannerText, chatInfo.chat_status === 'nakes' && { color: C.primary }]}>
+                {chatInfo.chat_status === 'bot' ? 'Chatbot aktif — Nakes akan mengambil alih jika diperlukan' : `Anda terhubung langsung dengan ${chatInfo.nakes_nama}`}
+              </Text>
+            </View>
+
+            {messages.length === 0 && !isLoadingChat && (
+              <View style={st.emptyChat}>
+                <MaterialIcons name="chat" size={48} color={C.outlineVariant} />
+                <Text style={st.emptyChatText}>Kirim pesan pertama Anda!</Text>
+              </View>
+            )}
+
+            {/* Messages */}
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'pasien';
+              const isBot = msg.sender === 'bot';
+              return (
+                <View key={msg.id} style={[st.bubbleRow, isUser && st.bubbleRowUser]}>
+                  <View style={[st.bubbleCol, isUser && st.bubbleColUser]}>
+                    {/* Sender label for bot/nakes */}
+                    {!isUser && (
+                      <View style={st.senderLabel}>
+                        <MaterialIcons name={isBot ? 'smart-toy' : 'medical-services'} size={12} color={isBot ? C.botText : C.secondary} />
+                        <Text style={[st.senderLabelText, !isBot && { color: C.secondary }]}>{isBot ? 'HI!-CARE Bot' : msg.nakes_nama || 'Nakes'}</Text>
+                      </View>
+                    )}
+                    <View style={[st.bubble, isUser ? st.bubbleUser : isBot ? st.bubbleBot : st.bubbleNakes]}>
+                      <Text style={[st.bubbleText, isUser && st.bubbleTextUser]}>{msg.pesan}</Text>
+                    </View>
+                    <Text style={[st.timeText, isUser && { textAlign: 'right' }]}>{msg.waktu}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          {/* Input Bar */}
+          <View style={st.inputBar}>
+            <View style={st.inputWrap}>
+              <TextInput style={st.textInput} placeholder="Ketik pesan..." placeholderTextColor="#94a3b8"
+                value={inputText} onChangeText={setInputText} returnKeyType="send" onSubmitEditing={handleSend} />
+            </View>
+            <TouchableOpacity style={[st.sendBtn, (!inputText.trim() || isSending) && { opacity: 0.5 }]} onPress={handleSend} activeOpacity={0.85} disabled={!inputText.trim() || isSending}>
+              {isSending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="send" size={22} color="#fff" />}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 };
 
 // ── Styles ──
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.surface },
-
   // Header
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 12,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 14, backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: C.primary },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   iconBtn: { padding: 4 },
   avatarWrap: { position: 'relative' },
   avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(42,92,190,0.2)' },
-  onlineDot: {
-    position: 'absolute', bottom: 0, right: 0, width: 12, height: 12,
-    borderRadius: 6, backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff',
-  },
-  nakesName: { fontSize: 16, fontWeight: '700', color: C.onSurface, lineHeight: 20 },
+  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
+  nakesName: { fontSize: 16, fontWeight: '700', color: C.onSurface, maxWidth: 200 },
   nakesRole: { fontSize: 11, fontWeight: '500', color: '#64748b' },
 
-  // Chat area
-  chatScroll: { paddingHorizontal: S.margin, paddingTop: S.lg, paddingBottom: S.md, gap: S.lg },
+  // Select phase
+  selectScroll: { padding: S.margin, paddingBottom: 100 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, marginTop: S.lg, marginBottom: S.md },
+  bookingCta: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: `${C.primary}0A`, borderRadius: 16, padding: S.md, borderWidth: 1.5, borderColor: `${C.primary}30`, borderStyle: 'dashed' },
+  bookingCtaIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' },
+  bookingCtaTitle: { fontSize: 16, fontWeight: '700', color: C.primary },
+  bookingCtaSub: { fontSize: 12, color: C.onSurfaceVariant },
 
-  // Privacy badge
-  privacyBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center',
-    backgroundColor: C.surfaceContainerLow, paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 9999, borderWidth: 1, borderColor: `${C.outlineVariant}4D`,
-  },
+  // Consultation cards
+  consultCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: S.md, marginBottom: S.sm, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
+  consultIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: `${C.primary}12`, alignItems: 'center', justifyContent: 'center' },
+  consultName: { fontSize: 15, fontWeight: '700', color: C.onSurface },
+  consultProfesi: { fontSize: 12, color: C.outline, marginTop: 2 },
+  consultLastMsg: { fontSize: 12, color: C.onSurfaceVariant, marginTop: 4, fontStyle: 'italic' },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 9999 },
+  statusBadgeText: { fontSize: 10, fontWeight: '700' },
+  badgeBot: { backgroundColor: '#f1f5f9' }, badgeBotText: { color: '#475569' },
+  badgeNakes: { backgroundColor: '#eff6ff' }, badgeNakesText: { color: C.primary },
+
+  // Empty state
+  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  emptyText: { fontSize: 16, fontWeight: '600', color: C.onSurfaceVariant },
+  emptySubtext: { fontSize: 13, color: C.outline },
+
+  // Chat phase
+  chatScroll: { paddingHorizontal: S.margin, paddingTop: S.md, paddingBottom: S.md, gap: S.sm },
+  privacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', backgroundColor: C.surfaceContainerLow, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, borderWidth: 1, borderColor: `${C.outlineVariant}4D`, marginBottom: S.sm },
   privacyText: { fontSize: 11, fontWeight: '500', color: C.onSurfaceVariant },
 
-  // Date separator
-  dateSep: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  dateLine: { flex: 1, height: 1, backgroundColor: `${C.outlineVariant}33` },
-  dateText: { marginHorizontal: 16, fontSize: 11, fontWeight: '600', color: '#94a3b8', letterSpacing: 2, textTransform: 'uppercase' },
+  modeBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.botBg, borderRadius: 12, padding: 12, marginBottom: S.sm },
+  modeBannerNakes: { backgroundColor: `${C.primary}0D`, borderWidth: 1, borderColor: `${C.primary}1A` },
+  modeBannerText: { fontSize: 12, color: C.botText, flex: 1, lineHeight: 18 },
+
+  emptyChat: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  emptyChatText: { fontSize: 14, color: C.outline },
 
   // Bubbles
-  bubbleRow: { maxWidth: '85%' },
+  senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2, marginLeft: 4 },
+  senderLabelText: { fontSize: 10, fontWeight: '600', color: C.botText },
+  bubbleRow: { maxWidth: '85%', marginBottom: 4 },
   bubbleRowUser: { alignSelf: 'flex-end' },
-  bubbleCol: { gap: 4 },
+  bubbleCol: { gap: 2 },
   bubbleColUser: { alignItems: 'flex-end' },
-  bubble: { borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 },
-  bubbleNakes: {
-    backgroundColor: '#fff', borderBottomLeftRadius: 0,
-    borderWidth: 1, borderColor: '#f1f5f9',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
-  },
-  bubbleUser: {
-    backgroundColor: C.primary, borderBottomRightRadius: 0,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
-  },
-  bubbleText: { fontSize: 16, lineHeight: 24, color: C.onSurface },
+  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleUser: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
+  bubbleBot: { backgroundColor: C.botBg, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#e2e8f0' },
+  bubbleNakes: { backgroundColor: '#fff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: `${C.secondary}30` },
+  bubbleText: { fontSize: 15, lineHeight: 22, color: C.onSurface },
   bubbleTextUser: { color: C.onPrimary },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 4 },
-  timeRowUser: { marginRight: 4 },
-  timeText: { fontSize: 10, color: '#94a3b8' },
+  timeText: { fontSize: 10, color: '#94a3b8', marginHorizontal: 4 },
 
-  // Tip card
-  tipCard: {
-    flexDirection: 'row', gap: 16, alignItems: 'flex-start',
-    backgroundColor: C.surfaceContainerLow, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: `${C.primary}1A`, maxWidth: '90%',
-  },
-  tipIconWrap: { backgroundColor: `${C.primary}1A`, padding: 8, borderRadius: 12 },
-  tipTitle: { fontSize: 14, fontWeight: '700', color: C.primary, marginBottom: 4 },
-  tipDesc: { fontSize: 12, lineHeight: 18, color: C.onSurfaceVariant, marginBottom: 12 },
-  tipLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  tipLinkText: { fontSize: 12, fontWeight: '700', color: C.primary },
-
-  // Input bar
-  inputBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9',
-  },
-  inputIconBtn: { padding: 4 },
+  // Input
+  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   inputWrap: { flex: 1 },
-  textInput: {
-    backgroundColor: '#f8fafc', borderRadius: 9999,
-    paddingHorizontal: 20, paddingVertical: 10, fontSize: 14, color: C.onSurface,
-  },
-  sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
-  },
+  textInput: { backgroundColor: '#f8fafc', borderRadius: 9999, paddingHorizontal: 20, paddingVertical: 10, fontSize: 14, color: C.onSurface },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: S.lg, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: C.onSurface },
+  modalSubtitle: { fontSize: 14, color: C.onSurfaceVariant, marginBottom: S.md },
+  scheduleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.md, marginBottom: S.sm, borderWidth: 1, borderColor: C.outlineVariant },
+  scheduleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  scheduleIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' },
+  scheduleName: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  scheduleProfesi: { fontSize: 12, color: C.secondary, fontWeight: '600' },
+  scheduleTime: { fontSize: 11, color: C.outline, marginTop: 2 },
+  bookBtn: { backgroundColor: C.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  bookBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
 });
 
 export default ChatScreen;

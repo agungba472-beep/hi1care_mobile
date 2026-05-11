@@ -39,19 +39,29 @@ interface EducationScreenProps {
 
 // ── Sample Data ──
 const ARTICLES: ArticleItem[] = [
-  { id: '1', title: 'Mengenal ARV', desc: 'Panduan lengkap mengenai cara kerja dan kepatuhan minum obat.', badge: 'Artikel',
-    imageUri: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&q=80' },
-  { id: '2', title: 'Nutrisi untuk ODHIV', desc: 'Pilihan makanan terbaik untuk menjaga sistem kekebalan tubuh.', badge: 'Nutrisi',
-    imageUri: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80' },
-  { id: '3', title: 'Hidup Sehat dengan HIV', desc: 'Tips harian untuk menjaga kesehatan fisik dan mental secara optimal.', badge: 'Gaya Hidup',
-    imageUri: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&q=80' },
+  {
+    id: '1', title: 'Mengenal ARV', desc: 'Panduan lengkap mengenai cara kerja dan kepatuhan minum obat.', badge: 'Artikel',
+    imageUri: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&q=80'
+  },
+  {
+    id: '2', title: 'Nutrisi untuk ODHIV', desc: 'Pilihan makanan terbaik untuk menjaga sistem kekebalan tubuh.', badge: 'Nutrisi',
+    imageUri: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80'
+  },
+  {
+    id: '3', title: 'Hidup Sehat dengan HIV', desc: 'Tips harian untuk menjaga kesehatan fisik dan mental secara optimal.', badge: 'Gaya Hidup',
+    imageUri: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&q=80'
+  },
 ];
 
 const VIDEOS: VideoItem[] = [
-  { id: 'v1', title: 'Testimoni: Cerita Pejuang HIV', duration: '3:15',
-    imageUri: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=200&q=80' },
-  { id: 'v2', title: 'Inovasi Pengobatan 2024', duration: '8:42',
-    imageUri: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=200&q=80' },
+  {
+    id: 'v1', title: 'Testimoni: Cerita Pejuang HIV', duration: '3:15',
+    imageUri: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=200&q=80'
+  },
+  {
+    id: 'v2', title: 'Inovasi Pengobatan 2024', duration: '8:42',
+    imageUri: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=200&q=80'
+  },
 ];
 
 // ── Component ──

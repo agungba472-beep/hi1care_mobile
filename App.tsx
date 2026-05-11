@@ -10,9 +10,9 @@ import RegisterScreen from './screens/RegisterScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import MedicationReminderScreen from './screens/MedicationReminderScreen';
 import ChatScreen from './screens/ChatScreen';
+import NakesChatScreen from './screens/NakesChatScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EducationScreen from './screens/EducationScreen';
-import HealthFacilityScreen from './screens/HealthFacilityScreen';
 import BiometricAuthScreen from './screens/BiometricAuthScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
@@ -22,7 +22,7 @@ export type RootStackParamList = {
   BiometricAuth: undefined;
   MainTabs: undefined;
   Education: undefined;
-  HealthFacility: undefined;
+  NakesChat: undefined;
 };
 
 // Pasangkan tipe datanya ke Stack
@@ -39,10 +39,10 @@ function MainTabs() {
           let iconName;
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Schedule') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
-          } else if (route.name === 'Log') {
-            iconName = focused ? 'document-text' : 'document-text-outline';
+          } else if (route.name === 'Alarm') {
+            iconName = focused ? 'alarm' : 'alarm-outline';
+          } else if (route.name === 'Edukasi') {
+            iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Profile') {
@@ -56,8 +56,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={DashboardScreen} />
-      <Tab.Screen name="Schedule" component={MedicationReminderScreen} />
-      <Tab.Screen name="Log" component={EducationScreen} />
+      <Tab.Screen name="Alarm" component={MedicationReminderScreen} />
+      <Tab.Screen name="Edukasi" component={EducationScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -68,7 +68,6 @@ function MainTabs() {
 export default function App() {
   return (
     <NavigationContainer>
-      {/* Sensei kembalikan ke Login agar bisa tes integrasi API-nya */}
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         
         {/* --- DUNIA BELUM LOGIN --- */}
@@ -81,7 +80,7 @@ export default function App() {
         
         {/* --- HALAMAN EKSTRA --- */}
         <Stack.Screen name="Education" component={EducationScreen} />
-        <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
+        <Stack.Screen name="NakesChat" component={NakesChatScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

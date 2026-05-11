@@ -102,6 +102,29 @@ const Spacing = {
   margin: 20,
 } as const;
 
+// ── Reusable Input Field (OUTSIDE component to prevent remount) ──
+const LoginInputField: React.FC<{
+  label: string; icon: keyof typeof MaterialIcons.glyphMap;
+  placeholder: string; value: string; onChangeText: (t: string) => void;
+  secureTextEntry?: boolean; editable?: boolean;
+  rightIcon?: React.ReactNode;
+}> = ({ label, icon, placeholder, value, onChangeText, secureTextEntry, editable = true, rightIcon }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
+      <View style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}>
+        <MaterialIcons name={icon} size={22} color={focused ? Colors.primary : Colors.outline} style={styles.inputIcon} />
+        <TextInput style={styles.textInput} placeholder={placeholder} placeholderTextColor={`${Colors.outline}80`}
+          value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          autoCapitalize="none" autoCorrect={false} editable={editable} />
+        {rightIcon}
+      </View>
+    </View>
+  );
+};
+
 // ────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────
@@ -113,11 +136,8 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleLogin = async () => {
-    // Validasi input kosong
     if (!identifier.trim() || !password.trim()) {
       Alert.alert('Peringatan', 'Username dan password tidak boleh kosong.');
       return;
@@ -125,269 +145,143 @@ const LoginScreen: React.FC = () => {
 
     setIsLoading(true);
 
-    try {
+   try {
       const response = await api.post('/login', {
         username: identifier,
         password: password,
       });
 
+      console.log("=== BALASAN SUKSES LOGIN ===", response.data);
+
       const { token } = response.data;
-
-      // Simpan token ke AsyncStorage
       await AsyncStorage.setItem('userToken', token);
+      
+      console.log("Token tersimpan, mencoba pindah ke Dashboard...");
 
-      // Navigasi ke MainTabs
       navigation.reset({
         index: 0,
-        routes: [{ name: 'MainTabs' }],
+        routes: [{ name: 'MainTabs' as never }],
       });
+
     } catch (error: any) {
+      console.log("=== ERROR LOGIN ===", error.response?.data || error.message);
+
       const message =
         error.response?.data?.message ||
-        'Terjadi kesalahan. Silakan coba lagi.';
+        'Username atau password salah.';
       Alert.alert('Login Gagal', message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const scrollContent = (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.bgDecoTop} />
+      <View style={styles.bgDecoBottom} />
+
+      <View style={styles.container}>
+        <View style={styles.brandingSection}>
+          <View style={styles.brandIcon}>
+            <MaterialIcons name="health-and-safety" size={32} color={Colors.onPrimaryContainer} />
+          </View>
+          <Text style={styles.brandTitle}>HI!-CARE</Text>
+          <View style={styles.brandSubRow}>
+            <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+              <Text style={styles.linkBold}>Daftar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.formHeader}>
+            <Text style={styles.headlineMd}>Selamat datang kembali</Text>
+            <Text style={styles.bodyMdVariant}>Masuk untuk mengakses dashboard Anda</Text>
+          </View>
+
+          <LoginInputField label="Username" icon="person" placeholder="e.g. patrick_care"
+            value={identifier} onChangeText={setIdentifier} editable={!isLoading} />
+
+          <LoginInputField label="Kata Sandi" icon="lock" placeholder="••••••••"
+            value={password} onChangeText={setPassword} secureTextEntry={!showPassword} editable={!isLoading}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPassword((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} activeOpacity={0.6}>
+                <MaterialIcons name={showPassword ? 'visibility-off' : 'visibility'} size={22} color={Colors.outline} />
+              </TouchableOpacity>
+            } />
+
+          <View style={styles.utilitiesRow}>
+            <TouchableOpacity style={styles.toggleRow} onPress={() => setRememberMe((v) => !v)} activeOpacity={0.7}>
+              <View style={[styles.toggleTrack, rememberMe && styles.toggleTrackActive]}>
+                <View style={[styles.toggleThumb, rememberMe && styles.toggleThumbActive]} />
+              </View>
+              <Text style={styles.toggleLabel}>Ingat Saya</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')} activeOpacity={0.7}>
+              <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.actionSection}>
+            <TouchableOpacity style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} onPress={handleLogin} activeOpacity={0.85} disabled={isLoading}>
+              <Text style={styles.loginButtonText}>{isLoading ? 'Memproses...' : 'Masuk'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ATAU</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.registerRow}>
+            <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+              <Text style={styles.linkBold}>Daftar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.trustSection}>
+          <View style={styles.trustIcons}>
+            <MaterialIcons name="verified-user" size={28} color={Colors.outline} style={styles.trustIcon} />
+            <MaterialIcons name="enhanced-encryption" size={28} color={Colors.outline} style={styles.trustIcon} />
+            <MaterialIcons name="privacy-tip" size={28} color={Colors.outline} style={styles.trustIcon} />
+          </View>
+          <Text style={styles.trustText}>
+            Data kesehatan Anda terenkripsi dan aman.{'\n'}HI!-CARE mengikuti standar privasi klinis.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <View style={styles.footerBar} />
+      </View>
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ── Background Decorations ── */}
-          <View style={styles.bgDecoTop} />
-          <View style={styles.bgDecoBottom} />
-
-          <View style={styles.container}>
-            {/* ═══════════════════════════════════
-                Branding Section
-            ═══════════════════════════════════ */}
-            <View style={styles.brandingSection}>
-              <View style={styles.brandIcon}>
-                <MaterialIcons
-                  name="health-and-safety"
-                  size={32}
-                  color={Colors.onPrimaryContainer}
-                />
-              </View>
-              <Text style={styles.brandTitle}>HI!-CARE</Text>
-              <View style={styles.brandSubRow}>
-                <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-                  <Text style={styles.linkBold}>Daftar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* ═══════════════════════════════════
-                Login Card
-            ═══════════════════════════════════ */}
-            <View style={styles.card}>
-              {/* Form Header */}
-              <View style={styles.formHeader}>
-                <Text style={styles.headlineMd}>Selamat datang kembali</Text>
-                <Text style={styles.bodyMdVariant}>
-                  Masuk untuk mengakses dashboard Anda
-                </Text>
-              </View>
-
-              {/* ── Username / Email Input ── */}
-              <View style={styles.inputGroup}>
-                <Text
-                  style={[
-                    styles.label,
-                    isIdentifierFocused && styles.labelFocused,
-                  ]}
-                >
-                  Username
-                </Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    isIdentifierFocused && styles.inputWrapperFocused,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="person"
-                    size={22}
-                    color={isIdentifierFocused ? Colors.primary : Colors.outline}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g. patrick_care"
-                    placeholderTextColor={`${Colors.outline}80`}
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    onFocus={() => setIsIdentifierFocused(true)}
-                    onBlur={() => setIsIdentifierFocused(false)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isLoading}
-                  />
-                </View>
-              </View>
-
-              {/* ── Password Input ── */}
-              <View style={styles.inputGroup}>
-                <Text
-                  style={[
-                    styles.label,
-                    isPasswordFocused && styles.labelFocused,
-                  ]}
-                >
-                  Kata Sandi
-                </Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    isPasswordFocused && styles.inputWrapperFocused,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="lock"
-                    size={22}
-                    color={isPasswordFocused ? Colors.primary : Colors.outline}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="••••••••"
-                    placeholderTextColor={`${Colors.outline}80`}
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setIsPasswordFocused(true)}
-                    onBlur={() => setIsPasswordFocused(false)}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    editable={!isLoading}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword((v) => !v)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    activeOpacity={0.6}
-                  >
-                    <MaterialIcons
-                      name={showPassword ? 'visibility-off' : 'visibility'}
-                      size={22}
-                      color={Colors.outline}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* ── Utilities Row ── */}
-              <View style={styles.utilitiesRow}>
-                {/* Remember Me Toggle */}
-                <TouchableOpacity
-                  style={styles.toggleRow}
-                  onPress={() => setRememberMe((v) => !v)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.toggleTrack,
-                      rememberMe && styles.toggleTrackActive,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.toggleThumb,
-                        rememberMe && styles.toggleThumbActive,
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.toggleLabel}>Ingat Saya</Text>
-                </TouchableOpacity>
-
-                {/* Forgot Password */}
-                <TouchableOpacity
-                  onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* ── Login Button ── */}
-              <View style={styles.actionSection}>
-                <TouchableOpacity
-                  style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-                  onPress={handleLogin}
-                  activeOpacity={0.85}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.loginButtonText}>
-                    {isLoading ? 'Memproses...' : 'Masuk'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* ── Divider ── */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ATAU</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* ── Register CTA ── */}
-              <View style={styles.registerRow}>
-                <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-                  <Text style={styles.linkBold}>Daftar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* ═══════════════════════════════════
-                Trust Badges
-            ═══════════════════════════════════ */}
-            <View style={styles.trustSection}>
-              <View style={styles.trustIcons}>
-                <MaterialIcons
-                  name="verified-user"
-                  size={28}
-                  color={Colors.outline}
-                  style={styles.trustIcon}
-                />
-                <MaterialIcons
-                  name="enhanced-encryption"
-                  size={28}
-                  color={Colors.outline}
-                  style={styles.trustIcon}
-                />
-                <MaterialIcons
-                  name="privacy-tip"
-                  size={28}
-                  color={Colors.outline}
-                  style={styles.trustIcon}
-                />
-              </View>
-              <Text style={styles.trustText}>
-                Data kesehatan Anda terenkripsi dan aman.{'\n'}HI!-CARE mengikuti
-                standar privasi klinis.
-              </Text>
-            </View>
-          </View>
-
-          {/* ── Footer Decoration ── */}
-          <View style={styles.footer}>
-            <View style={styles.footerBar} />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView style={styles.keyboardView} behavior="padding">
+          {scrollContent}
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={styles.keyboardView}>
+          {scrollContent}
+        </View>
+      )}
     </SafeAreaView>
   );
 };
+
+
 
 // ────────────────────────────────────────────
 // Styles

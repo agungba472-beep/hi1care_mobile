@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image,
+  ScrollView, StatusBar, Image, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../api';
 
 // ── Design Tokens ──
 const C = {
@@ -33,7 +36,6 @@ interface ProfileScreenProps {
   onMenuPress?: () => void;
   onPrivacyToggle?: () => void;
   onAccountSettings?: () => void;
-  onLogout?: () => void;
 }
 
 const DEFAULT_PROFILE: ProfileData = {
@@ -72,10 +74,43 @@ const InfoField: React.FC<{ label: string; value: string }> = ({ label, value })
 // ── Component ──
 const ProfileScreen: React.FC<ProfileScreenProps> = ({
   profile = DEFAULT_PROFILE, onMenuPress, onPrivacyToggle,
-  onAccountSettings, onLogout,
+  onAccountSettings,
 }) => {
+  const navigation = useNavigation();
   const [hiddenNotif, setHiddenNotif] = useState(true);
   const [biometricLock, setBiometricLock] = useState(true);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Konfirmasi Logout',
+      'Apakah Anda yakin ingin keluar dari akun ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Panggil API logout ke server (opsional, Sanctum revoke token)
+              await api.post('/logout');
+            } catch (e) {
+              // Jika gagal (misal offline), tetap lanjut hapus sesi lokal
+              console.log('[Logout] Server logout gagal, tetap hapus sesi lokal:', e);
+            }
+            // Hapus token dari storage lokal
+            await AsyncStorage.removeItem('userToken');
+            // Reset navigasi ke halaman Login
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              })
+            );
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -196,7 +231,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
-          <TouchableOpacity style={st.logoutBtn} onPress={onLogout} activeOpacity={0.7}>
+          <TouchableOpacity style={st.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
             <MaterialIcons name="logout" size={24} color={C.error} />
             <Text style={st.logoutText}>Logout</Text>
           </TouchableOpacity>

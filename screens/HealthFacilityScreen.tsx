@@ -89,10 +89,7 @@ const HealthFacilityScreen: React.FC<HealthFacilityScreenProps> = ({
 }) => {
   const [searchText, setSearchText] = useState('');
   const [activeFilter, setActiveFilter] = useState('Terdekat');
-  const [activeTab, setActiveTab] = useState('');
-
   const handleFilter = (f: string) => { setActiveFilter(f); onFilterPress?.(f); };
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -212,22 +209,6 @@ const HealthFacilityScreen: React.FC<HealthFacilityScreenProps> = ({
         <View style={{ height: 90 }} />
       </ScrollView>
 
-      {/* ═══ BOTTOM NAV ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Beranda' }, { icon: 'medication', label: 'Jadwal' },
-          { icon: 'edit-note', label: 'Log' }, { icon: 'chat', label: 'Chat' }, { icon: 'person', label: 'Profil' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24} color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
     </SafeAreaView>
   );
 };
@@ -328,19 +309,6 @@ const st = StyleSheet.create({
   },
   routeBtnDisabled: { backgroundColor: C.outline, opacity: 0.7 },
   routeBtnText: { fontSize: 14, fontWeight: '700', color: C.onPrimary },
-
-  // Bottom Nav
-  bottomNav: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 12, paddingBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)', borderTopWidth: 1, borderTopColor: '#e2e8f0',
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
-  },
-  navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  navItemActive: { backgroundColor: '#eff6ff' },
-  navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8', fontWeight: '700' },
 });
 
 export default HealthFacilityScreen;
