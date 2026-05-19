@@ -1,43 +1,54 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image, Dimensions,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import api from '../api';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
-  surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff', surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  onPrimaryContainer: '#d1dcff', primaryFixed: '#dae2ff',
-  secondary: '#6b4ab2', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
-  tertiary: '#42495c', error: '#ba1a1a', background: '#f8f9ff',
-  inverseSurface: '#233144', inverseOnSurface: '#eaf1ff',
+  surface: '#f8f9ff',
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#eff4ff',
+  surfaceContainer: '#e6eeff',
+  surfaceContainerHigh: '#dce9ff',
+  surfaceContainerHighest: '#d5e3fc',
+  surfaceVariant: '#d5e3fc',
+  onSurface: '#0d1c2e',
+  onSurfaceVariant: '#434652',
+  outline: '#737784',
+  outlineVariant: '#c3c6d5',
+  primary: '#0043a2',
+  onPrimary: '#ffffff',
+  primaryContainer: '#2a5cbe',
+  onPrimaryContainer: '#d1dcff',
+  primaryFixed: '#dae2ff',
+  secondary: '#6b4ab2',
+  onSecondary: '#ffffff',
+  secondaryContainer: '#b191fd',
+  tertiary: '#42495c',
+  error: '#ba1a1a',
+  background: '#f8f9ff',
+  inverseSurface: '#233144',
+  inverseOnSurface: '#eaf1ff',
 } as const;
 
 const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
 const { width: SCREEN_W } = Dimensions.get('window');
 const BENTO_HALF = (SCREEN_W - S.margin * 2 - S.gutter) / 2;
-
-// ── Props ──
-interface DashboardScreenProps {
-  userName?: string;
-  compliancePercent?: number;
-  complianceDelta?: string;
-  onMenuPress?: () => void;
-  onPrivacyToggle?: () => void;
-  onProfilePress?: () => void;
-  onTakeMedicine?: () => void;
-  onChatNakes?: () => void;
-  onEducation?: () => void;
-  onSearchFacility?: () => void;
-  onViewAllTips?: () => void;
-  onFabPress?: () => void;
-}
+const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
 // ── Circular Progress ──
 const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: number }> = ({
@@ -53,7 +64,7 @@ const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: n
         position: 'absolute', width: size, height: size, borderRadius: size / 2,
         borderWidth: strokeWidth, borderColor: C.surfaceContainerHigh,
       }} />
-      {/* Progress – simplified as a thick bordered circle with clip */}
+      {/* Progress */}
       <View style={{
         position: 'absolute', width: size, height: size, borderRadius: size / 2,
         borderWidth: strokeWidth, borderColor: C.primary,
@@ -66,12 +77,67 @@ const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: n
 };
 
 // ── Component ──
-const DashboardScreen: React.FC<DashboardScreenProps> = ({
-  userName = 'Patient User', compliancePercent = 98, complianceDelta = '+2% dari minggu lalu',
-  onMenuPress, onPrivacyToggle, onProfilePress, onTakeMedicine,
-  onChatNakes, onEducation, onSearchFacility, onViewAllTips, onFabPress,
-}) => {
+const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
+  const [compliancePercent, setCompliancePercent] = useState(0);
+  const [alarmsToday, setAlarmsToday] = useState<any[]>([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/patient/dashboard');
+      const d = res.data.data;
+      setUserName(d.user?.nama || 'Pasien');
+
+      // Hitung persentase kepatuhan dari 5 catatan terakhir
+      const kep = d.pasien_info?.kepatuhan || [];
+      if (kep.length > 0) {
+        const diminum = kep.filter((k: any) => k.status === 'diminum').length;
+        setCompliancePercent(Math.round((diminum / kep.length) * 100));
+      } else {
+        setCompliancePercent(0);
+      }
+
+      setAlarmsToday(d.alarm_hari_ini || []);
+    } catch (err: any) {
+      console.log('[Dashboard] Error:', err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboard();
+    }, [fetchDashboard])
+  );
+
+  const handleTakeMedicine = async () => {
+    setTrackingLoading(true);
+    try {
+      await api.post('/patient/kepatuhan/track', { status: 'diminum' });
+      Alert.alert('Berhasil ✅', 'Status kepatuhan obat hari ini telah dicatat.');
+      fetchDashboard();
+    } catch (err: any) {
+      Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.');
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  // ── Loading State ──
+  if (loading) {
+    return (
+      <SafeAreaView style={st.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={C.background} />
+        <ActivityIndicator size="large" color={C.primary} />
+        <Text style={st.loadingText}>Memuat dashboard...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={st.safe}>
@@ -80,13 +146,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
       {/* ═══ TOP APP BAR ═══ */}
       <View style={st.header}>
         <View style={st.headerLeft}>
-          <TouchableOpacity onPress={onMenuPress} style={st.iconBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
             <MaterialIcons name="menu" size={24} color={C.primary} />
           </TouchableOpacity>
           <Text style={st.headerTitle}>HI!-CARE</Text>
         </View>
         <View style={st.headerRight}>
-          <TouchableOpacity onPress={onPrivacyToggle} style={st.iconBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
             <MaterialIcons name="visibility-off" size={24} color={C.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Profile' as never)} activeOpacity={0.7}>
@@ -103,9 +169,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <View style={st.greeting}>
           <View style={st.greetRow}>
             <Text style={st.greetName}>Hello, {userName}</Text>
-            <Text style={st.greetDay}>Hari ini Senin</Text>
+            <Text style={st.greetDay}>Hari ini {HARI[new Date().getDay()]}</Text>
           </View>
-          <Text style={st.greetSub}>Tetap konsisten dengan perawatan Anda hari ini. Anda luar biasa!</Text>
+          <Text style={st.greetSub}>
+            Tetap konsisten dengan perawatan Anda hari ini. Anda luar biasa!
+          </Text>
         </View>
 
         {/* ── BENTO GRID ── */}
@@ -118,7 +186,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
               <Text style={st.complianceVal}>{compliancePercent}%</Text>
               <View style={st.trendRow}>
                 <MaterialIcons name="trending-up" size={14} color={C.secondary} />
-                <Text style={st.trendText}>{complianceDelta}</Text>
+                <Text style={st.trendText}>Dari 5 catatan terakhir</Text>
               </View>
             </View>
             <CircularProgress percent={compliancePercent} size={80} strokeWidth={6} />
@@ -137,21 +205,54 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.priorityText}>PRIORITAS</Text>
               </View>
             </View>
-            {/* ARV Item */}
-            <View style={st.arvItem}>
-              <View style={st.arvLeft}>
-                <View style={st.arvIconWrap}>
-                  <MaterialIcons name="schedule" size={16} color="#fff" />
+
+            {alarmsToday.length > 0 ? (
+              alarmsToday.map((alarm: any, idx: number) => (
+                <View style={st.arvItem} key={alarm.id || idx}>
+                  <View style={st.arvLeft}>
+                    <View style={st.arvIconWrap}>
+                      <MaterialIcons name="schedule" size={16} color="#fff" />
+                    </View>
+                    <View>
+                      <Text style={st.arvName}>ARV — {alarm.waktu}</Text>
+                      <Text style={st.arvDose}>Status: {alarm.status || 'aktif'}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={st.arvBtn}
+                    onPress={handleTakeMedicine}
+                    activeOpacity={0.85}
+                    disabled={trackingLoading}
+                  >
+                    <Text style={st.arvBtnText}>
+                      {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <View>
-                  <Text style={st.arvName}>ARV (Dolutegravir)</Text>
-                  <Text style={st.arvDose}>Minum 1x sehari</Text>
+              ))
+            ) : (
+              <View style={st.arvItem}>
+                <View style={st.arvLeft}>
+                  <View style={st.arvIconWrap}>
+                    <MaterialIcons name="check-circle" size={16} color="#fff" />
+                  </View>
+                  <View>
+                    <Text style={st.arvName}>Tidak ada jadwal hari ini</Text>
+                    <Text style={st.arvDose}>Atau data belum tersedia</Text>
+                  </View>
                 </View>
+                <TouchableOpacity
+                  style={st.arvBtn}
+                  onPress={handleTakeMedicine}
+                  activeOpacity={0.85}
+                  disabled={trackingLoading}
+                >
+                  <Text style={st.arvBtnText}>
+                    {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={st.arvBtn} onPress={onTakeMedicine} activeOpacity={0.85}>
-                <Text style={st.arvBtnText}>MINUM SEKARANG</Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
 
           {/* Row: Chat + Edukasi (half-width each) */}
@@ -163,7 +264,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickTitle}>Chat dengan Nakes</Text>
                 <Text style={st.quickSub}>Dukungan profesional 24/7</Text>
               </View>
-              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.secondary }]} onPress={() => navigation.navigate('Chat' as never)} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[st.quickBtn, { backgroundColor: C.secondary }]}
+                onPress={() => navigation.navigate('Chat' as never)}
+                activeOpacity={0.85}
+              >
                 <Text style={st.quickBtnText}>Chat Sekarang</Text>
               </TouchableOpacity>
             </View>
@@ -174,10 +279,32 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickTitle}>Edukasi</Text>
                 <Text style={st.quickSub}>Tips & sumber daya perawatan</Text>
               </View>
-              <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary }]} onPress={() => navigation.navigate('Education' as never)} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[st.quickBtn, { backgroundColor: C.primary }]}
+                onPress={() => navigation.navigate('Edukasi' as never)}
+                activeOpacity={0.85}
+              >
                 <Text style={st.quickBtnText}>Jelajahi</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Catatan Harian (full width) */}
+          <View style={st.faskesCard}>
+            <View style={st.faskesLeft}>
+              <MaterialIcons name="auto-stories" size={28} color={C.secondary} />
+              <View>
+                <Text style={st.quickTitle}>Catatan Harian</Text>
+                <Text style={st.quickSub}>Catat kondisi kesehatanmu</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[st.quickBtn, { backgroundColor: C.secondary, paddingHorizontal: 16 }]}
+              onPress={() => navigation.navigate('Diary' as never)}
+              activeOpacity={0.85}
+            >
+              <Text style={st.quickBtnText}>Tulis</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Cari Faskes (full width) */}
@@ -189,7 +316,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <Text style={st.quickSub}>Temukan klinik & RS terdekat</Text>
               </View>
             </View>
-            <TouchableOpacity style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 16 }]} onPress={() => navigation.navigate('HealthFacility' as never)} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 16 }]}
+              onPress={() => navigation.navigate('HealthFacility' as never)}
+              activeOpacity={0.85}
+            >
               <Text style={st.quickBtnText}>Cari</Text>
             </TouchableOpacity>
           </View>
@@ -199,7 +330,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <View style={st.tipsSection}>
           <View style={st.tipsTitleRow}>
             <Text style={st.tipsTitle}>Tips Kesehatan Harian</Text>
-            <TouchableOpacity onPress={onViewAllTips} activeOpacity={0.7}>
+            <TouchableOpacity activeOpacity={0.7}>
               <Text style={st.tipsLink}>LIHAT SEMUA</Text>
             </TouchableOpacity>
           </View>
@@ -221,7 +352,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
       </ScrollView>
 
       {/* ═══ FAB ═══ */}
-      <TouchableOpacity style={st.fab} onPress={onFabPress} activeOpacity={0.85}>
+      <TouchableOpacity style={st.fab} activeOpacity={0.85} onPress={() => navigation.navigate('Diary' as never)}>
         <MaterialIcons name="add" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
@@ -230,116 +361,368 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
 // ── Styles ──
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.background },
-  scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
+  /* ── Loading ── */
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: C.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: S.md,
+    fontSize: 16,
+    color: C.outline,
+  },
 
-  // Header
+  /* ── Root ── */
+  safe: {
+    flex: 1,
+    backgroundColor: C.background,
+  },
+  scroll: {
+    paddingHorizontal: S.margin,
+    paddingTop: S.lg,
+  },
+
+  /* ── Header ── */
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 12,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: S.margin,
+    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  iconBtn: { padding: 4, borderRadius: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBtn: {
+    padding: 4,
+    borderRadius: 20,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1d4ed8',
+    letterSpacing: -0.3,
+  },
   avatar: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: C.primaryContainer,
-    alignItems: 'center', justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  // Greeting
-  greeting: { gap: S.sm, marginBottom: S.lg },
-  greetRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  greetName: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onSurface },
-  greetDay: { fontSize: 14, color: C.secondary },
-  greetSub: { fontSize: 16, lineHeight: 24, color: C.onSurfaceVariant },
+  /* ── Greeting ── */
+  greeting: {
+    gap: S.sm,
+    marginBottom: S.lg,
+  },
+  greetRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  greetName: {
+    fontSize: 24,
+    fontWeight: '600',
+    lineHeight: 32,
+    color: C.onSurface,
+  },
+  greetDay: {
+    fontSize: 14,
+    color: C.secondary,
+  },
+  greetSub: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: C.onSurfaceVariant,
+  },
 
-  // Bento Grid
-  bentoGrid: { gap: S.gutter },
-  bentoRow: { flexDirection: 'row', gap: S.gutter },
+  /* ── Bento Grid ── */
+  bentoGrid: {
+    gap: S.gutter,
+  },
+  bentoRow: {
+    flexDirection: 'row',
+    gap: S.gutter,
+  },
 
-  // Compliance
+  /* ── Compliance Card ── */
   complianceCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.surfaceContainerLowest, borderRadius: 12, padding: S.md,
-    borderWidth: 1, borderColor: '#e2e8f0',
-    shadowColor: '#1e3a5f', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: C.surfaceContainerLowest,
+    borderRadius: 12,
+    padding: S.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#1e3a5f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   labelUpper: {
-    fontSize: 12, fontWeight: '500', lineHeight: 16, letterSpacing: 1.2,
-    color: C.outline, textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+    letterSpacing: 1.2,
+    color: C.outline,
+    textTransform: 'uppercase',
   },
-  complianceVal: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.primary },
-  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  trendText: { fontSize: 12, fontWeight: '600', color: C.secondary },
+  complianceVal: {
+    fontSize: 24,
+    fontWeight: '600',
+    lineHeight: 32,
+    color: C.primary,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trendText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.secondary,
+  },
 
-  // Regimen
+  /* ── Regimen Card ── */
   regimenCard: {
-    backgroundColor: C.primaryContainer, borderRadius: 12, padding: S.md, gap: S.md,
-    shadowColor: '#1e3a5f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 6,
+    backgroundColor: C.primaryContainer,
+    borderRadius: 12,
+    padding: S.md,
+    gap: S.md,
+    shadowColor: '#1e3a5f',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  regimenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  regimenTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  regimenIconWrap: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 4, borderRadius: 8 },
-  regimenTitle: { fontSize: 18, fontWeight: '700', lineHeight: 28, color: C.onPrimaryContainer },
-  priorityBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-  priorityText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: C.onPrimaryContainer, textTransform: 'uppercase' },
+  regimenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  regimenTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  regimenIconWrap: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 4,
+    borderRadius: 8,
+  },
+  regimenTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 28,
+    color: C.onPrimaryContainer,
+  },
+  priorityBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  priorityText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: C.onPrimaryContainer,
+    textTransform: 'uppercase',
+  },
   arvItem: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, padding: S.sm,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    padding: S.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  arvLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  arvLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
   arvIconWrap: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  arvName: { fontSize: 14, fontWeight: '700', color: C.onPrimaryContainer },
-  arvDose: { fontSize: 12, color: C.onPrimaryContainer, opacity: 0.8 },
-  arvBtn: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  arvBtnText: { fontSize: 10, fontWeight: '700', color: C.primary },
+  arvName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onPrimaryContainer,
+  },
+  arvDose: {
+    fontSize: 12,
+    color: C.onPrimaryContainer,
+    opacity: 0.8,
+  },
+  arvBtn: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  arvBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.primary,
+  },
 
-  // Quick Access Cards
+  /* ── Quick Access Cards ── */
   quickCard: {
-    backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.md,
-    borderWidth: 1, borderColor: '#e2e8f0', justifyContent: 'space-between', gap: S.sm,
+    backgroundColor: C.surfaceContainerLow,
+    borderRadius: 12,
+    padding: S.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'space-between',
+    gap: S.sm,
   },
-  quickTitle: { fontSize: 14, fontWeight: '700', color: C.onSurface },
-  quickSub: { fontSize: 10, color: C.outline },
-  quickBtn: { paddingVertical: 8, borderRadius: 8, alignItems: 'center', marginTop: S.sm },
-  quickBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  quickTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  quickSub: {
+    fontSize: 10,
+    color: C.outline,
+  },
+  quickBtn: {
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: S.sm,
+  },
+  quickBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
 
-  // Faskes
+  /* ── Faskes Card ── */
   faskesCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.surfaceContainerHigh, borderRadius: 12, padding: S.md,
-    borderWidth: 1, borderColor: '#e2e8f0',
-    shadowColor: '#1e3a5f', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: C.surfaceContainerHigh,
+    borderRadius: 12,
+    padding: S.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#1e3a5f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  faskesLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  faskesLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
 
-  // Tips Section
-  tipsSection: { gap: S.md, marginTop: S.lg },
-  tipsTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tipsTitle: { fontSize: 18, fontWeight: '600', lineHeight: 28, color: C.onSurface },
-  tipsLink: { fontSize: 12, fontWeight: '700', color: C.primary, textTransform: 'uppercase' },
-  articleCard: { borderRadius: 16, overflow: 'hidden', aspectRatio: 16 / 9, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 },
-  articleImg: { width: '100%', height: '100%' },
+  /* ── Tips Section ── */
+  tipsSection: {
+    gap: S.md,
+    marginTop: S.lg,
+  },
+  tipsTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tipsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 28,
+    color: C.onSurface,
+  },
+  tipsLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.primary,
+    textTransform: 'uppercase',
+  },
+  articleCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    aspectRatio: 16 / 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  articleImg: {
+    width: '100%',
+    height: '100%',
+  },
   articleOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: S.md, paddingBottom: S.md, paddingTop: 40,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: S.md,
+    paddingBottom: S.md,
+    paddingTop: 40,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  articleTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  articleMeta: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  articleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  articleMeta: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
 
-  // FAB
+  /* ── FAB ── */
   fab: {
-    position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28,
-    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });
 

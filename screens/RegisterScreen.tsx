@@ -122,8 +122,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
   return (
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
-      <View style={st.bgTop} />
-      <View style={st.bgBottom} />
+      <View style={[st.bgTop, { zIndex: -1, elevation: 0 }]} pointerEvents="none" />
+      <View style={[st.bgBottom, { zIndex: -1, elevation: 0 }]} pointerEvents="none" />
       {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           {scrollContent}

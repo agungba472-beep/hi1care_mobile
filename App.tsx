@@ -14,6 +14,8 @@ import NakesChatScreen from './screens/NakesChatScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EducationScreen from './screens/EducationScreen';
 import BiometricAuthScreen from './screens/BiometricAuthScreen';
+import DiaryScreen from './screens/DiaryScreen';
+import HealthFacilityScreen from './screens/HealthFacilityScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
 export type RootStackParamList = {
@@ -23,6 +25,8 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Education: undefined;
   NakesChat: undefined;
+  Diary: undefined;
+  HealthFacility: undefined;
 };
 
 // Pasangkan tipe datanya ke Stack
@@ -81,6 +85,8 @@ export default function App() {
         {/* --- HALAMAN EKSTRA --- */}
         <Stack.Screen name="Education" component={EducationScreen} />
         <Stack.Screen name="NakesChat" component={NakesChatScreen} />
+        <Stack.Screen name="Diary" component={DiaryScreen} />
+        <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

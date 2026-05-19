@@ -332,7 +332,12 @@ const ChatScreen: React.FC = () => {
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.surface },
   // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 14, backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: S.margin, paddingVertical: 12,
+    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
   headerTitle: { fontSize: 20, fontWeight: '700', color: C.primary },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBtn: { padding: 4 },
@@ -367,7 +372,7 @@ const st = StyleSheet.create({
   emptySubtext: { fontSize: 13, color: C.outline },
 
   // Chat phase
-  chatScroll: { paddingHorizontal: S.margin, paddingTop: S.md, paddingBottom: S.md, gap: S.sm },
+  chatScroll: { paddingHorizontal: S.margin, paddingTop: S.lg, paddingBottom: S.md, gap: S.lg },
   privacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', backgroundColor: C.surfaceContainerLow, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, borderWidth: 1, borderColor: `${C.outlineVariant}4D`, marginBottom: S.sm },
   privacyText: { fontSize: 11, fontWeight: '500', color: C.onSurfaceVariant },
 
@@ -381,23 +386,45 @@ const st = StyleSheet.create({
   // Bubbles
   senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2, marginLeft: 4 },
   senderLabelText: { fontSize: 10, fontWeight: '600', color: C.botText },
-  bubbleRow: { maxWidth: '85%', marginBottom: 4 },
+  bubbleRow: { maxWidth: '85%' },
   bubbleRowUser: { alignSelf: 'flex-end' },
-  bubbleCol: { gap: 2 },
+  bubbleCol: { gap: 4 },
   bubbleColUser: { alignItems: 'flex-end' },
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
-  bubbleBot: { backgroundColor: C.botBg, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#e2e8f0' },
-  bubbleNakes: { backgroundColor: '#fff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: `${C.secondary}30` },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: C.onSurface },
+  bubble: { borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 },
+  bubbleUser: {
+    backgroundColor: C.primary, borderBottomRightRadius: 0,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
+  },
+  bubbleBot: {
+    backgroundColor: C.botBg, borderBottomLeftRadius: 0,
+    borderWidth: 1, borderColor: '#f1f5f9',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+  },
+  bubbleNakes: {
+    backgroundColor: '#fff', borderBottomLeftRadius: 0,
+    borderWidth: 1, borderColor: '#f1f5f9',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+  },
+  bubbleText: { fontSize: 16, lineHeight: 24, color: C.onSurface },
   bubbleTextUser: { color: C.onPrimary },
-  timeText: { fontSize: 10, color: '#94a3b8', marginHorizontal: 4 },
+  timeText: { fontSize: 10, color: '#94a3b8' },
 
   // Input
-  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  inputBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9',
+  },
   inputWrap: { flex: 1 },
-  textInput: { backgroundColor: '#f8fafc', borderRadius: 9999, paddingHorizontal: 20, paddingVertical: 10, fontSize: 14, color: C.onSurface },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  textInput: {
+    backgroundColor: '#f8fafc', borderRadius: 9999,
+    paddingHorizontal: 20, paddingVertical: 10, fontSize: 14, color: C.onSurface,
+  },
+  sendBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
+  },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

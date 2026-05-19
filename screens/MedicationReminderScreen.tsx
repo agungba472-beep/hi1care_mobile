@@ -1,11 +1,12 @@
-import React from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image,
-} from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Alert, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as DocumentPicker from 'expo-document-picker';
+import { Audio } from 'expo-av';
+import api from '../api';
 
-// ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
   surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff', surfaceContainerHighest: '#d5e3fc',
@@ -17,271 +18,304 @@ const C = {
   secondaryFixed: '#eaddff', onSecondaryFixed: '#24005b', secondaryFixedDim: '#d1bcff',
   tertiary: '#42495c', error: '#ba1a1a', background: '#f8f9ff', onBackground: '#0d1c2e',
 } as const;
+const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
+const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, size }) => (
+  <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: 'rgba(255,255,255,0.2)' }} />
+    <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: '#fff', borderRightColor: percent < 100 ? 'rgba(255,255,255,0.2)' : '#fff', transform: [{ rotate: '-90deg' }] }} />
+    <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{percent}%</Text>
+  </View>
+);
 
-// ── Props ──
-interface MedicationReminderScreenProps {
-  compliancePercent?: number;
-  morningDoseTime?: string;
-  refillDaysLeft?: number;
-  refillDate?: string;
-  todayDate?: string;
-  onMenuPress?: () => void;
-  onPrivacyToggle?: () => void;
-}
+const MedicationReminderScreen: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [alarms, setAlarms] = useState<any[]>([]);
+  const [refills, setRefills] = useState<any[]>([]);
+  const [compliancePercent, setCompliancePercent] = useState(0);
+  const [refillLoading, setRefillLoading] = useState(false);
 
-// ── Circular Progress ──
-const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, size }) => {
-  const sw = 6;
-  const r = (size - sw) / 2;
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{
-        position: 'absolute', width: size, height: size, borderRadius: size / 2,
-        borderWidth: sw, borderColor: 'rgba(255,255,255,0.2)',
-      }} />
-      <View style={{
-        position: 'absolute', width: size, height: size, borderRadius: size / 2,
-        borderWidth: sw, borderColor: '#fff',
-        borderRightColor: percent < 100 ? 'rgba(255,255,255,0.2)' : '#fff',
-        transform: [{ rotate: '-90deg' }],
-      }} />
-      <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{percent}%</Text>
-    </View>
+  // Alarm settings
+  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedSoundName, setSelectedSoundName] = useState('Belum dipilih');
+  const [selectedSoundUri, setSelectedSoundUri] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  const fmtTime = useMemo(() => {
+    const h = selectedTime.getHours().toString().padStart(2, '0');
+    const m = selectedTime.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }, [selectedTime]);
+
+  const fmtDate = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const mo = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    const d = selectedDate.getDate().toString().padStart(2, '0');
+    return `${y}-${mo}-${d}`;
+  }, [selectedDate]);
+
+  const fmtDateDisplay = useMemo(() => selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), [selectedDate]);
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => { soundRef.current?.unloadAsync(); };
+  }, []);
+
+  // ── Fetch ──
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [aR, rR, dR] = await Promise.all([
+        api.get('/patient/alarms'), api.get('/patient/refill-history'), api.get('/patient/dashboard'),
+      ]);
+      setAlarms(aR.data.data || []);
+      setRefills(rR.data.data || []);
+      const kep = dR.data.data?.pasien_info?.kepatuhan || [];
+      if (kep.length > 0) {
+        const diminum = kep.filter((k: any) => k.status === 'diminum').length;
+        setCompliancePercent(Math.round((diminum / kep.length) * 100));
+      }
+    } catch (e: any) { console.log('[MedReminder]', e.response?.data || e.message); }
+    finally { setLoading(false); }
+  }, []);
+  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  // ── Refill ──
+  const handleRefill = async () => {
+    setRefillLoading(true);
+    try { await api.post('/patient/refill/request'); Alert.alert('Berhasil ✅', 'Permintaan refill berhasil diajukan.'); fetchData(); }
+    catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengajukan refill.'); }
+    finally { setRefillLoading(false); }
+  };
+
+  // ── Audio ──
+  const pickAudio = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
+      if (!res.canceled && res.assets?.[0]) {
+        const a = res.assets[0];
+        setSelectedSoundName(a.name || 'Custom Audio');
+        setSelectedSoundUri(a.uri);
+        await stopSound();
+      }
+    } catch { Alert.alert('Error', 'Gagal memilih file audio.'); }
+  };
+
+  const playSound = async () => {
+    if (!selectedSoundUri) { Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); return; }
+    try {
+      await stopSound();
+      const { sound } = await Audio.Sound.createAsync({ uri: selectedSoundUri }, { shouldPlay: true });
+      soundRef.current = sound;
+      setIsPlaying(true);
+      sound.setOnPlaybackStatusUpdate((s) => { if ('didJustFinish' in s && s.didJustFinish) { setIsPlaying(false); sound.unloadAsync(); soundRef.current = null; } });
+    } catch { Alert.alert('Error', 'Tidak dapat memutar audio.'); }
+  };
+
+  const stopSound = async () => {
+    if (soundRef.current) { await soundRef.current.stopAsync(); await soundRef.current.unloadAsync(); soundRef.current = null; }
+    setIsPlaying(false);
+  };
+
+  // ── Save ──
+  const handleSave = async () => {
+    if (selectedSoundName === 'Belum dipilih') { Alert.alert('Peringatan', 'Pilih nada dering terlebih dahulu.'); return; }
+    setSavingSettings(true);
+    try {
+      await api.post('/patient/alarms/settings', { waktu: fmtTime, tanggal: fmtDate, nada_dering: selectedSoundName });
+      Alert.alert('Berhasil ✅', `Alarm ${fmtTime} pada ${fmtDateDisplay} disimpan.`);
+      fetchData();
+    } catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan.'); }
+    finally { setSavingSettings(false); }
+  };
+
+  // ── Pickers ──
+  const onTimeChange = (event: any, d?: Date) => {
+    if (Platform.OS === 'android') setShowTimePicker(false);
+    if (event.type === 'set' && d) setSelectedTime(d);
+  };
+  const onDateChange = (event: any, d?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (event.type === 'set' && d) setSelectedDate(d);
+  };
+
+  const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);
+  const latestRefill = refills[0] || null;
+  const pendingRefill = refills.find((r: any) => r.status === 'pending');
+
+  if (loading) return (
+    <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat data pengingat...</Text></SafeAreaView>
   );
-};
-
-// ── Component ──
-const MedicationReminderScreen: React.FC<MedicationReminderScreenProps> = ({
-  compliancePercent = 98, morningDoseTime = '08:02 AM',
-  refillDaysLeft = 12, refillDate = '05 Nov 2023', todayDate = 'Oct 24, 2023',
-  onMenuPress, onPrivacyToggle,
-}) => {
 
   return (
-    <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.background} />
-
-      {/* ═══ TOP APP BAR ═══ */}
-      <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity onPress={onMenuPress} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="menu" size={24} color="#2563eb" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>HI!-CARE</Text>
-        </View>
-        <TouchableOpacity onPress={onPrivacyToggle} style={st.iconBtn} activeOpacity={0.7}>
-          <MaterialIcons name="visibility-off" size={24} color="#64748b" />
-        </TouchableOpacity>
-      </View>
-
-      {/* ═══ SCROLLABLE CONTENT ═══ */}
+    <SafeAreaView style={st.safe}><StatusBar barStyle="dark-content" backgroundColor={C.background} />
+      <View style={st.header}><View style={st.headerL}><TouchableOpacity style={st.iBtn}><MaterialIcons name="menu" size={24} color="#2563eb" /></TouchableOpacity><Text style={st.headerT}>HI!-CARE</Text></View><TouchableOpacity style={st.iBtn}><MaterialIcons name="visibility-off" size={24} color="#64748b" /></TouchableOpacity></View>
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* ── Adherence Hero ── */}
-        <View style={st.heroCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={st.heroTitle}>Tetap Kuat</Text>
-            <Text style={st.heroSub}>Kepatuhan ARV harian di {compliancePercent}%</Text>
-          </View>
-          <CircleProgress percent={compliancePercent} size={80} />
-        </View>
+        {/* Hero */}
+        <View style={st.hero}><View style={{ flex: 1 }}><Text style={st.heroT}>Tetap Kuat</Text><Text style={st.heroS}>Kepatuhan ARV harian di {compliancePercent}%</Text></View><CircleProgress percent={compliancePercent} size={80} /></View>
 
-        {/* ── Jadwal Hari Ini ── */}
-        <View style={st.section}>
-          <View style={st.sectionHeader}>
-            <Text style={st.sectionTitle}>Jadwal Hari Ini</Text>
-            <Text style={st.sectionDate}>{todayDate}</Text>
-          </View>
-
-          {/* Bento Grid */}
-          <View style={st.bentoGrid}>
-            {/* Taken Dose — full width */}
-            <View style={st.doseCard}>
-              <View style={st.doseLeft}>
-                <View style={st.doseIconWrap}>
-                  <MaterialIcons name="check-circle" size={24} color={C.onSecondaryFixed} />
-                </View>
-                <View>
-                  <Text style={st.doseTitle}>Dosis Pagi</Text>
-                  <Text style={st.doseTime}>Hari ini, {morningDoseTime}</Text>
-                </View>
+        {/* Jadwal */}
+        <View style={st.sec}>
+          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{todayStr}</Text></View>
+          <View style={{ gap: S.md }}>
+            {todayAlarms.length > 0 ? todayAlarms.map((al: any, i: number) => (
+              <View style={st.dose} key={al.id || i}>
+                <View style={st.doseL}><View style={st.doseIc}><MaterialIcons name={al.status === 'sudah_diminum' ? 'check-circle' : 'schedule'} size={24} color={C.onSecondaryFixed} /></View>
+                <View><Text style={st.doseT}>Dosis — {al.waktu}</Text><Text style={st.doseSub}>Status: {al.status || 'aktif'}</Text></View></View>
+                <View style={st.doseBdg}><Text style={st.doseBdgT}>{al.status === 'sudah_diminum' ? 'DIMINUM' : 'TERJADWAL'}</Text></View>
               </View>
-              <View style={st.doseBadge}>
-                <Text style={st.doseBadgeText}>SUDAH DIMINUM</Text>
-              </View>
-            </View>
-
-            {/* Row: Smart Alarms + Refill (half-width) */}
-            <View style={st.bentoRow}>
-              {/* Smart Alarms */}
-              <View style={st.smallCard}>
-                <View style={st.smallCardHeader}>
-                  <MaterialIcons name="notifications-active" size={24} color={C.primary} />
-                  <View style={st.toggleTrack}>
-                    <View style={st.toggleThumbOn} />
-                  </View>
-                </View>
-                <Text style={st.smallCardTitle}>Smart Alarms</Text>
-                <Text style={st.smallCardSub}>Critical alerts enabled for all daily doses.</Text>
-              </View>
-
-              {/* Refill Countdown */}
-              <View style={st.smallCard}>
-                <View style={st.smallCardHeader}>
-                  <MaterialIcons name="calendar-today" size={24} color={C.secondary} />
-                  <Text style={st.refillDays}>{refillDaysLeft} Hari</Text>
-                </View>
-                <Text style={st.smallCardTitle}>Waktu Isi Ulang</Text>
-                <Text style={st.smallCardSub}>Resep berakhir pada {refillDate}.</Text>
-              </View>
+            )) : (
+              <View style={st.dose}><View style={st.doseL}><View style={st.doseIc}><MaterialIcons name="event-busy" size={24} color={C.onSecondaryFixed} /></View><View><Text style={st.doseT}>Tidak ada jadwal</Text><Text style={st.doseSub}>Belum ada alarm hari ini</Text></View></View></View>
+            )}
+            <View style={{ flexDirection: 'row', gap: S.md }}>
+              <View style={st.smCard}><View style={st.smCardH}><MaterialIcons name="notifications-active" size={24} color={C.primary} /><View style={st.togTrk}><View style={st.togThm} /></View></View><Text style={st.smCardT}>Smart Alarms</Text><Text style={st.smCardS}>{alarms.length} alarm terdaftar.</Text></View>
+              <View style={st.smCard}><View style={st.smCardH}><MaterialIcons name="calendar-today" size={24} color={C.secondary} /><Text style={st.refDays}>{refills.length} Riwayat</Text></View><Text style={st.smCardT}>Refill Obat</Text><Text style={st.smCardS}>{latestRefill ? `Siklus ke-${latestRefill.siklus_ke}` : 'Belum ada'}</Text></View>
             </View>
           </View>
         </View>
 
-        {/* ── Log Aktivitas ── */}
-        <View style={st.section}>
-          <Text style={st.sectionTitle}>Log Aktivitas</Text>
-          {/* Timeline Entry */}
-          <View style={st.timelineRow}>
-            <View style={st.timelineDotCol}>
-              <View style={st.timelineDot} />
-              <View style={st.timelineLine} />
+        {/* ═══ ATUR ALARM BARU ═══ */}
+        <View style={st.sec}>
+          <Text style={st.secT}>Atur Alarm Baru</Text>
+
+          {/* Time & Date Row */}
+          <View style={st.card}>
+            <View style={st.cardH}><MaterialIcons name="access-time" size={22} color={C.primary} /><Text style={st.cardHT}>Waktu & Tanggal</Text></View>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
+                <MaterialIcons name="schedule" size={22} color={C.primary} />
+                <View><Text style={st.pickerLbl}>Jam</Text><Text style={st.pickerVal}>{fmtTime}</Text></View>
+              </TouchableOpacity>
+              <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                <MaterialIcons name="event" size={22} color={C.secondary} />
+                <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
+              </TouchableOpacity>
             </View>
-            <View style={st.timelineContent}>
-              <Text style={st.timelineDate}>Hari ini, {morningDoseTime}</Text>
-              <View style={st.logCard}>
-                <MaterialIcons name="history" size={16} color={C.secondary} />
-                <Text style={st.logText}>Dosis pagi dicatat (Isentress)</Text>
+            {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={onTimeChange} />}
+            {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={onDateChange} minimumDate={new Date()} />}
+          </View>
+
+          {/* Custom Ringtone */}
+          <View style={st.card}>
+            <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Nada Dering</Text></View>
+
+            {/* Current selection */}
+            <View style={st.audioInfo}>
+              <MaterialIcons name={selectedSoundUri ? 'audiotrack' : 'music-off'} size={20} color={selectedSoundUri ? C.primary : C.outline} />
+              <Text style={[st.audioName, selectedSoundUri && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>{selectedSoundName}</Text>
+            </View>
+
+            {/* Buttons */}
+            <TouchableOpacity style={st.audioPickBtn} onPress={pickAudio} activeOpacity={0.8}>
+              <MaterialIcons name="folder-open" size={20} color={C.onPrimary} />
+              <Text style={st.audioPickTxt}>Pilih Audio dari Perangkat</Text>
+            </TouchableOpacity>
+
+            {selectedSoundUri && (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity style={[st.previewBtn, { flex: 1, backgroundColor: isPlaying ? C.outline : C.secondaryContainer }]} onPress={isPlaying ? stopSound : playSound} activeOpacity={0.8}>
+                  <MaterialIcons name={isPlaying ? 'stop' : 'play-arrow'} size={22} color={isPlaying ? '#fff' : C.onSecondaryFixed} />
+                  <Text style={[st.previewTxt, isPlaying && { color: '#fff' }]}>{isPlaying ? 'Stop' : 'Preview Nada'}</Text>
+                </TouchableOpacity>
               </View>
+            )}
+          </View>
+
+          {/* Save */}
+          <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
+            <MaterialIcons name="save" size={20} color="#fff" />
+            <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Alarm'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Refill */}
+        <View style={st.sec}>
+          <Text style={st.secT}>Pengisian Ulang Obat</Text>
+          {pendingRefill ? (
+            <View style={[st.refBtn, { backgroundColor: C.outline }]}><MaterialIcons name="hourglass-top" size={20} color="#fff" /><Text style={st.refBtnT}>Menunggu Persetujuan Refill...</Text></View>
+          ) : (
+            <TouchableOpacity style={st.refBtn} onPress={handleRefill} activeOpacity={0.85} disabled={refillLoading}>
+              <MaterialIcons name="local-pharmacy" size={20} color="#fff" /><Text style={st.refBtnT}>{refillLoading ? 'Memproses...' : 'Ajukan Refill Obat'}</Text>
+            </TouchableOpacity>
+          )}
+          {refills.length > 0 && (
+            <View style={{ gap: S.sm, marginTop: S.md }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Riwayat Refill</Text>
+              {refills.slice(0, 5).map((r: any, i: number) => (
+                <View style={st.logC} key={r.id || i}><MaterialIcons name="history" size={16} color={C.secondary} />
+                  <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' ? '#16a34a' : r.status === 'pending' ? C.secondary : C.outline }}>{r.status}</Text></Text>
+                </View>
+              ))}
             </View>
-          </View>
+          )}
         </View>
 
-        {/* ── Privacy Section ── */}
-        <View style={st.privacyCard}>
-          <View style={st.privacyImgWrap}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&q=80' }}
-              style={st.privacyImg}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={st.privacyText}>
-            Data kesehatan Anda terenkripsi dan tetap sepenuhnya pribadi.
-          </Text>
-        </View>
-
-        {/* Bottom spacer */}
+        {/* Privacy */}
+        <View style={st.privCard}><MaterialIcons name="enhanced-encryption" size={36} color={C.primary} style={{ opacity: 0.5 }} /><Text style={st.privTxt}>Data kesehatan Anda terenkripsi dan tetap sepenuhnya pribadi.</Text></View>
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// ── Styles ──
 const st = StyleSheet.create({
+  loadWrap: { flex: 1, backgroundColor: C.background, justifyContent: 'center', alignItems: 'center' },
+  loadTxt: { marginTop: S.md, fontSize: 16, color: C.outline },
   safe: { flex: 1, backgroundColor: C.background },
   scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
-
-  // Header
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 12,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  iconBtn: { padding: 8, borderRadius: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
-
-  // Hero
-  heroCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.primaryContainer, padding: S.lg, borderRadius: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
-    marginBottom: S.lg, overflow: 'hidden',
-  },
-  heroTitle: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: '#fff', marginBottom: S.xs },
-  heroSub: { fontSize: 16, lineHeight: 24, color: C.primaryFixedDim, opacity: 0.9 },
-
-  // Section
-  section: { gap: S.md, marginBottom: S.lg },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  sectionTitle: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onBackground },
-  sectionDate: { fontSize: 12, fontWeight: '500', lineHeight: 16, letterSpacing: 0.24, color: C.outline },
-
-  // Bento
-  bentoGrid: { gap: S.md },
-  bentoRow: { flexDirection: 'row', gap: S.md },
-
-  // Dose Card (full-width)
-  doseCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.surfaceContainerLowest, borderRadius: 12, padding: S.md,
-    borderWidth: 1, borderColor: '#e2e8f0',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
-  },
-  doseLeft: { flexDirection: 'row', alignItems: 'center', gap: S.md },
-  doseIconWrap: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: C.secondaryFixed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  doseTitle: { fontSize: 16, fontWeight: '600', color: C.onSurface },
-  doseTime: { fontSize: 12, fontWeight: '500', lineHeight: 16, color: C.outline },
-  doseBadge: {
-    backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999,
-  },
-  doseBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
-
-  // Small Cards (half-width)
-  smallCard: {
-    flex: 1, backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.md, gap: S.sm,
-  },
-  smallCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  smallCardTitle: { fontSize: 14, fontWeight: '700', color: C.onSurface },
-  smallCardSub: { fontSize: 10, color: C.outline, lineHeight: 14 },
-
-  // Toggle
-  toggleTrack: {
-    width: 32, height: 16, borderRadius: 8, backgroundColor: C.primaryContainer, justifyContent: 'center',
-  },
-  toggleThumbOn: {
-    position: 'absolute', right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff',
-  },
-
-  // Refill
-  refillDays: { fontSize: 12, fontWeight: '700', color: C.secondary },
-
-  // Timeline
-  timelineRow: { flexDirection: 'row', gap: S.md },
-  timelineDotCol: { alignItems: 'center' },
-  timelineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.secondary },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#e2e8f0', marginTop: 4 },
-  timelineContent: { flex: 1, paddingBottom: S.lg },
-  timelineDate: { fontSize: 12, fontWeight: '500', color: C.outline, marginBottom: 4 },
-  logCard: {
-    flexDirection: 'row', alignItems: 'center', gap: S.sm,
-    backgroundColor: '#fff', padding: S.md, borderRadius: 12,
-    borderWidth: 1, borderColor: '#e2e8f0',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
-  },
-  logText: { fontSize: 14, color: C.onSurface },
-
-  // Privacy
-  privacyCard: {
-    backgroundColor: '#eff6ff', borderRadius: 16, padding: S.xl,
-    borderWidth: 1, borderColor: '#dbeafe', alignItems: 'center', gap: S.md,
-  },
-  privacyImgWrap: {
-    width: 128, height: 128, borderRadius: 64, overflow: 'hidden',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#dbeafe',
-  },
-  privacyImg: { width: '100%', height: '100%', opacity: 0.6 },
-  privacyText: { fontSize: 14, color: C.primary, textAlign: 'center', maxWidth: 200 },
-
-
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
+  headerL: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  iBtn: { padding: 8, borderRadius: 20 },
+  headerT: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.primaryContainer, padding: S.lg, borderRadius: 12, elevation: 6, marginBottom: S.lg, overflow: 'hidden' },
+  heroT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: '#fff', marginBottom: S.xs },
+  heroS: { fontSize: 16, lineHeight: 24, color: C.primaryFixedDim, opacity: 0.9 },
+  sec: { gap: S.md, marginBottom: S.lg },
+  secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  secT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onBackground },
+  secD: { fontSize: 12, fontWeight: '500', color: C.outline },
+  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 12, padding: S.md, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
+  doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  doseIc: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.secondaryFixed, alignItems: 'center', justifyContent: 'center' },
+  doseT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
+  doseSub: { fontSize: 12, fontWeight: '500', color: C.outline },
+  doseBdg: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
+  doseBdgT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
+  smCard: { flex: 1, backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.md, gap: S.sm },
+  smCardH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  smCardT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  smCardS: { fontSize: 12, color: C.outline },
+  togTrk: { width: 32, height: 16, borderRadius: 8, backgroundColor: C.primaryContainer, justifyContent: 'center' },
+  togThm: { position: 'absolute', right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff' },
+  refDays: { fontSize: 13, fontWeight: '700', color: C.secondary },
+  refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, elevation: 4 },
+  refBtnT: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  logC: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#fff', padding: S.md, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
+  logT: { fontSize: 14, color: C.onSurface, flex: 1 },
+  privCard: { backgroundColor: '#eff6ff', borderRadius: 16, padding: S.xl, borderWidth: 1, borderColor: '#dbeafe', alignItems: 'center', gap: S.md },
+  privTxt: { fontSize: 14, color: C.primary, textAlign: 'center', maxWidth: 200 },
+  // Settings
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: S.md, borderWidth: 1, borderColor: '#e2e8f0', gap: 12, elevation: 1 },
+  cardH: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  cardHT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
+  pickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryFixed, paddingVertical: 14, paddingHorizontal: S.md, borderRadius: 10 },
+  pickerLbl: { fontSize: 11, fontWeight: '500', color: C.outline, textTransform: 'uppercase', letterSpacing: 0.5 },
+  pickerVal: { fontSize: 18, fontWeight: '700', color: C.primary },
+  audioInfo: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.surfaceContainerLow, padding: 12, borderRadius: 10 },
+  audioName: { fontSize: 14, color: C.onSurfaceVariant, flex: 1 },
+  audioPickBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 12, borderRadius: 10 },
+  audioPickTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  previewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingVertical: 12, borderRadius: 10 },
+  previewTxt: { fontSize: 14, fontWeight: '600', color: C.onSecondaryFixed },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primaryContainer, paddingVertical: 16, borderRadius: 12, elevation: 6 },
+  saveTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });
 
 export default MedicationReminderScreen;

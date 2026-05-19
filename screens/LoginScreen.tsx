@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,112 +18,47 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { RootStackParamList } from '../App';
+import * as LocalAuthentication from 'expo-local-authentication';
 
-// ────────────────────────────────────────────
-// Design Tokens (from DESIGN.md – Serene Assurance)
-// ────────────────────────────────────────────
 const Colors = {
-  // Surfaces
   surface: '#f8f9ff',
   surfaceDim: '#ccdbf3',
-  surfaceBright: '#f8f9ff',
   surfaceContainerLowest: '#ffffff',
   surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff',
-  surfaceContainerHigh: '#dce9ff',
-  surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc',
-  surfaceTint: '#2759bb',
-
-  // On-Surface
+  surfaceContainer: '#e3ecfe',
+  surfaceContainerHigh: '#d7e4fb',
+  surfaceContainerHighest: '#cddcf8',
+  surfaceVariant: '#dde2f0',
   onSurface: '#0d1c2e',
   onSurfaceVariant: '#434652',
-
-  // Inverse
-  inverseSurface: '#233144',
-  inverseOnSurface: '#eaf1ff',
-
-  // Outline
   outline: '#737784',
   outlineVariant: '#c3c6d5',
-
-  // Primary
   primary: '#0043a2',
   onPrimary: '#ffffff',
   primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff',
-  inversePrimary: '#b1c5ff',
-
-  // Secondary
+  primaryFixed: '#d6e2ff',
+  onPrimaryFixed: '#001a41',
   secondary: '#6b4ab2',
   onSecondary: '#ffffff',
-  secondaryContainer: '#b191fd',
-  onSecondaryContainer: '#44208a',
-
-  // Tertiary
-  tertiary: '#42495c',
+  secondaryContainer: '#865cd6',
+  secondaryFixed: '#e8ddff',
+  tertiary: '#00696a',
   onTertiary: '#ffffff',
-  tertiaryContainer: '#596175',
-  onTertiaryContainer: '#d5dcf4',
-
-  // Error
   error: '#ba1a1a',
-  onError: '#ffffff',
-  errorContainer: '#ffdad6',
-  onErrorContainer: '#93000a',
-
-  // Fixed
-  primaryFixed: '#dae2ff',
-  primaryFixedDim: '#b1c5ff',
-  onPrimaryFixed: '#001946',
-  onPrimaryFixedVariant: '#00419e',
-  secondaryFixed: '#eaddff',
-  secondaryFixedDim: '#d1bcff',
-  onSecondaryFixed: '#24005b',
-  onSecondaryFixedVariant: '#523198',
-  tertiaryFixed: '#dbe2fa',
-  tertiaryFixedDim: '#bfc6dd',
-  onTertiaryFixed: '#141b2c',
-  onTertiaryFixedVariant: '#3f4759',
-
-  // Background
   background: '#f8f9ff',
   onBackground: '#0d1c2e',
 } as const;
 
 const Spacing = {
-  unit: 4,
   xs: 4,
   sm: 8,
   md: 16,
   lg: 24,
   xl: 32,
-  gutter: 16,
+  gutter: 20,
   margin: 20,
 } as const;
-
-// ── Reusable Input Field (OUTSIDE component to prevent remount) ──
-const LoginInputField: React.FC<{
-  label: string; icon: keyof typeof MaterialIcons.glyphMap;
-  placeholder: string; value: string; onChangeText: (t: string) => void;
-  secureTextEntry?: boolean; editable?: boolean;
-  rightIcon?: React.ReactNode;
-}> = ({ label, icon, placeholder, value, onChangeText, secureTextEntry, editable = true, rightIcon }) => {
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={styles.inputGroup}>
-      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
-      <View style={[styles.inputWrapper, focused && styles.inputWrapperFocused]}>
-        <MaterialIcons name={icon} size={22} color={focused ? Colors.primary : Colors.outline} style={styles.inputIcon} />
-        <TextInput style={styles.textInput} placeholder={placeholder} placeholderTextColor={`${Colors.outline}80`}
-          value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-          autoCapitalize="none" autoCorrect={false} editable={editable} />
-        {rightIcon}
-      </View>
-    </View>
-  );
-};
 
 // ────────────────────────────────────────────
 // Component
@@ -137,151 +72,263 @@ const LoginScreen: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ── Biometric Authentication ──
+  useEffect(() => {
+    const checkBiometric = async () => {
+      try {
+        // 1. Cek apakah sudah punya token (pernah login sebelumnya)
+        const storedToken = await AsyncStorage.getItem('userToken');
+        if (!storedToken) return;
+
+        // 2. Cek apakah user mengaktifkan biometrik dari Profil
+        const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
+        if (biometricEnabled !== 'true') return;
+
+        // 2. Cek apakah hardware mendukung biometrik
+        const compatible = await LocalAuthentication.hasHardwareAsync();
+        if (!compatible) return;
+
+        // 3. Cek apakah ada sidik jari/face terdaftar di HP
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        if (!enrolled) return;
+
+        // 4. Prompt biometrik
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Gunakan Sidik Jari untuk masuk ke HI!-CARE',
+          cancelLabel: 'Gunakan Password',
+          disableDeviceFallback: true,
+        });
+
+        // 5. Jika berhasil, langsung ke Dashboard
+        if (result.success) {
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      } catch (err) {
+        console.log('[Biometric] Error:', err);
+      }
+    };
+
+    checkBiometric();
+  }, [navigation]);
+
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
       Alert.alert('Peringatan', 'Username dan password tidak boleh kosong.');
       return;
     }
-
     setIsLoading(true);
-
-   try {
-      const response = await api.post('/login', {
-        username: identifier,
-        password: password,
-      });
-
+    try {
+      const response = await api.post('/login', { username: identifier, password: password });
       console.log("=== BALASAN SUKSES LOGIN ===", response.data);
-
       const { token } = response.data;
       await AsyncStorage.setItem('userToken', token);
-      
-      console.log("Token tersimpan, mencoba pindah ke Dashboard...");
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' as never }],
-      });
-
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' as never }] });
     } catch (error: any) {
       console.log("=== ERROR LOGIN ===", error.response?.data || error.message);
-
-      const message =
-        error.response?.data?.message ||
-        'Username atau password salah.';
-      Alert.alert('Login Gagal', message);
+      Alert.alert('Login Gagal', error.response?.data?.message || 'Username atau password salah.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const scrollContent = (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.bgDecoTop} />
-      <View style={styles.bgDecoBottom} />
-
-      <View style={styles.container}>
-        <View style={styles.brandingSection}>
-          <View style={styles.brandIcon}>
-            <MaterialIcons name="health-and-safety" size={32} color={Colors.onPrimaryContainer} />
-          </View>
-          <Text style={styles.brandTitle}>HI!-CARE</Text>
-          <View style={styles.brandSubRow}>
-            <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-              <Text style={styles.linkBold}>Daftar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.formHeader}>
-            <Text style={styles.headlineMd}>Selamat datang kembali</Text>
-            <Text style={styles.bodyMdVariant}>Masuk untuk mengakses dashboard Anda</Text>
-          </View>
-
-          <LoginInputField label="Username" icon="person" placeholder="e.g. patrick_care"
-            value={identifier} onChangeText={setIdentifier} editable={!isLoading} />
-
-          <LoginInputField label="Kata Sandi" icon="lock" placeholder="••••••••"
-            value={password} onChangeText={setPassword} secureTextEntry={!showPassword} editable={!isLoading}
-            rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} activeOpacity={0.6}>
-                <MaterialIcons name={showPassword ? 'visibility-off' : 'visibility'} size={22} color={Colors.outline} />
-              </TouchableOpacity>
-            } />
-
-          <View style={styles.utilitiesRow}>
-            <TouchableOpacity style={styles.toggleRow} onPress={() => setRememberMe((v) => !v)} activeOpacity={0.7}>
-              <View style={[styles.toggleTrack, rememberMe && styles.toggleTrackActive]}>
-                <View style={[styles.toggleThumb, rememberMe && styles.toggleThumbActive]} />
-              </View>
-              <Text style={styles.toggleLabel}>Ingat Saya</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')} activeOpacity={0.7}>
-              <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.actionSection}>
-            <TouchableOpacity style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} onPress={handleLogin} activeOpacity={0.85} disabled={isLoading}>
-              <Text style={styles.loginButtonText}>{isLoading ? 'Memproses...' : 'Masuk'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ATAU</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.registerRow}>
-            <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-              <Text style={styles.linkBold}>Daftar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.trustSection}>
-          <View style={styles.trustIcons}>
-            <MaterialIcons name="verified-user" size={28} color={Colors.outline} style={styles.trustIcon} />
-            <MaterialIcons name="enhanced-encryption" size={28} color={Colors.outline} style={styles.trustIcon} />
-            <MaterialIcons name="privacy-tip" size={28} color={Colors.outline} style={styles.trustIcon} />
-          </View>
-          <Text style={styles.trustText}>
-            Data kesehatan Anda terenkripsi dan aman.{'\n'}HI!-CARE mengikuti standar privasi klinis.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.footerBar} />
-      </View>
-    </ScrollView>
-  );
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+
+      {/* Background decorations — OUTSIDE ScrollView to prevent layout thrashing */}
+      <View style={[styles.bgDecoTop, { zIndex: -1, elevation: 0 }]} pointerEvents="none" />
+      <View style={[styles.bgDecoBottom, { zIndex: -1, elevation: 0 }]} pointerEvents="none" />
+
       {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView style={styles.keyboardView} behavior="padding">
-          {scrollContent}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <FormContent
+              identifier={identifier}
+              setIdentifier={setIdentifier}
+              password={password}
+              setPassword={setPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              rememberMe={rememberMe}
+              setRememberMe={setRememberMe}
+              isLoading={isLoading}
+              handleLogin={handleLogin}
+              navigation={navigation}
+            />
+          </ScrollView>
         </KeyboardAvoidingView>
       ) : (
-        <View style={styles.keyboardView}>
-          {scrollContent}
-        </View>
+        <ScrollView
+          style={styles.keyboardView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FormContent
+            identifier={identifier}
+            setIdentifier={setIdentifier}
+            password={password}
+            setPassword={setPassword}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            rememberMe={rememberMe}
+            setRememberMe={setRememberMe}
+            isLoading={isLoading}
+            handleLogin={handleLogin}
+            navigation={navigation}
+          />
+        </ScrollView>
       )}
     </SafeAreaView>
   );
 };
 
+// ────────────────────────────────────────────
+// Form Content — Extracted as a STABLE component OUTSIDE LoginScreen
+// to prevent remount on every keystroke. This is the key difference
+// from having a JSX variable inside the component.
+// ────────────────────────────────────────────
+interface FormContentProps {
+  identifier: string;
+  setIdentifier: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+  showPassword: boolean;
+  setShowPassword: (fn: (v: boolean) => boolean) => void;
+  rememberMe: boolean;
+  setRememberMe: (fn: (v: boolean) => boolean) => void;
+  isLoading: boolean;
+  handleLogin: () => void;
+  navigation: any;
+}
 
+const FormContent: React.FC<FormContentProps> = React.memo(({
+  identifier, setIdentifier,
+  password, setPassword,
+  showPassword, setShowPassword,
+  rememberMe, setRememberMe,
+  isLoading, handleLogin, navigation,
+}) => (
+  <>
+    <View style={styles.container}>
+      {/* ═══ Branding ═══ */}
+      <View style={styles.brandingSection}>
+        <View style={styles.brandIcon}>
+          <MaterialIcons name="health-and-safety" size={32} color={Colors.onPrimaryContainer} />
+        </View>
+        <Text style={styles.brandTitle}>HI!-CARE</Text>
+        <View style={styles.brandSubRow}>
+          <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+            <Text style={styles.linkBold}>Daftar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ═══ Login Card ═══ */}
+      <View style={styles.card}>
+        <View style={styles.formHeader}>
+          <Text style={styles.headlineMd}>Selamat datang kembali</Text>
+          <Text style={styles.bodyMdVariant}>Masuk untuk mengakses dashboard Anda</Text>
+        </View>
+
+        {/* Username */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Username</Text>
+          <View style={styles.inputWrapper}>
+            <MaterialIcons name="person" size={22} color={Colors.outline} style={styles.inputIcon} />
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. patrick_care"
+              placeholderTextColor={`${Colors.outline}80`}
+              value={identifier}
+              onChangeText={setIdentifier}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </View>
+        </View>
+
+        {/* Password */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Kata Sandi</Text>
+          <View style={styles.inputWrapper}>
+            <MaterialIcons name="lock" size={22} color={Colors.outline} style={styles.inputIcon} />
+            <TextInput
+              style={styles.textInput}
+              placeholder="••••••••"
+              placeholderTextColor={`${Colors.outline}80`}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(v => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} activeOpacity={0.6}>
+              <MaterialIcons name={showPassword ? 'visibility-off' : 'visibility'} size={22} color={Colors.outline} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Utilities Row */}
+        <View style={styles.utilitiesRow}>
+          <TouchableOpacity style={styles.toggleRow} onPress={() => setRememberMe(v => !v)} activeOpacity={0.7}>
+            <View style={[styles.toggleTrack, rememberMe && styles.toggleTrackActive]}>
+              <View style={[styles.toggleThumb, rememberMe && styles.toggleThumbActive]} />
+            </View>
+            <Text style={styles.toggleLabel}>Ingat Saya</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')} activeOpacity={0.7}>
+            <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Login Button */}
+        <View style={styles.actionSection}>
+          <TouchableOpacity style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} onPress={handleLogin} activeOpacity={0.85} disabled={isLoading}>
+            <Text style={styles.loginButtonText}>{isLoading ? 'Memproses...' : 'Masuk'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>ATAU</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Register CTA */}
+        <View style={styles.registerRow}>
+          <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+            <Text style={styles.linkBold}>Daftar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ═══ Trust Badges ═══ */}
+      <View style={styles.trustSection}>
+        <View style={styles.trustIcons}>
+          <MaterialIcons name="verified-user" size={28} color={Colors.outline} style={styles.trustIcon} />
+          <MaterialIcons name="enhanced-encryption" size={28} color={Colors.outline} style={styles.trustIcon} />
+          <MaterialIcons name="privacy-tip" size={28} color={Colors.outline} style={styles.trustIcon} />
+        </View>
+        <Text style={styles.trustText}>
+          Data kesehatan Anda terenkripsi dan aman.{'\n'}HI!-CARE mengikuti standar privasi klinis.
+        </Text>
+      </View>
+    </View>
+
+    <View style={styles.footer}>
+      <View style={styles.footerBar} />
+    </View>
+  </>
+));
 
 // ────────────────────────────────────────────
 // Styles
@@ -310,7 +357,7 @@ const styles = StyleSheet.create({
     width: 384,
     height: 384,
     borderRadius: 192,
-    backgroundColor: `${Colors.primary}0D`, // ~5% opacity
+    backgroundColor: `${Colors.primary}0D`,
   },
   bgDecoBottom: {
     position: 'absolute',
@@ -319,7 +366,7 @@ const styles = StyleSheet.create({
     width: 384,
     height: 384,
     borderRadius: 192,
-    backgroundColor: `${Colors.secondary}0D`, // ~5% opacity
+    backgroundColor: `${Colors.secondary}0D`,
   },
 
   /* ── Container ── */
@@ -343,7 +390,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
-    // Soft shadow
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -351,11 +397,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   brandTitle: {
-    fontFamily: 'Manrope',
     fontSize: 32,
     fontWeight: '700',
     lineHeight: 40,
-    letterSpacing: -0.64, // -0.02em × 32px
+    letterSpacing: -0.64,
     color: Colors.primary,
   },
   brandSubRow: {
@@ -363,7 +408,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandSubText: {
-    fontFamily: 'Manrope',
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400',
@@ -371,7 +415,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   linkBold: {
-    fontFamily: 'Manrope',
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '700',
@@ -381,17 +424,15 @@ const styles = StyleSheet.create({
   /* ═══ Card ═══ */
   card: {
     backgroundColor: Colors.surfaceContainerLowest,
-    borderRadius: 12, // rounded-xl
+    borderRadius: 12,
     padding: Spacing.xl,
-    // Subtle shadow (blue-tinted)
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04,
     shadowRadius: 30,
     elevation: 4,
-    // Border
     borderWidth: 1,
-    borderColor: `${Colors.outlineVariant}4D`, // ~30% opacity
+    borderColor: `${Colors.outlineVariant}4D`,
     gap: Spacing.lg,
   },
 
@@ -400,14 +441,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   headlineMd: {
-    fontFamily: 'Manrope',
     fontSize: 24,
     fontWeight: '600',
     lineHeight: 32,
     color: Colors.onSurface,
   },
   bodyMdVariant: {
-    fontFamily: 'Manrope',
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
@@ -419,15 +458,11 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   label: {
-    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
-    letterSpacing: 0.24, // 0.02em × 12px
+    letterSpacing: 0.24,
     color: Colors.outline,
-  },
-  labelFocused: {
-    color: Colors.primary,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -435,26 +470,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainerLow,
     borderWidth: 1,
     borderColor: Colors.outlineVariant,
-    borderRadius: 8, // rounded-lg
+    borderRadius: 8,
     paddingHorizontal: Spacing.md,
-    height: 52, // py-3.5 ≈ 14px × 2 + line height
-  },
-  inputWrapperFocused: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-    // Focus ring effect via shadow
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    height: 52,
   },
   inputIcon: {
     marginRight: 12,
   },
   textInput: {
     flex: 1,
-    fontFamily: 'Manrope',
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
@@ -489,7 +513,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     backgroundColor: '#ffffff',
-    // Subtle shadow on thumb
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -500,7 +523,6 @@ const styles = StyleSheet.create({
     transform: [{ translateX: 16 }],
   },
   toggleLabel: {
-    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
@@ -508,7 +530,6 @@ const styles = StyleSheet.create({
     color: Colors.onSurfaceVariant,
   },
   forgotLink: {
-    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 16,
@@ -524,10 +545,9 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 16,
     backgroundColor: Colors.primary,
-    borderRadius: 12, // rounded-xl
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    // Shadow
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -538,7 +558,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   loginButtonText: {
-    fontFamily: 'Manrope',
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
@@ -554,15 +573,14 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: `${Colors.outlineVariant}80`, // ~50% opacity
+    backgroundColor: `${Colors.outlineVariant}80`,
   },
   dividerText: {
     marginHorizontal: 16,
-    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
-    letterSpacing: 2.4, // tracking-widest
+    letterSpacing: 2.4,
     color: Colors.outline,
     textTransform: 'uppercase',
   },
@@ -586,7 +604,6 @@ const styles = StyleSheet.create({
   },
   trustIcon: {},
   trustText: {
-    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
