@@ -5,7 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
-import api from '../api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../src/api';
 
 const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
@@ -65,6 +66,37 @@ const MedicationReminderScreen: React.FC = () => {
   useEffect(() => {
     return () => { soundRef.current?.unloadAsync(); };
   }, []);
+
+  // ── Load saved settings from AsyncStorage ──
+  // Menggunakan useFocusEffect agar settings dimuat ulang setiap kali tab difokuskan
+  useFocusEffect(useCallback(() => {
+    const loadSavedSettings = async () => {
+      try {
+        const [savedTime, savedDate, savedRingtoneName, savedRingtoneUri] = await Promise.all([
+          AsyncStorage.getItem('saved_alarm_time'),
+          AsyncStorage.getItem('saved_alarm_date'),
+          AsyncStorage.getItem('saved_ringtone_name'),
+          AsyncStorage.getItem('saved_ringtone_uri'),
+        ]);
+        console.log('[MedReminder] Loaded from storage:', { savedTime, savedDate, savedRingtoneName, savedRingtoneUri });
+        if (savedTime) {
+          const parsed = new Date(savedTime);
+          if (!isNaN(parsed.getTime())) setSelectedTime(parsed);
+        }
+        if (savedDate) {
+          const parsed = new Date(savedDate);
+          if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
+        }
+        if (savedRingtoneName) setSelectedSoundName(savedRingtoneName);
+        if (savedRingtoneUri !== null && savedRingtoneUri !== '') {
+          setSelectedSoundUri(savedRingtoneUri);
+        }
+      } catch (e) {
+        console.log('[MedReminder] Gagal memuat pengaturan tersimpan:', e);
+      }
+    };
+    loadSavedSettings();
+  }, []));
 
   // ── Fetch ──
   const fetchData = useCallback(async () => {
@@ -127,10 +159,29 @@ const MedicationReminderScreen: React.FC = () => {
     if (selectedSoundName === 'Belum dipilih') { Alert.alert('Peringatan', 'Pilih nada dering terlebih dahulu.'); return; }
     setSavingSettings(true);
     try {
+      // Simpan ke AsyncStorage DULU (agar tidak hilang walau API gagal)
+      await Promise.all([
+        AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
+        AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
+        AsyncStorage.setItem('saved_ringtone_name', selectedSoundName),
+        AsyncStorage.setItem('saved_ringtone_uri', selectedSoundUri || ''),
+      ]);
+      console.log('[MedReminder] Settings tersimpan ke AsyncStorage:', {
+        time: selectedTime.toISOString(),
+        date: selectedDate.toISOString(),
+        ringtoneName: selectedSoundName,
+        ringtoneUri: selectedSoundUri,
+      });
+
+      // Lalu kirim ke API
       await api.post('/patient/alarms/settings', { waktu: fmtTime, tanggal: fmtDate, nada_dering: selectedSoundName });
+
       Alert.alert('Berhasil ✅', `Alarm ${fmtTime} pada ${fmtDateDisplay} disimpan.`);
       fetchData();
-    } catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan.'); }
+    } catch (e: any) {
+      console.log('[MedReminder] Save error:', e.response?.data || e.message);
+      Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan ke server, tapi pengaturan lokal tetap tersimpan.');
+    }
     finally { setSavingSettings(false); }
   };
 

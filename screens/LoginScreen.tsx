@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../api';
+import api from '../src/api';
 import { RootStackParamList } from '../App';
 import * as LocalAuthentication from 'expo-local-authentication';
 

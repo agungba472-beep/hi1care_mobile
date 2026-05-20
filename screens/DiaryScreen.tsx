@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import api from '../api';
+import api from '../src/api';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {

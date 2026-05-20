@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   ActivityIndicator,
   Switch,
   Image,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../api';
+import { resetToLogin } from '../src/navigationRef';
+import api from '../src/api';
 import * as ImagePicker from 'expo-image-picker';
 
 // ── Design Tokens ──
@@ -118,6 +120,9 @@ const ProfileScreen: React.FC = () => {
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
+  // Flag to skip overwriting the photo from API right after a local upload
+  const justUploadedRef = useRef(false);
+
   const fetchProfile = useCallback(async () => {
     try {
       if (!initialLoadDone) setLoading(true);
@@ -128,8 +133,11 @@ const ProfileScreen: React.FC = () => {
       setName(user.nama || 'Pasien');
       setFullName(user.nama || '-');
       setPatientId(user.id ? `HI-${user.id}` : '-');
-      // Selalu set photo dari API (bisa null)
-      setProfilePhoto(user.photo_url || null);
+
+      // Jangan timpa foto lokal jika baru saja upload (hindari race condition)
+      if (!justUploadedRef.current) {
+        setProfilePhoto(user.photo_url || null);
+      }
 
       const pasien = user.pasien;
       if (pasien) {
@@ -159,28 +167,46 @@ const ProfileScreen: React.FC = () => {
     }
   }, [initialLoadDone]);
 
-  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
+  useFocusEffect(useCallback(() => {
+    fetchProfile();
+  }, [fetchProfile]));
 
-  // ── Upload foto ke server ──
+  // ── Upload foto ke server (kompatibel Web & Mobile) ──
   const uploadPhotoToServer = async (uri: string) => {
     const formData = new FormData();
-    const filename = uri.split('/').pop() || 'photo.jpg';
-    const match = /\.([\w]+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-    formData.append('photo', { uri, name: filename, type } as any);
+
     try {
+      if (Platform.OS === 'web') {
+        // ── WEB: Blob URL harus di-fetch dulu menjadi Blob asli ──
+        console.log('[Photo] Platform Web terdeteksi, converting blob URI...');
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('photo', blob, 'photo.jpg');
+      } else {
+        // ── MOBILE: Format { uri, name, type } untuk React Native ──
+        const filename = uri.split('/').pop() || 'photo.jpg';
+        const match = /\.([\w]+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        formData.append('photo', { uri, name: filename, type } as any);
+      }
+
+      console.log('[Photo] Mengunggah foto ke server...');
       const res = await api.post('/profile/photo', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      console.log('[Photo] Upload berhasil:', res.data);
       Alert.alert('Berhasil ✅', 'Foto profil berhasil diperbarui.');
       // Update photo dari server response jika tersedia
       if (res.data?.photo_url) {
         setProfilePhoto(res.data.photo_url);
+        justUploadedRef.current = false;
       }
     } catch (err: any) {
-      console.log('[Photo] Upload error:', err.response?.data || err.message);
+      console.log('[Photo] Upload error status:', err.response?.status);
+      console.log('[Photo] Upload error data:', err.response?.data);
+      console.log('[Photo] Upload error message:', err.message);
       Alert.alert('Gagal', 'Tidak dapat mengunggah foto. Silakan coba lagi.');
-      // Kembalikan ke foto dari server
+      justUploadedRef.current = false;
       fetchProfile();
     }
   };
@@ -200,32 +226,66 @@ const ProfileScreen: React.FC = () => {
     });
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
+      justUploadedRef.current = true; // Cegah fetchProfile menimpa foto lokal
       setProfilePhoto(uri); // Optimistic UI
       uploadPhotoToServer(uri);
     }
   };
 
+  const performLogout = async () => {
+    // 1. Logout dari server
+    try {
+      await api.post('/logout');
+      console.log('[Logout] Server logout berhasil.');
+    } catch (e: any) {
+      console.log('[Logout] Server logout gagal:', e.response?.data || e.message);
+    }
+
+    // 2. Hapus sesi lokal
+    try {
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('biometricEnabled');
+      console.log('[Logout] Token lokal berhasil dihapus.');
+    } catch (e) {
+      console.log('[Logout] Gagal hapus AsyncStorage:', e);
+    }
+
+    // 3. Navigasi ke Login
+    if (Platform.OS === 'web') {
+      // WEB: Reload halaman → app restart di initial route (Login)
+      console.log('[Logout] Platform Web — melakukan reload halaman...');
+      window.location.href = '/';
+      return;
+    }
+
+    // MOBILE: Reset navigation stack
+    try {
+      const rootNav = navigation.getParent();
+      if (rootNav) {
+        rootNav.dispatch(
+          CommonActions.reset({ index: 0, routes: [{ name: 'Login' as never }] })
+        );
+      } else {
+        resetToLogin();
+      }
+    } catch (navError) {
+      console.log('[Logout] Navigasi error, fallback resetToLogin:', navError);
+      resetToLogin();
+    }
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      // Web: gunakan confirm() bawaan browser (lebih reliable dari Alert.alert)
+      const confirmed = window.confirm('Apakah Anda yakin ingin keluar dari akun ini?');
+      if (confirmed) performLogout();
+      return;
+    }
+
+    // Mobile: gunakan Alert.alert native
     Alert.alert('Konfirmasi Logout', 'Apakah Anda yakin ingin keluar dari akun ini?', [
       { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.post('/logout');
-          } catch (e) {
-            console.log('[Logout] Server logout gagal, tetap hapus sesi lokal:', e);
-          }
-          await AsyncStorage.removeItem('userToken');
-          await AsyncStorage.removeItem('biometricEnabled');
-          // Profile → Tab (parent 1) → Stack (parent 2 = root)
-          const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
-          root.dispatch(
-            CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] })
-          );
-        },
-      },
+      { text: 'Logout', style: 'destructive', onPress: performLogout },
     ]);
   };
 
