@@ -46,6 +46,7 @@ const MedicationReminderScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const alarmTriggeredRef = useRef<string>(''); // Track menit terakhir alarm berbunyi agar tidak repeat
 
   const fmtTime = useMemo(() => {
     const h = selectedTime.getHours().toString().padStart(2, '0');
@@ -72,13 +73,15 @@ const MedicationReminderScreen: React.FC = () => {
   useFocusEffect(useCallback(() => {
     const loadSavedSettings = async () => {
       try {
-        const [savedTime, savedDate, savedRingtoneName, savedRingtoneUri] = await Promise.all([
+        const [savedTime, savedDate, savedRingtoneName, savedRingtoneUri, savedSoundName, savedSoundUri] = await Promise.all([
           AsyncStorage.getItem('saved_alarm_time'),
           AsyncStorage.getItem('saved_alarm_date'),
           AsyncStorage.getItem('saved_ringtone_name'),
           AsyncStorage.getItem('saved_ringtone_uri'),
+          AsyncStorage.getItem('saved_sound_name'),
+          AsyncStorage.getItem('saved_sound_uri'),
         ]);
-        console.log('[MedReminder] Loaded from storage:', { savedTime, savedDate, savedRingtoneName, savedRingtoneUri });
+        console.log('[MedReminder] Loaded from storage:', { savedTime, savedDate, savedRingtoneName, savedRingtoneUri, savedSoundName, savedSoundUri });
         if (savedTime) {
           const parsed = new Date(savedTime);
           if (!isNaN(parsed.getTime())) setSelectedTime(parsed);
@@ -87,9 +90,12 @@ const MedicationReminderScreen: React.FC = () => {
           const parsed = new Date(savedDate);
           if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
         }
-        if (savedRingtoneName) setSelectedSoundName(savedRingtoneName);
-        if (savedRingtoneUri !== null && savedRingtoneUri !== '') {
-          setSelectedSoundUri(savedRingtoneUri);
+        // Prioritaskan saved_sound_name/uri (langsung dari pick), fallback ke saved_ringtone_name/uri (dari save)
+        const finalName = savedSoundName || savedRingtoneName;
+        const finalUri = savedSoundUri || savedRingtoneUri;
+        if (finalName) setSelectedSoundName(finalName);
+        if (finalUri !== null && finalUri !== undefined && finalUri !== '') {
+          setSelectedSoundUri(finalUri);
         }
       } catch (e) {
         console.log('[MedReminder] Gagal memuat pengaturan tersimpan:', e);
@@ -131,9 +137,16 @@ const MedicationReminderScreen: React.FC = () => {
       const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
       if (!res.canceled && res.assets?.[0]) {
         const a = res.assets[0];
-        setSelectedSoundName(a.name || 'Custom Audio');
-        setSelectedSoundUri(a.uri);
+        const name = a.name || 'Custom Audio';
+        const uri = a.uri;
+        setSelectedSoundName(name);
+        setSelectedSoundUri(uri);
         await stopSound();
+
+        // Langsung simpan ke AsyncStorage agar tidak hilang saat logout/refresh
+        await AsyncStorage.setItem('saved_sound_name', name);
+        await AsyncStorage.setItem('saved_sound_uri', uri);
+        console.log('[MedReminder] Audio dipilih & disimpan ke storage:', { name, uri });
       }
     } catch { Alert.alert('Error', 'Gagal memilih file audio.'); }
   };
@@ -165,6 +178,8 @@ const MedicationReminderScreen: React.FC = () => {
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
         AsyncStorage.setItem('saved_ringtone_name', selectedSoundName),
         AsyncStorage.setItem('saved_ringtone_uri', selectedSoundUri || ''),
+        AsyncStorage.setItem('saved_sound_name', selectedSoundName),
+        AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
       ]);
       console.log('[MedReminder] Settings tersimpan ke AsyncStorage:', {
         time: selectedTime.toISOString(),
@@ -195,6 +210,50 @@ const MedicationReminderScreen: React.FC = () => {
     if (event.type === 'set' && d) setSelectedDate(d);
   };
 
+  // Web handlers untuk <input type="time"> dan <input type="date">
+  const onWebTimeChange = (e: any) => {
+    const val = e.target.value; // format "HH:mm"
+    if (val) {
+      const [h, m] = val.split(':').map(Number);
+      const d = new Date(selectedTime);
+      d.setHours(h, m, 0, 0);
+      setSelectedTime(d);
+    }
+  };
+  const onWebDateChange = (e: any) => {
+    const val = e.target.value; // format "YYYY-MM-DD"
+    if (val) {
+      const d = new Date(val + 'T00:00:00');
+      if (!isNaN(d.getTime())) setSelectedDate(d);
+    }
+  };
+
+  // ── Real-time Alarm Checker (simulasi alarm lokal) ──
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const kini = new Date();
+      const jamKini = kini.getHours().toString().padStart(2, '0');
+      const menitKini = kini.getMinutes().toString().padStart(2, '0');
+      const waktuKini = `${jamKini}:${menitKini}`;
+
+      // Cek apakah jam & menit sekarang cocok dengan alarm yang di-set
+      if (waktuKini === fmtTime && !isPlaying && selectedSoundUri) {
+        // Cegah trigger berulang di menit yang sama
+        if (alarmTriggeredRef.current !== waktuKini) {
+          alarmTriggeredRef.current = waktuKini;
+          console.log(`[Alarm] 🔔 COCOK! Waktu sekarang ${waktuKini} === alarm ${fmtTime}. Membunyikan alarm...`);
+          playSound();
+          Alert.alert('Waktunya Minum ARV! 💊', 'Alarm HI!-CARE berbunyi otomatis sesuai jadwal.');
+        }
+      } else if (waktuKini !== fmtTime) {
+        // Reset flag ketika menit sudah berganti
+        alarmTriggeredRef.current = '';
+      }
+    }, 10000); // Cek setiap 10 detik
+
+    return () => clearInterval(intervalId);
+  }, [fmtTime, isPlaying, selectedSoundUri]);
+
   const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);
   const latestRefill = refills[0] || null;
@@ -206,7 +265,8 @@ const MedicationReminderScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}><StatusBar barStyle="dark-content" backgroundColor={C.background} />
-      <View style={st.header}><View style={st.headerL}><TouchableOpacity style={st.iBtn}><MaterialIcons name="menu" size={24} color="#2563eb" /></TouchableOpacity><Text style={st.headerT}>HI!-CARE</Text></View><TouchableOpacity style={st.iBtn}><MaterialIcons name="visibility-off" size={24} color="#64748b" /></TouchableOpacity></View>
+      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
+      <View style={st.header}><Text style={st.headerT}>HI!-CARE</Text></View>
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Hero */}
@@ -239,18 +299,73 @@ const MedicationReminderScreen: React.FC = () => {
           {/* Time & Date Row */}
           <View style={st.card}>
             <View style={st.cardH}><MaterialIcons name="access-time" size={22} color={C.primary} /><Text style={st.cardHT}>Waktu & Tanggal</Text></View>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
-                <MaterialIcons name="schedule" size={22} color={C.primary} />
-                <View><Text style={st.pickerLbl}>Jam</Text><Text style={st.pickerVal}>{fmtTime}</Text></View>
-              </TouchableOpacity>
-              <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-                <MaterialIcons name="event" size={22} color={C.secondary} />
-                <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
-              </TouchableOpacity>
-            </View>
-            {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={onTimeChange} />}
-            {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={onDateChange} minimumDate={new Date()} />}
+
+            {Platform.OS === 'web' ? (
+              /* ── WEB: HTML input fields ── */
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={[st.pickerBtn, { flex: 1 }]}>
+                  <MaterialIcons name="schedule" size={22} color={C.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.pickerLbl}>Jam</Text>
+                    <input
+                      type="time"
+                      value={fmtTime}
+                      onChange={onWebTimeChange}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: '#0043a2',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        width: '100%',
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  </View>
+                </View>
+                <View style={[st.pickerBtn, { flex: 1 }]}>
+                  <MaterialIcons name="event" size={22} color={C.secondary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.pickerLbl}>Tanggal</Text>
+                    <input
+                      type="date"
+                      value={fmtDate}
+                      onChange={onWebDateChange}
+                      min={new Date().toISOString().split('T')[0]}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: '#0043a2',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        width: '100%',
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : (
+              /* ── MOBILE: Native DateTimePicker ── */
+              <>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
+                    <MaterialIcons name="schedule" size={22} color={C.primary} />
+                    <View><Text style={st.pickerLbl}>Jam</Text><Text style={st.pickerVal}>{fmtTime}</Text></View>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                    <MaterialIcons name="event" size={22} color={C.secondary} />
+                    <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
+                  </TouchableOpacity>
+                </View>
+                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={onTimeChange} />}
+                {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={onDateChange} minimumDate={new Date()} />}
+              </>
+            )}
           </View>
 
           {/* Custom Ringtone */}
@@ -321,10 +436,8 @@ const st = StyleSheet.create({
   loadTxt: { marginTop: S.md, fontSize: 16, color: C.outline },
   safe: { flex: 1, backgroundColor: C.background },
   scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
-  headerL: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  iBtn: { padding: 8, borderRadius: 20 },
-  headerT: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  headerT: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
   hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.primaryContainer, padding: S.lg, borderRadius: 12, elevation: 6, marginBottom: S.lg, overflow: 'hidden' },
   heroT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: '#fff', marginBottom: S.xs },
   heroS: { fontSize: 16, lineHeight: 24, color: C.primaryFixedDim, opacity: 0.9 },

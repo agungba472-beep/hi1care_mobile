@@ -143,24 +143,9 @@ const DashboardScreen: React.FC = () => {
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
 
-      {/* ═══ TOP APP BAR ═══ */}
+      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
       <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="menu" size={24} color={C.primary} />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>HI!-CARE</Text>
-        </View>
-        <View style={st.headerRight}>
-          <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="visibility-off" size={24} color={C.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile' as never)} activeOpacity={0.7}>
-            <View style={st.avatar}>
-              <MaterialIcons name="person" size={20} color={C.onPrimary} />
-            </View>
-          </TouchableOpacity>
-        </View>
+        <Text style={st.headerTitle}>HI!-CARE</Text>
       </View>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
@@ -384,13 +369,13 @@ const st = StyleSheet.create({
     paddingTop: S.lg,
   },
 
-  /* ── Header ── */
+  /* ── Header (Clean) ── */
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: S.margin,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
@@ -400,33 +385,11 @@ const st = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconBtn: {
-    padding: 4,
-    borderRadius: 20,
-  },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#1d4ed8',
-    letterSpacing: -0.3,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: C.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    letterSpacing: 0.5,
   },
 
   /* ── Greeting ── */

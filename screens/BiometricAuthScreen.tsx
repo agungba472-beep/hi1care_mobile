@@ -51,17 +51,9 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
-      {/* ═══ TOP APP BAR ═══ */}
+      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
       <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity onPress={onMenuPress} activeOpacity={0.7}>
-            <MaterialIcons name="menu" size={24} color="#2563eb" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>HI!-CARE</Text>
-        </View>
-        <TouchableOpacity onPress={onPrivacyToggle} activeOpacity={0.7}>
-          <MaterialIcons name="visibility-off" size={24} color="#2563eb" />
-        </TouchableOpacity>
+        <Text style={st.headerTitle}>HI!-CARE</Text>
       </View>
 
       {/* ═══ MAIN CONTENT (Centered) ═══ */}
@@ -140,15 +132,14 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.background },
 
-  // Header
+  // Header (Clean)
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 12,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 16,
     backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 4,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
 
   // Main centered content
   main: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },

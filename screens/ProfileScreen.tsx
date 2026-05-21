@@ -303,17 +303,9 @@ const ProfileScreen: React.FC = () => {
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* ═══ TOP APP BAR ═══ */}
+      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
       <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="menu" size={24} color="#64748b" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>HI!-CARE</Text>
-        </View>
-        <TouchableOpacity style={st.iconBtn} activeOpacity={0.7}>
-          <MaterialIcons name="visibility-off" size={24} color="#64748b" />
-        </TouchableOpacity>
+        <Text style={st.headerTitle}>HI!-CARE</Text>
       </View>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
@@ -481,38 +473,14 @@ const st = StyleSheet.create({
     paddingBottom: S.xl,
   },
 
-  /* Header */
+  // Header (Clean)
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: S.margin,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: C.outlineVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: S.margin, paddingVertical: 16,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconBtn: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    lineHeight: 32,
-    color: '#1d4ed8',
-    letterSpacing: -0.3,
-  },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
 
   /* Profile Bento */
   profileBento: {
