@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
+import api from '../src/api';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -55,9 +56,34 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    onRegister?.({ regNumber, email, username, password });
+  const handleRegister = async () => {
+    if (!regNumber || !email || !username || !password || !confirmPassword) {
+      Alert.alert('Gagal', 'Semua kolom wajib diisi!');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Gagal', 'Konfirmasi kata sandi tidak cocok!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post('/register', {
+        no_reg_hiv: regNumber,
+        email: email,
+        username: username,
+        password: password,
+        password_confirmation: confirmPassword
+      });
+      Alert.alert('Berhasil ✅', 'Akun berhasil dibuat. Silakan masuk.');
+      navigation.navigate('Login' as any); // Type cast fallback depending on navigation type definition 
+    } catch (error: any) {
+      Alert.alert('Registrasi Gagal', error.response?.data?.message || 'Terjadi kesalahan pada server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const scrollContent = (
@@ -96,8 +122,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
             value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
 
           <View style={{ paddingTop: S.sm }}>
-            <TouchableOpacity style={st.submitBtn} onPress={handleRegister} activeOpacity={0.85}>
-              <Text style={st.submitBtnText}>Buat Akun Aman</Text>
+            <TouchableOpacity 
+              style={[st.submitBtn, loading && { opacity: 0.7 }]} 
+              activeOpacity={0.85} 
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              <Text style={st.submitBtnText}>{loading ? 'Memproses...' : 'Buat Akun Aman'}</Text>
             </TouchableOpacity>
           </View>
         </View>

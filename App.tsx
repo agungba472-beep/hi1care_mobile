@@ -3,7 +3,19 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { navigationRef } from './src/navigationRef';
+
+// Konfigurasi Notifikasi Global agar muncul meskipun aplikasi sedang aktif / di background
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 // 1. Import Semua Layar
 import LoginScreen from './screens/LoginScreen';
@@ -19,6 +31,7 @@ import DiaryScreen from './screens/DiaryScreen';
 import HealthFacilityScreen from './screens/HealthFacilityScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
 import PatientChatRoomScreen from './screens/PatientChatRoomScreen';
+import ArticleDetailScreen from './screens/ArticleDetailScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
 export type RootStackParamList = {
@@ -32,6 +45,7 @@ export type RootStackParamList = {
   HealthFacility: undefined;
   Chatbot: undefined;
   PatientChatRoom: { konsultasiId: number };
+  ArticleDetail: { article: any };
 };
 
 // Pasangkan tipe datanya ke Stack
@@ -94,6 +108,7 @@ export default function App() {
         <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} />
         <Stack.Screen name="PatientChatRoom" component={PatientChatRoomScreen} />
+        <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

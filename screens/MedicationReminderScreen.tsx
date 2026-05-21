@@ -6,6 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import api from '../src/api';
 
 const C = {
@@ -172,7 +173,7 @@ const MedicationReminderScreen: React.FC = () => {
     if (selectedSoundName === 'Belum dipilih') { Alert.alert('Peringatan', 'Pilih nada dering terlebih dahulu.'); return; }
     setSavingSettings(true);
     try {
-      // Simpan ke AsyncStorage DULU (agar tidak hilang walau API gagal)
+      // 1. Simpan ke AsyncStorage DULU
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
@@ -181,17 +182,35 @@ const MedicationReminderScreen: React.FC = () => {
         AsyncStorage.setItem('saved_sound_name', selectedSoundName),
         AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
       ]);
-      console.log('[MedReminder] Settings tersimpan ke AsyncStorage:', {
-        time: selectedTime.toISOString(),
-        date: selectedDate.toISOString(),
-        ringtoneName: selectedSoundName,
-        ringtoneUri: selectedSoundUri,
-      });
 
-      // Lalu kirim ke API
+      // 2. Kirim ke API
       await api.post('/patient/alarms/settings', { waktu: fmtTime, tanggal: fmtDate, nada_dering: selectedSoundName });
 
-      Alert.alert('Berhasil ✅', `Alarm ${fmtTime} pada ${fmtDateDisplay} disimpan.`);
+      // 3. Daftarkan Local Notification via expo-notifications
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        // Hapus alarm/notifikasi sebelumnya agar tidak menumpuk
+        await Notifications.cancelAllScheduledNotificationsAsync();
+
+        // Daftarkan Notifikasi Harian
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Waktunya Minum ARV! 💊',
+            body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}). Tetap semangat dan jaga kesehatan!`,
+            sound: true,
+          },
+          trigger: {
+            hour: selectedTime.getHours(),
+            minute: selectedTime.getMinutes(),
+            repeats: true,
+          } as any,
+        });
+      }
+
+      Alert.alert(
+        'Alarm Berhasil Diatur ✅', 
+        `Alarm ${fmtTime} disimpan.\n\nJika aplikasi ditutup atau layar dikunci, alarm akan tetap muncul menggunakan notifikasi standar HP Anda.`
+      );
       fetchData();
     } catch (e: any) {
       console.log('[MedReminder] Save error:', e.response?.data || e.message);
@@ -228,31 +247,7 @@ const MedicationReminderScreen: React.FC = () => {
     }
   };
 
-  // ── Real-time Alarm Checker (simulasi alarm lokal) ──
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const kini = new Date();
-      const jamKini = kini.getHours().toString().padStart(2, '0');
-      const menitKini = kini.getMinutes().toString().padStart(2, '0');
-      const waktuKini = `${jamKini}:${menitKini}`;
-
-      // Cek apakah jam & menit sekarang cocok dengan alarm yang di-set
-      if (waktuKini === fmtTime && !isPlaying && selectedSoundUri) {
-        // Cegah trigger berulang di menit yang sama
-        if (alarmTriggeredRef.current !== waktuKini) {
-          alarmTriggeredRef.current = waktuKini;
-          console.log(`[Alarm] 🔔 COCOK! Waktu sekarang ${waktuKini} === alarm ${fmtTime}. Membunyikan alarm...`);
-          playSound();
-          Alert.alert('Waktunya Minum ARV! 💊', 'Alarm HI!-CARE berbunyi otomatis sesuai jadwal.');
-        }
-      } else if (waktuKini !== fmtTime) {
-        // Reset flag ketika menit sudah berganti
-        alarmTriggeredRef.current = '';
-      }
-    }, 10000); // Cek setiap 10 detik
-
-    return () => clearInterval(intervalId);
-  }, [fmtTime, isPlaying, selectedSoundUri]);
+  // Real-time interval dihapus karena sudah menggunakan expo-notifications
 
   const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);

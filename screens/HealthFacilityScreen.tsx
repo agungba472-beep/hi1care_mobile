@@ -1,27 +1,31 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image, ActivityIndicator,
+  ScrollView, StatusBar, ActivityIndicator, Platform, Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import api from '../src/api';
+
+import MapSection from '../components/MapSection';
 
 // ── Design Tokens ──
 const C = {
-  surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff', surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
+  bg: '#f0f4ff', surface: '#ffffff',
+  primary: '#0043a2', primaryLight: '#e8f0fe', primaryDark: '#002d6e',
+  onPrimary: '#ffffff', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe', onPrimaryContainer: '#d1dcff',
-  secondary: '#6b4ab2', secondaryContainer: '#b191fd', onSecondaryContainer: '#44208a',
-  secondaryFixed: '#eaddff', onSecondaryFixed: '#24005b',
-  tertiary: '#42495c', tertiaryContainer: '#596175', onTertiaryContainer: '#d5dcf4',
-  tertiaryFixed: '#dbe2fa', onTertiaryFixed: '#141b2c',
-  error: '#ba1a1a', errorContainer: '#ffdad6', background: '#f8f9ff',
+  secondary: '#6b4ab2', secondaryLight: '#eaddff',
+  success: '#16a34a', successLight: '#dcfce7',
+  warning: '#f59e0b', warningLight: '#fef3c7',
+  error: '#dc2626',
+  cardShadow: '#0043a2',
 } as const;
 
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
+const { height: SCREEN_H } = Dimensions.get('window');
+const MAP_HEIGHT = SCREEN_H * 0.42;
+const CARD_RADIUS = 20;
 
 // ── Types ──
 interface FaskesItem {
@@ -31,17 +35,14 @@ interface FaskesItem {
   kontak?: string;
   tipe?: string;
   layanan?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  calculatedDistance?: number | null;
 }
 
-// ── Filter Chips ──
-const FILTERS: { label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-  { label: 'Semua', icon: 'location-on' },
-  { label: 'Rumah Sakit', icon: 'local-hospital' },
-  { label: 'Puskesmas', icon: 'medical-services' },
-  { label: 'Mandiri', icon: 'verified' },
-];
+interface UserCoords { latitude: number; longitude: number; }
 
-// ── Helper ──
+// ── Helpers ──
 const getTypeIcon = (tipe?: string): keyof typeof MaterialIcons.glyphMap => {
   if (!tipe) return 'local-hospital';
   const t = tipe.toLowerCase();
@@ -51,286 +52,381 @@ const getTypeIcon = (tipe?: string): keyof typeof MaterialIcons.glyphMap => {
 };
 
 const getTypeBadge = (tipe?: string) => {
-  if (!tipe) return { label: 'Faskes', bg: C.surfaceContainerHigh, color: C.onSurfaceVariant };
+  if (!tipe) return { label: 'Faskes', bg: '#e8edf5', color: C.onSurfaceVariant };
   const t = tipe.toLowerCase();
-  if (t.includes('rumah sakit') || t.includes('rs')) return { label: 'Rumah Sakit', bg: C.secondaryFixed, color: C.onSecondaryFixed };
-  if (t.includes('puskesmas')) return { label: 'Puskesmas', bg: C.tertiaryFixed, color: C.onTertiaryFixed };
-  if (t.includes('mandiri')) return { label: 'Mandiri', bg: C.surfaceContainerHigh, color: C.onSurfaceVariant };
-  return { label: tipe, bg: C.surfaceContainerHigh, color: C.onSurfaceVariant };
+  if (t.includes('rumah sakit') || t.includes('rs')) return { label: 'Rumah Sakit', bg: C.secondaryLight, color: '#44208a' };
+  if (t.includes('puskesmas')) return { label: 'Puskesmas', bg: '#dbe2fa', color: '#141b2c' };
+  if (t.includes('mandiri')) return { label: 'Mandiri', bg: '#e8edf5', color: C.onSurfaceVariant };
+  return { label: tipe, bg: '#e8edf5', color: C.onSurfaceVariant };
 };
 
-// ── Component ──
+/** Haversine — jarak antara 2 koordinat GPS dalam KM */
+const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const formatDistance = (km: number): string => km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+
+// ══════════════════════════════════════════════════════════════
+// COMPONENT
+// ══════════════════════════════════════════════════════════════
 const HealthFacilityScreen: React.FC = () => {
   const navigation = useNavigation();
-  const [searchText, setSearchText] = useState('');
-  const [activeFilter, setActiveFilter] = useState('Semua');
-  const [loading, setLoading] = useState(true);
-  const [facilities, setFacilities] = useState<FaskesItem[]>([]);
 
-  // ── Fetch Faskes dari API ──
+  // Location
+  const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  // Faskes
+  const [facilities, setFacilities] = useState<FaskesItem[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+
+  // ── 1) GPS Permission & Position ──
+  useEffect(() => {
+    (async () => {
+      setLocationLoading(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setLocationDenied(true); setLocationLoading(false); return; }
+        const pos = await Location.getCurrentPositionAsync({});
+        setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } catch (e: any) {
+        console.log('[Faskes] Location err:', e.message);
+        setLocationDenied(true);
+      } finally { setLocationLoading(false); }
+    })();
+  }, []);
+
+  // ── 2) Fetch faskes ──
   const fetchFaskes = useCallback(async () => {
+    setDataLoading(true);
     try {
-      setLoading(true);
       const res = await api.get('/faskes');
       const raw = res.data.data;
-      if (Array.isArray(raw)) {
-        setFacilities(raw);
-      } else if (raw?.data && Array.isArray(raw.data)) {
-        setFacilities(raw.data);
-      } else {
-        setFacilities([]);
-      }
-    } catch (err: any) {
-      console.log('[Faskes] Error:', err.response?.data || err.message);
-    } finally {
-      setLoading(false);
-    }
+      setFacilities(Array.isArray(raw) ? raw : raw?.data && Array.isArray(raw.data) ? raw.data : []);
+    } catch (e: any) { console.log('[Faskes] API err:', e.message); }
+    finally { setDataLoading(false); }
   }, []);
 
   useFocusEffect(useCallback(() => { fetchFaskes(); }, [fetchFaskes]));
 
-  // ── Filter logic ──
-  const filteredFacilities = facilities.filter((f) => {
-    const matchSearch = !searchText.trim()
-      || f.nama?.toLowerCase().includes(searchText.toLowerCase())
-      || f.alamat?.toLowerCase().includes(searchText.toLowerCase());
+  // ── 3) Calculate distance & sort ──
+  const processedFacilities = (() => {
+    let list = facilities.map(f => {
+      let dist: number | null = null;
+      if (userLocation && f.latitude != null && f.longitude != null) {
+        const fLat = typeof f.latitude === 'string' ? parseFloat(f.latitude) : f.latitude;
+        const fLon = typeof f.longitude === 'string' ? parseFloat(f.longitude) : f.longitude;
+        if (!isNaN(fLat) && !isNaN(fLon)) {
+          dist = haversineDistance(userLocation.latitude, userLocation.longitude, fLat, fLon);
+        }
+      }
+      return { ...f, calculatedDistance: dist };
+    });
 
-    const matchFilter = activeFilter === 'Semua'
-      || (activeFilter === 'Rumah Sakit' && (f.tipe?.toLowerCase().includes('rumah sakit') || f.tipe?.toLowerCase().includes('rs')))
-      || (activeFilter === 'Puskesmas' && f.tipe?.toLowerCase().includes('puskesmas'))
-      || (activeFilter === 'Mandiri' && f.tipe?.toLowerCase().includes('mandiri'));
+    list.sort((a, b) => {
+      if (a.calculatedDistance == null && b.calculatedDistance == null) return 0;
+      if (a.calculatedDistance == null) return 1;
+      if (b.calculatedDistance == null) return -1;
+      return a.calculatedDistance - b.calculatedDistance;
+    });
 
-    return matchSearch && matchFilter;
-  });
+    return list.filter(f => {
+      if (!searchText.trim()) return true;
+      const q = searchText.toLowerCase();
+      return f.nama?.toLowerCase().includes(q) || f.alamat?.toLowerCase().includes(q);
+    });
+  })();
 
-  // ── Loading state ──
-  if (loading) {
-    return (
-      <SafeAreaView style={st.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-        <ActivityIndicator size="large" color={C.primary} />
-        <Text style={st.loadingText}>Memuat fasilitas kesehatan...</Text>
-      </SafeAreaView>
-    );
-  }
+  const isLoading = locationLoading || dataLoading;
 
+  // ══════════════════════════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════════════════════════
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
 
-      {/* ═══ TOP APP BAR ═══ */}
+      {/* ── HEADER ── */}
       <View style={st.header}>
-        <View style={st.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={st.iconBtn} activeOpacity={0.7}>
-            <MaterialIcons name="arrow-back" size={24} color="#2563eb" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>Fasilitas Kesehatan</Text>
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn} activeOpacity={0.7}>
+          <MaterialIcons name="arrow-back" size={22} color={C.onPrimary} />
+        </TouchableOpacity>
+        <Text style={st.headerTitle}>HI!-CARE</Text>
+        <View style={{ width: 30 }} />
       </View>
 
-      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Headline ── */}
-        <View style={st.headline}>
-          <Text style={st.headlineTitle}>Layanan ARV</Text>
-          <Text style={st.headlineDesc}>Temukan fasilitas kesehatan terdekat yang menyediakan layanan pengobatan ARV dengan aman dan nyaman.</Text>
-        </View>
-
-        {/* ── Search ── */}
-        <View style={st.searchWrap}>
-          <View style={st.searchBar}>
-            <MaterialIcons name="search" size={24} color={C.outline} />
-            <TextInput style={st.searchInput} placeholder="Cari nama faskes atau lokasi..." placeholderTextColor={C.outline}
-              value={searchText} onChangeText={setSearchText} />
+      {/* ── LOADING OVERLAY ── */}
+      {isLoading ? (
+        <View style={st.loadingWrap}>
+          <View style={st.loadingCircle}>
+            <ActivityIndicator size="large" color={C.primary} />
           </View>
-          {/* Filter Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filterRow}>
-            {FILTERS.map((f) => {
-              const active = activeFilter === f.label;
-              return (
-                <TouchableOpacity key={f.label} style={[st.chip, active && st.chipActive]}
-                  onPress={() => setActiveFilter(f.label)} activeOpacity={0.7}>
-                  <MaterialIcons name={f.icon} size={18} color={active ? C.onPrimary : C.onSurfaceVariant} />
-                  <Text style={[st.chipText, active && st.chipTextActive]}>{f.label}</Text>
+          <Text style={st.loadingTitle}>
+            {locationLoading ? 'Mencari lokasi Anda...' : 'Memuat data faskes...'}
+          </Text>
+          <Text style={st.loadingSub}>
+            {locationLoading ? 'Menggunakan GPS untuk jarak terdekat' : 'Mengambil data fasilitas kesehatan'}
+          </Text>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {/* ═══════════════════════════════════════ */}
+          {/* TOP HALF — MAP                         */}
+          {/* ═══════════════════════════════════════ */}
+          <MapSection mapHeight={MAP_HEIGHT} userLocation={userLocation} faskesData={processedFacilities} />
+
+          {/* ═══════════════════════════════════════ */}
+          {/* BOTTOM HALF — FASKES LIST               */}
+          {/* ═══════════════════════════════════════ */}
+          <View style={st.listSheet}>
+            {/* Drag handle */}
+            <View style={st.sheetHandle} />
+
+            {/* Location warning */}
+            {locationDenied && (
+              <View style={st.warningBanner}>
+                <MaterialIcons name="location-off" size={16} color={C.warning} />
+                <Text style={st.warningText}>Izin lokasi ditolak — jarak tidak dapat dihitung</Text>
+              </View>
+            )}
+
+            {/* Search */}
+            <View style={st.searchBar}>
+              <MaterialIcons name="search" size={20} color={C.outline} />
+              <TextInput
+                style={st.searchInput}
+                placeholder="Cari faskes..."
+                placeholderTextColor={C.outlineVariant}
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+              {searchText.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchText('')}>
+                  <MaterialIcons name="close" size={18} color={C.outline} />
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* ── Map Preview ── */}
-        <View style={st.mapCard}>
-          <Image source={{ uri: 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=600&q=80' }}
-            style={st.mapImg} resizeMode="cover" />
-          <View style={st.mapOverlay}>
-            <View style={st.mapBadge}>
-              <MaterialIcons name="my-location" size={16} color={C.primary} />
-              <Text style={st.mapBadgeText}>Peta Lokasi Faskes</Text>
+              )}
             </View>
-          </View>
-        </View>
 
-        {/* ── Facility List ── */}
-        <View style={st.listHeaderRow}>
-          <Text style={st.listTitle}>Fasilitas Terdekat</Text>
-          <Text style={st.listCount}>{filteredFacilities.length} faskes</Text>
-        </View>
+            {/* Count */}
+            <View style={st.listHeaderRow}>
+              <Text style={st.listTitle}>Faskes Terdekat</Text>
+              <Text style={st.listCount}>{processedFacilities.length} lokasi</Text>
+            </View>
 
-        {filteredFacilities.length > 0 ? (
-          filteredFacilities.map((fac) => {
-            const badge = getTypeBadge(fac.tipe);
-            return (
-              <View key={fac.id} style={st.card}>
-                {/* Top Row */}
-                <View style={st.cardTop}>
-                  <View style={st.cardTopLeft}>
-                    <View style={st.facIcon}>
-                      <MaterialIcons name={getTypeIcon(fac.tipe)} size={28} color={C.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={st.facName}>{fac.nama}</Text>
-                      <View style={st.facMeta}>
-                        <View style={[st.typeBadge, { backgroundColor: badge.bg }]}>
-                          <Text style={[st.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+            {/* Cards */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.listScroll}>
+              {processedFacilities.length > 0 ? (
+                processedFacilities.map((fac, idx) => {
+                  const badge = getTypeBadge(fac.tipe);
+                  const hasDist = fac.calculatedDistance != null;
+                  return (
+                    <View key={fac.id} style={st.card}>
+                      <View style={st.cardHeader}>
+                        <View style={st.facIconWrap}>
+                          <MaterialIcons name={getTypeIcon(fac.tipe)} size={22} color={C.primary} />
                         </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.facName}>{fac.nama}</Text>
+                          <View style={st.badgeRow}>
+                            <View style={[st.typeBadge, { backgroundColor: badge.bg }]}>
+                              <Text style={[st.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+                            </View>
+                            {hasDist && (
+                              <View style={st.distBadge}>
+                                <MaterialIcons name="near-me" size={11} color={C.primary} />
+                                <Text style={st.distBadgeText}>{formatDistance(fac.calculatedDistance!)}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                        {hasDist && idx < 3 && (
+                          <View style={st.rankBadge}>
+                            <Text style={st.rankText}>#{idx + 1}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={st.infoSection}>
+                        {fac.alamat ? (
+                          <View style={st.infoRow}>
+                            <MaterialIcons name="place" size={15} color={C.outline} />
+                            <Text style={st.infoText}>{fac.alamat}</Text>
+                          </View>
+                        ) : null}
+                        {fac.kontak ? (
+                          <View style={st.infoRow}>
+                            <MaterialIcons name="phone" size={15} color={C.outline} />
+                            <Text style={st.infoText}>{fac.kontak}</Text>
+                          </View>
+                        ) : null}
+                        {hasDist && (
+                          <View style={st.distRow}>
+                            <MaterialIcons name="directions-walk" size={15} color={C.success} />
+                            <Text style={st.distFullText}>{formatDistance(fac.calculatedDistance!)} dari lokasi Anda</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
-                  </View>
+                  );
+                })
+              ) : (
+                <View style={st.emptyState}>
+                  <MaterialIcons name="location-off" size={40} color={C.outlineVariant} />
+                  <Text style={st.emptyTitle}>Tidak ditemukan</Text>
+                  <Text style={st.emptySub}>Coba ubah kata kunci pencarian.</Text>
                 </View>
-
-                {/* Info Rows */}
-                <View style={st.infoSection}>
-                  {fac.alamat ? (
-                    <View style={st.infoRow}>
-                      <MaterialIcons name="place" size={18} color={C.outline} />
-                      <Text style={st.infoText}>{fac.alamat}</Text>
-                    </View>
-                  ) : null}
-                  {fac.kontak ? (
-                    <View style={st.infoRow}>
-                      <MaterialIcons name="phone" size={18} color={C.outline} />
-                      <Text style={st.infoText}>{fac.kontak}</Text>
-                    </View>
-                  ) : null}
-                  {fac.layanan ? (
-                    <View style={st.infoRow}>
-                      <MaterialIcons name="medical-services" size={18} color={C.outline} />
-                      <Text style={st.infoText}>{fac.layanan}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <View style={st.emptyState}>
-            <MaterialIcons name="location-off" size={48} color={C.outlineVariant} />
-            <Text style={st.emptyTitle}>Fasilitas tidak ditemukan</Text>
-            <Text style={st.emptySub}>Coba ubah kata kunci pencarian atau filter.</Text>
+              )}
+              <View style={{ height: 32 }} />
+            </ScrollView>
           </View>
-        )}
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
 
-// ── Styles ──
+// ══════════════════════════════════════════════════════════════
+// STYLES
+// ══════════════════════════════════════════════════════════════
+const SHADOW = {
+  shadowColor: C.cardShadow,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  elevation: 5,
+};
+
 const st = StyleSheet.create({
-  /* Loading */
-  loadingContainer: {
-    flex: 1, backgroundColor: C.background,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  loadingText: { marginTop: S.md, fontSize: 16, color: C.outline },
+  safe: { flex: 1, backgroundColor: C.bg },
 
-  safe: { flex: 1, backgroundColor: C.surface },
-  scroll: { paddingHorizontal: S.margin, paddingTop: 24 },
-
-  // Header
+  // ── Header ──
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 12,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.primary,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 10 : 4,
+    paddingBottom: 12,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBtn: { padding: 4, borderRadius: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  backBtn: { padding: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: C.onPrimary, letterSpacing: 0.5 },
 
-  // Headline
-  headline: { marginBottom: 32 },
-  headlineTitle: { fontSize: 32, fontWeight: '700', lineHeight: 40, letterSpacing: -0.64, color: C.primary, marginBottom: 8 },
-  headlineDesc: { fontSize: 16, lineHeight: 24, color: C.onSurfaceVariant },
+  // ── Loading ──
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  loadingCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+  },
+  loadingTitle: { fontSize: 17, fontWeight: '700', color: C.onSurface, textAlign: 'center' },
+  loadingSub: { fontSize: 13, color: C.outline, marginTop: 6, textAlign: 'center' },
 
-  // Search
-  searchWrap: { marginBottom: 32, gap: 16 },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderWidth: 2, borderColor: C.surfaceContainerHighest, borderRadius: 12, paddingHorizontal: 16, height: 52,
-  },
-  searchInput: { flex: 1, fontSize: 16, lineHeight: 24, color: C.onSurface, marginLeft: 12, paddingVertical: 0 },
-  filterRow: { gap: 8 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999,
-    backgroundColor: C.surfaceContainerHigh,
-  },
-  chipActive: { backgroundColor: C.primary },
-  chipText: { fontSize: 12, fontWeight: '500', color: C.onSurfaceVariant },
-  chipTextActive: { color: C.onPrimary },
-
-  // Map
-  mapCard: {
-    height: 192, borderRadius: 16, overflow: 'hidden', marginBottom: 32,
-    shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 6,
-  },
-  mapImg: { width: '100%', height: '100%' },
-  mapOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: 'rgba(0,0,0,0.35)' },
+  // ── Map ──
+  mapContainer: { height: MAP_HEIGHT, position: 'relative' },
+  map: { flex: 1 },
   mapBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+    position: 'absolute', top: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
   },
-  mapBadgeText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  mapBadgeText: { fontSize: 12, fontWeight: '700', color: C.success },
 
-  // List header
+  // Map — web placeholder
+  mapPlaceholder: {
+    height: MAP_HEIGHT, backgroundColor: C.primaryLight,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,
+  },
+  mapPlaceholderInner: { alignItems: 'center', gap: 8 },
+  mapPlaceholderTitle: { fontSize: 18, fontWeight: '700', color: C.primary },
+  mapPlaceholderSub: { fontSize: 13, color: C.outline, textAlign: 'center', lineHeight: 19 },
+
+  // ── Bottom Sheet List ──
+  listSheet: {
+    flex: 1, backgroundColor: C.bg,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    marginTop: -20,
+    paddingTop: 10, paddingHorizontal: 20,
+    ...SHADOW, shadowOpacity: 0.12,
+  },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: C.outlineVariant, alignSelf: 'center', marginBottom: 12,
+  },
+
+  warningBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.warningLight, borderRadius: 12, padding: 12, marginBottom: 10,
+    borderWidth: 1, borderColor: '#fde68a',
+  },
+  warningText: { fontSize: 12, color: '#92400e', flex: 1, lineHeight: 17 },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.surface, borderRadius: 14, paddingHorizontal: 14, height: 46,
+    marginBottom: 12,
+    borderWidth: 1, borderColor: '#e8edf5',
+    ...SHADOW, shadowOpacity: 0.04,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: C.onSurface, paddingVertical: 0 },
+
   listHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
-    marginBottom: 16, paddingHorizontal: 4,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
-  listTitle: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onSurface },
-  listCount: { fontSize: 12, fontWeight: '500', color: C.outline },
+  listTitle: { fontSize: 17, fontWeight: '700', color: C.onSurface },
+  listCount: { fontSize: 12, fontWeight: '600', color: C.outline },
 
-  // Facility Card
+  listScroll: { paddingBottom: 20 },
+
+  // ── Card ──
   card: {
-    backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: `${C.surfaceVariant}80`,
-    borderRadius: 16, padding: 16, marginBottom: 16, gap: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
+    backgroundColor: C.surface, borderRadius: CARD_RADIUS,
+    padding: 16, marginBottom: 12,
+    ...SHADOW,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardTopLeft: { flexDirection: 'row', gap: 16, flex: 1 },
-  facIcon: {
-    width: 48, height: 48, borderRadius: 12, backgroundColor: `${C.primaryContainer}1A`,
-    alignItems: 'center', justifyContent: 'center',
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  facIconWrap: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center',
   },
-  facName: { fontSize: 18, fontWeight: '700', color: C.onSurface },
-  facMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  typeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  typeBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  facName: { fontSize: 15, fontWeight: '700', color: C.onSurface },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
+  typeBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
+  typeBadgeText: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  distBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: C.primaryLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5,
+  },
+  distBadgeText: { fontSize: 9, fontWeight: '700', color: C.primary },
+  rankBadge: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  rankText: { fontSize: 11, fontWeight: '800', color: C.onPrimary },
 
-  // Info rows
   infoSection: {
-    gap: 10, borderTopWidth: 1, borderTopColor: C.surfaceContainer, paddingTop: 12,
+    gap: 7, borderTopWidth: 1, borderTopColor: '#f0f4ff', paddingTop: 12, marginTop: 12,
   },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  infoText: { fontSize: 14, lineHeight: 20, color: C.onSurfaceVariant, flex: 1 },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  infoText: { fontSize: 12, lineHeight: 18, color: C.onSurfaceVariant, flex: 1 },
+  distRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: C.successLight, borderRadius: 10,
+    paddingHorizontal: 11, paddingVertical: 7, marginTop: 3,
+  },
+  distFullText: { fontSize: 12, fontWeight: '600', color: '#166534' },
 
-  // Empty State
-  emptyState: {
-    alignItems: 'center', paddingVertical: S.xl * 2, gap: S.sm,
-  },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: C.onSurface },
-  emptySub: { fontSize: 14, color: C.outline, textAlign: 'center' },
+  // ── Empty ──
+  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 6 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: C.onSurface },
+  emptySub: { fontSize: 13, color: C.outline, textAlign: 'center' },
 });
 
 export default HealthFacilityScreen;

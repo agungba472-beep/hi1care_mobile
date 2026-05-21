@@ -4,7 +4,7 @@ import {
   ScrollView, StatusBar, Image, ActivityIndicator, Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
 
 // ── Design Tokens ──
@@ -29,11 +29,23 @@ interface EdukasiItem {
   konten: string;
   kategori?: string;
   created_at: string;
-  image_url?: string; // Menambahkan properti gambar jika disediakan dari API
+  image_url?: string;
+  cover?: string; // Sesuai dengan field di database backend
 }
+
+const getImageUrl = (path?: string) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  
+  // Mengambil baseURL dari axios api, misal http://127.0.0.1:8000/api
+  // Menghilangkan '/api' di akhir untuk mendapatkan base URL
+  const baseUrl = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://127.0.0.1:8000';
+  return `${baseUrl}/storage/${path}`;
+};
 
 // ── Component ──
 const EducationScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [apiArticles, setApiArticles] = useState<EdukasiItem[]>([]);
@@ -75,7 +87,7 @@ const EducationScreen: React.FC = () => {
       </View>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
-      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* ── Search Bar ── */}
         <View style={st.searchBar}>
@@ -105,22 +117,24 @@ const EducationScreen: React.FC = () => {
               <Text style={st.loadingText}>Memuat artikel...</Text>
             </View>
           ) : filteredArticles.length > 0 ? (
-            filteredArticles.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={st.apiArticleCard} 
-                activeOpacity={0.8}
-                onPress={() => Alert.alert('Artikel', 'Membuka artikel: ' + item.judul)}
-              >
-                {/* Thumbnail Gambar */}
-                <View style={st.apiArticleImgWrap}>
-                  {item.image_url ? (
-                    <Image source={{ uri: item.image_url }} style={st.apiArticleImg} resizeMode="cover" />
-                  ) : (
-                    <View style={st.apiArticleIconFallback}>
-                       <MaterialIcons name="local-hospital" size={48} color={C.primaryContainer} />
-                    </View>
-                  )}
+            filteredArticles.map((item) => {
+              const imagePath = item.cover || item.image_url;
+              return (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={st.apiArticleCard} 
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('ArticleDetail', { article: item })}
+                >
+                  {/* Thumbnail Gambar */}
+                  <View style={st.apiArticleImgWrap}>
+                    {getImageUrl(imagePath) ? (
+                      <Image source={{ uri: getImageUrl(imagePath)! }} style={st.apiArticleImg} resizeMode="cover" />
+                    ) : (
+                      <View style={st.apiArticleIconFallback}>
+                         <MaterialIcons name="local-hospital" size={48} color={C.primaryContainer} />
+                      </View>
+                    )}
                   
                   {item.kategori && (
                     <View style={st.apiArticleBadge}>
@@ -141,7 +155,8 @@ const EducationScreen: React.FC = () => {
                   </View>
                 </View>
               </TouchableOpacity>
-            ))
+              );
+            })
           ) : (
             <View style={st.emptyState}>
               <MaterialIcons name="article" size={48} color={C.outlineVariant} />
