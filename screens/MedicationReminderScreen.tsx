@@ -26,7 +26,6 @@ const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, 
   <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
     <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: 'rgba(255,255,255,0.2)' }} />
     <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: '#fff', borderRightColor: percent < 100 ? 'rgba(255,255,255,0.2)' : '#fff', transform: [{ rotate: '-90deg' }] }} />
-    <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{percent}%</Text>
   </View>
 );
 
@@ -47,7 +46,11 @@ const MedicationReminderScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const alarmTriggeredRef = useRef<string>(''); // Track menit terakhir alarm berbunyi agar tidak repeat
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => { soundRef.current?.unloadAsync(); };
+  }, []);
 
   const fmtTime = useMemo(() => {
     const h = selectedTime.getHours().toString().padStart(2, '0');
@@ -64,25 +67,16 @@ const MedicationReminderScreen: React.FC = () => {
 
   const fmtDateDisplay = useMemo(() => selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), [selectedDate]);
 
-  // Cleanup sound on unmount
-  useEffect(() => {
-    return () => { soundRef.current?.unloadAsync(); };
-  }, []);
-
   // ── Load saved settings from AsyncStorage ──
-  // Menggunakan useFocusEffect agar settings dimuat ulang setiap kali tab difokuskan
   useFocusEffect(useCallback(() => {
     const loadSavedSettings = async () => {
       try {
-        const [savedTime, savedDate, savedRingtoneName, savedRingtoneUri, savedSoundName, savedSoundUri] = await Promise.all([
+        const [savedTime, savedDate, savedSoundName, savedSoundUri] = await Promise.all([
           AsyncStorage.getItem('saved_alarm_time'),
           AsyncStorage.getItem('saved_alarm_date'),
-          AsyncStorage.getItem('saved_ringtone_name'),
-          AsyncStorage.getItem('saved_ringtone_uri'),
           AsyncStorage.getItem('saved_sound_name'),
           AsyncStorage.getItem('saved_sound_uri'),
         ]);
-        console.log('[MedReminder] Loaded from storage:', { savedTime, savedDate, savedRingtoneName, savedRingtoneUri, savedSoundName, savedSoundUri });
         if (savedTime) {
           const parsed = new Date(savedTime);
           if (!isNaN(parsed.getTime())) setSelectedTime(parsed);
@@ -91,13 +85,8 @@ const MedicationReminderScreen: React.FC = () => {
           const parsed = new Date(savedDate);
           if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
         }
-        // Prioritaskan saved_sound_name/uri (langsung dari pick), fallback ke saved_ringtone_name/uri (dari save)
-        const finalName = savedSoundName || savedRingtoneName;
-        const finalUri = savedSoundUri || savedRingtoneUri;
-        if (finalName) setSelectedSoundName(finalName);
-        if (finalUri !== null && finalUri !== undefined && finalUri !== '') {
-          setSelectedSoundUri(finalUri);
-        }
+        if (savedSoundName) setSelectedSoundName(savedSoundName);
+        if (savedSoundUri) setSelectedSoundUri(savedSoundUri);
       } catch (e) {
         console.log('[MedReminder] Gagal memuat pengaturan tersimpan:', e);
       }
@@ -143,11 +132,8 @@ const MedicationReminderScreen: React.FC = () => {
         setSelectedSoundName(name);
         setSelectedSoundUri(uri);
         await stopSound();
-
-        // Langsung simpan ke AsyncStorage agar tidak hilang saat logout/refresh
         await AsyncStorage.setItem('saved_sound_name', name);
         await AsyncStorage.setItem('saved_sound_uri', uri);
-        console.log('[MedReminder] Audio dipilih & disimpan ke storage:', { name, uri });
       }
     } catch { Alert.alert('Error', 'Gagal memilih file audio.'); }
   };
@@ -170,15 +156,12 @@ const MedicationReminderScreen: React.FC = () => {
 
   // ── Save ──
   const handleSave = async () => {
-    if (selectedSoundName === 'Belum dipilih') { Alert.alert('Peringatan', 'Pilih nada dering terlebih dahulu.'); return; }
     setSavingSettings(true);
     try {
       // 1. Simpan ke AsyncStorage DULU
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
-        AsyncStorage.setItem('saved_ringtone_name', selectedSoundName),
-        AsyncStorage.setItem('saved_ringtone_uri', selectedSoundUri || ''),
         AsyncStorage.setItem('saved_sound_name', selectedSoundName),
         AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
       ]);
@@ -189,10 +172,7 @@ const MedicationReminderScreen: React.FC = () => {
       // 3. Daftarkan Local Notification via expo-notifications
       const { status } = await Notifications.requestPermissionsAsync();
       if (status === 'granted') {
-        // Hapus alarm/notifikasi sebelumnya agar tidak menumpuk
         await Notifications.cancelAllScheduledNotificationsAsync();
-
-        // Daftarkan Notifikasi Harian
         await Notifications.scheduleNotificationAsync({
           content: {
             title: 'Waktunya Minum ARV! 💊',
@@ -209,12 +189,12 @@ const MedicationReminderScreen: React.FC = () => {
 
       Alert.alert(
         'Alarm Berhasil Diatur ✅', 
-        `Alarm ${fmtTime} disimpan.\n\nJika aplikasi ditutup atau layar dikunci, alarm akan tetap muncul menggunakan notifikasi standar HP Anda.`
+        `Alarm ${fmtTime} disimpan.\n\nAlarm akan menggunakan suara standar notifikasi HP Anda.`
       );
       fetchData();
     } catch (e: any) {
       console.log('[MedReminder] Save error:', e.response?.data || e.message);
-      Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan ke server, tapi pengaturan lokal tetap tersimpan.');
+      Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan pengaturan ke server, tapi penyimpanan lokal berhasil.');
     }
     finally { setSavingSettings(false); }
   };
@@ -229,9 +209,8 @@ const MedicationReminderScreen: React.FC = () => {
     if (event.type === 'set' && d) setSelectedDate(d);
   };
 
-  // Web handlers untuk <input type="time"> dan <input type="date">
   const onWebTimeChange = (e: any) => {
-    const val = e.target.value; // format "HH:mm"
+    const val = e.target.value; 
     if (val) {
       const [h, m] = val.split(':').map(Number);
       const d = new Date(selectedTime);
@@ -240,14 +219,12 @@ const MedicationReminderScreen: React.FC = () => {
     }
   };
   const onWebDateChange = (e: any) => {
-    const val = e.target.value; // format "YYYY-MM-DD"
+    const val = e.target.value;
     if (val) {
       const d = new Date(val + 'T00:00:00');
       if (!isNaN(d.getTime())) setSelectedDate(d);
     }
   };
-
-  // Real-time interval dihapus karena sudah menggunakan expo-notifications
 
   const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);
@@ -255,97 +232,66 @@ const MedicationReminderScreen: React.FC = () => {
   const pendingRefill = refills.find((r: any) => r.status === 'pending');
 
   if (loading) return (
-    <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat data pengingat...</Text></SafeAreaView>
+    <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
   );
 
   return (
-    <SafeAreaView style={st.safe}><StatusBar barStyle="dark-content" backgroundColor={C.background} />
-      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
-      <View style={st.header}><Text style={st.headerT}>HI!-CARE</Text></View>
+    <SafeAreaView style={st.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.background} />
+      <View style={st.header}><Text style={st.headerT}>Pengingat Obat</Text></View>
+
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Hero */}
-        <View style={st.hero}><View style={{ flex: 1 }}><Text style={st.heroT}>Tetap Kuat</Text><Text style={st.heroS}>Kepatuhan ARV harian di {compliancePercent}%</Text></View><CircleProgress percent={compliancePercent} size={80} /></View>
-
-        {/* Jadwal */}
-        <View style={st.sec}>
-          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{todayStr}</Text></View>
-          <View style={{ gap: S.md }}>
-            {todayAlarms.length > 0 ? todayAlarms.map((al: any, i: number) => (
-              <View style={st.dose} key={al.id || i}>
-                <View style={st.doseL}><View style={st.doseIc}><MaterialIcons name={al.status === 'sudah_diminum' ? 'check-circle' : 'schedule'} size={24} color={C.onSecondaryFixed} /></View>
-                <View><Text style={st.doseT}>Dosis — {al.waktu}</Text><Text style={st.doseSub}>Status: {al.status || 'aktif'}</Text></View></View>
-                <View style={st.doseBdg}><Text style={st.doseBdgT}>{al.status === 'sudah_diminum' ? 'DIMINUM' : 'TERJADWAL'}</Text></View>
-              </View>
-            )) : (
-              <View style={st.dose}><View style={st.doseL}><View style={st.doseIc}><MaterialIcons name="event-busy" size={24} color={C.onSecondaryFixed} /></View><View><Text style={st.doseT}>Tidak ada jadwal</Text><Text style={st.doseSub}>Belum ada alarm hari ini</Text></View></View></View>
-            )}
-            <View style={{ flexDirection: 'row', gap: S.md }}>
-              <View style={st.smCard}><View style={st.smCardH}><MaterialIcons name="notifications-active" size={24} color={C.primary} /><View style={st.togTrk}><View style={st.togThm} /></View></View><Text style={st.smCardT}>Smart Alarms</Text><Text style={st.smCardS}>{alarms.length} alarm terdaftar.</Text></View>
-              <View style={st.smCard}><View style={st.smCardH}><MaterialIcons name="calendar-today" size={24} color={C.secondary} /><Text style={st.refDays}>{refills.length} Riwayat</Text></View><Text style={st.smCardT}>Refill Obat</Text><Text style={st.smCardS}>{latestRefill ? `Siklus ke-${latestRefill.siklus_ke}` : 'Belum ada'}</Text></View>
-            </View>
+        {/* Top Hero */}
+        <View style={st.hero}>
+          <View style={{ flex: 1 }}>
+            <Text style={st.heroT}>Tingkat Kepatuhan</Text>
+            <Text style={st.heroS}>{compliancePercent >= 80 ? 'Luar biasa! Pertahankan rutinitas Anda.' : 'Ayo tingkatkan konsistensi Anda!'}</Text>
           </View>
+          <CircleProgress percent={compliancePercent} size={72} />
         </View>
 
-        {/* ═══ ATUR ALARM BARU ═══ */}
         <View style={st.sec}>
-          <Text style={st.secT}>Atur Alarm Baru</Text>
+          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{todayStr}</Text></View>
+          {todayAlarms.length > 0 ? (
+            todayAlarms.map((alarm: any, idx: number) => (
+              <View style={st.dose} key={alarm.id || idx}>
+                <View style={st.doseL}>
+                  <View style={st.doseIc}><MaterialIcons name="schedule" size={24} color={C.onSecondaryFixed} /></View>
+                  <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text><Text style={st.doseSub}>1 Dosis (Oral)</Text></View>
+                </View>
+                <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
+              </View>
+            ))
+          ) : (
+            <View style={st.dose}>
+              <View style={st.doseL}>
+                <View style={[st.doseIc, { backgroundColor: C.outlineVariant }]}><MaterialIcons name="done-all" size={24} color={C.onSurfaceVariant} /></View>
+                <View><Text style={st.doseT}>Belum ada jadwal</Text><Text style={st.doseSub}>Anda bisa mengaturnya di bawah</Text></View>
+              </View>
+            </View>
+          )}
 
-          {/* Time & Date Row */}
+          {/* Setting Alarm */}
           <View style={st.card}>
-            <View style={st.cardH}><MaterialIcons name="access-time" size={22} color={C.primary} /><Text style={st.cardHT}>Waktu & Tanggal</Text></View>
-
+            <View style={st.cardH}><MaterialIcons name="alarm-on" size={22} color={C.primary} /><Text style={st.cardHT}>Setel Waktu Alarm</Text></View>
             {Platform.OS === 'web' ? (
-              /* ── WEB: HTML input fields ── */
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
                   <MaterialIcons name="schedule" size={22} color={C.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Jam</Text>
-                    <input
-                      type="time"
-                      value={fmtTime}
-                      onChange={onWebTimeChange}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: '#0043a2',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        width: '100%',
-                        fontFamily: 'inherit',
-                      }}
-                    />
+                    <input type="time" value={fmtTime} onChange={onWebTimeChange} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
                   <MaterialIcons name="event" size={22} color={C.secondary} />
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Tanggal</Text>
-                    <input
-                      type="date"
-                      value={fmtDate}
-                      onChange={onWebDateChange}
-                      min={new Date().toISOString().split('T')[0]}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: '#0043a2',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        width: '100%',
-                        fontFamily: 'inherit',
-                      }}
-                    />
+                    <input type="date" value={fmtDate} onChange={onWebDateChange} min={new Date().toISOString().split('T')[0]} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
               </View>
             ) : (
-              /* ── MOBILE: Native DateTimePicker ── */
               <>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowTimePicker(true)} activeOpacity={0.8}>
@@ -366,19 +312,14 @@ const MedicationReminderScreen: React.FC = () => {
           {/* Custom Ringtone */}
           <View style={st.card}>
             <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Nada Dering</Text></View>
-
-            {/* Current selection */}
             <View style={st.audioInfo}>
               <MaterialIcons name={selectedSoundUri ? 'audiotrack' : 'music-off'} size={20} color={selectedSoundUri ? C.primary : C.outline} />
               <Text style={[st.audioName, selectedSoundUri && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>{selectedSoundName}</Text>
             </View>
-
-            {/* Buttons */}
             <TouchableOpacity style={st.audioPickBtn} onPress={pickAudio} activeOpacity={0.8}>
               <MaterialIcons name="folder-open" size={20} color={C.onPrimary} />
               <Text style={st.audioPickTxt}>Pilih Audio dari Perangkat</Text>
             </TouchableOpacity>
-
             {selectedSoundUri && (
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity style={[st.previewBtn, { flex: 1, backgroundColor: isPlaying ? C.outline : C.secondaryContainer }]} onPress={isPlaying ? stopSound : playSound} activeOpacity={0.8}>
@@ -387,6 +328,10 @@ const MedicationReminderScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
             )}
+            <View style={[st.audioInfo, { backgroundColor: '#eff6ff' }]}>
+              <MaterialIcons name="info-outline" size={16} color={C.primary} />
+              <Text style={[st.audioName, { fontSize: 12 }]}>Saat app ditutup, alarm menggunakan suara standar HP.</Text>
+            </View>
           </View>
 
           {/* Save */}
@@ -447,20 +392,12 @@ const st = StyleSheet.create({
   doseSub: { fontSize: 12, fontWeight: '500', color: C.outline },
   doseBdg: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
   doseBdgT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
-  smCard: { flex: 1, backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.md, gap: S.sm },
-  smCardH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  smCardT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
-  smCardS: { fontSize: 12, color: C.outline },
-  togTrk: { width: 32, height: 16, borderRadius: 8, backgroundColor: C.primaryContainer, justifyContent: 'center' },
-  togThm: { position: 'absolute', right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff' },
-  refDays: { fontSize: 13, fontWeight: '700', color: C.secondary },
   refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, elevation: 4 },
   refBtnT: { fontSize: 16, fontWeight: '700', color: '#fff' },
   logC: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#fff', padding: S.md, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
   logT: { fontSize: 14, color: C.onSurface, flex: 1 },
   privCard: { backgroundColor: '#eff6ff', borderRadius: 16, padding: S.xl, borderWidth: 1, borderColor: '#dbeafe', alignItems: 'center', gap: S.md },
   privTxt: { fontSize: 14, color: C.primary, textAlign: 'center', maxWidth: 200 },
-  // Settings
   card: { backgroundColor: '#fff', borderRadius: 12, padding: S.md, borderWidth: 1, borderColor: '#e2e8f0', gap: 12, elevation: 1 },
   cardH: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   cardHT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
@@ -468,13 +405,13 @@ const st = StyleSheet.create({
   pickerLbl: { fontSize: 11, fontWeight: '500', color: C.outline, textTransform: 'uppercase', letterSpacing: 0.5 },
   pickerVal: { fontSize: 18, fontWeight: '700', color: C.primary },
   audioInfo: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.surfaceContainerLow, padding: 12, borderRadius: 10 },
-  audioName: { fontSize: 14, color: C.onSurfaceVariant, flex: 1 },
+  audioName: { fontSize: 13, color: C.onSurfaceVariant, flex: 1, lineHeight: 20 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primaryContainer, paddingVertical: 16, borderRadius: 12, elevation: 6 },
+  saveTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
   audioPickBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 12, borderRadius: 10 },
   audioPickTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
   previewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingVertical: 12, borderRadius: 10 },
   previewTxt: { fontSize: 14, fontWeight: '600', color: C.onSecondaryFixed },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primaryContainer, paddingVertical: 16, borderRadius: 12, elevation: 6 },
-  saveTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });
 
 export default MedicationReminderScreen;

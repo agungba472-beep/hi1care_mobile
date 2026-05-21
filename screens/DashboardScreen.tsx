@@ -115,17 +115,30 @@ const DashboardScreen: React.FC = () => {
     }, [fetchDashboard])
   );
 
-  const handleTakeMedicine = async () => {
-    setTrackingLoading(true);
-    try {
-      await api.post('/patient/kepatuhan/track', { status: 'diminum' });
-      Alert.alert('Berhasil ✅', 'Status kepatuhan obat hari ini telah dicatat.');
-      fetchDashboard();
-    } catch (err: any) {
-      Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.');
-    } finally {
-      setTrackingLoading(false);
-    }
+  const handleMarkAsTaken = (id?: number) => {
+    if (!id) return;
+    Alert.alert(
+      'Konfirmasi',
+      'Apakah Anda yakin sudah meminum obat ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Ya, Sudah Diminum', 
+          onPress: async () => {
+            setTrackingLoading(true);
+            try {
+              await api.post(`/patient/alarms/${id}/taken`);
+              Alert.alert('Berhasil ✅', 'Status obat hari ini telah dicatat sebagai diminum.');
+              fetchDashboard();
+            } catch (err: any) {
+              Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.');
+            } finally {
+              setTrackingLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // ── Loading State ──
@@ -193,27 +206,30 @@ const DashboardScreen: React.FC = () => {
 
             {alarmsToday.length > 0 ? (
               alarmsToday.map((alarm: any, idx: number) => (
-                <View style={st.arvItem} key={alarm.id || idx}>
+                <TouchableOpacity 
+                  style={st.arvItem} 
+                  key={alarm.id || idx}
+                  activeOpacity={0.8}
+                  onPress={() => handleMarkAsTaken(alarm.id)}
+                  disabled={trackingLoading || alarm.status === 'diminum'}
+                >
                   <View style={st.arvLeft}>
                     <View style={st.arvIconWrap}>
-                      <MaterialIcons name="schedule" size={16} color="#fff" />
+                      <MaterialIcons name={alarm.status === 'diminum' ? 'check-circle' : 'schedule'} size={16} color="#fff" />
                     </View>
                     <View>
                       <Text style={st.arvName}>ARV — {alarm.waktu}</Text>
-                      <Text style={st.arvDose}>Status: {alarm.status || 'aktif'}</Text>
+                      <Text style={st.arvDose}>
+                        Status: {alarm.status === 'diminum' ? 'DIMINUM' : 'TERJADWAL'}
+                      </Text>
                     </View>
                   </View>
-                  <TouchableOpacity
-                    style={st.arvBtn}
-                    onPress={handleTakeMedicine}
-                    activeOpacity={0.85}
-                    disabled={trackingLoading}
-                  >
+                  <View style={[st.arvBtn, alarm.status === 'diminum' && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
                     <Text style={st.arvBtnText}>
-                      {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                      {trackingLoading ? '...' : alarm.status === 'diminum' ? 'SELESAI' : 'MINUM SEKARANG'}
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                </TouchableOpacity>
               ))
             ) : (
               <View style={st.arvItem}>
@@ -226,16 +242,11 @@ const DashboardScreen: React.FC = () => {
                     <Text style={st.arvDose}>Atau data belum tersedia</Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={st.arvBtn}
-                  onPress={handleTakeMedicine}
-                  activeOpacity={0.85}
-                  disabled={trackingLoading}
-                >
+                <View style={[st.arvBtn, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
                   <Text style={st.arvBtnText}>
-                    {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                    TIDAK ADA JADWAL
                   </Text>
-                </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
