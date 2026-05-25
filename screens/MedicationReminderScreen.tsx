@@ -121,6 +121,29 @@ const MedicationReminderScreen: React.FC = () => {
     finally { setRefillLoading(false); }
   };
 
+  // ── Mark alarm as taken ──
+  const handleMarkAsTaken = async (alarmId: number) => {
+    Alert.alert(
+      'Konfirmasi Minum Obat',
+      'Apakah Anda yakin sudah meminum obat ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ya, Sudah Diminum',
+          onPress: async () => {
+            try {
+              await api.post(`/patient/alarms/${alarmId}/taken`);
+              Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
+              fetchData();
+            } catch (e: any) {
+              Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status alarm.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ── Audio ──
   const pickAudio = async () => {
     try {
@@ -253,15 +276,33 @@ const MedicationReminderScreen: React.FC = () => {
         <View style={st.sec}>
           <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{todayStr}</Text></View>
           {todayAlarms.length > 0 ? (
-            todayAlarms.map((alarm: any, idx: number) => (
-              <View style={st.dose} key={alarm.id || idx}>
-                <View style={st.doseL}>
-                  <View style={st.doseIc}><MaterialIcons name="schedule" size={24} color={C.onSecondaryFixed} /></View>
-                  <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text><Text style={st.doseSub}>1 Dosis (Oral)</Text></View>
+            todayAlarms.map((alarm: any, idx: number) => {
+              const isTaken = alarm.status === 'sudah';
+              const isPending = !alarm.status || alarm.status === 'belum';
+              return (
+                <View style={st.doseCard} key={alarm.id || idx}>
+                  <View style={st.dose}>
+                    <View style={st.doseL}>
+                      <View style={[st.doseIc, isTaken && { backgroundColor: '#dcfce7' }]}>
+                        <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? '#16a34a' : C.onSecondaryFixed} />
+                      </View>
+                      <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text><Text style={st.doseSub}>1 Dosis (Oral)</Text></View>
+                    </View>
+                    {isTaken ? (
+                      <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
+                    ) : (
+                      <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
+                    )}
+                  </View>
+                  {isPending && (
+                    <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id)} activeOpacity={0.8}>
+                      <MaterialIcons name="check-circle" size={18} color="#fff" />
+                      <Text style={st.markTakenTxt}>Tandai Sudah Diminum</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <View style={st.dose}>
               <View style={st.doseL}>
@@ -385,13 +426,18 @@ const st = StyleSheet.create({
   secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   secT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onBackground },
   secD: { fontSize: 12, fontWeight: '500', color: C.outline },
-  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 12, padding: S.md, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
+  doseCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1, overflow: 'hidden' },
+  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: S.md },
   doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md },
   doseIc: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.secondaryFixed, alignItems: 'center', justifyContent: 'center' },
   doseT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
   doseSub: { fontSize: 12, fontWeight: '500', color: C.outline },
   doseBdg: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
   doseBdgT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
+  doseBdgTaken: { backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
+  doseBdgTakenT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#16a34a', textTransform: 'uppercase' },
+  markTakenBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#16a34a', paddingVertical: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  markTakenTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
   refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, elevation: 4 },
   refBtnT: { fontSize: 16, fontWeight: '700', color: '#fff' },
   logC: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#fff', padding: S.md, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
