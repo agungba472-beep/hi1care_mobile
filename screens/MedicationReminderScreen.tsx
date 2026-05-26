@@ -343,7 +343,7 @@ const MedicationReminderScreen: React.FC = () => {
                       <View style={[st.doseIc, isTaken && { backgroundColor: '#dcfce7' }]}>
                         <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? '#16a34a' : C.onSecondaryFixed} />
                       </View>
-                      <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text><Text style={st.doseSub}>1 Dosis (Oral)</Text></View>
+                      <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text></View>
                     </View>
                     {isTaken ? (
                       <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
