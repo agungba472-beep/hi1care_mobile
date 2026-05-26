@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../src/api';
+import { Platform } from 'react-native';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -117,28 +118,48 @@ const DashboardScreen: React.FC = () => {
 
   const handleMarkAsTaken = (id?: number) => {
     if (!id) return;
-    Alert.alert(
-      'Konfirmasi',
-      'Apakah Anda yakin sudah meminum obat ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        { 
-          text: 'Ya, Sudah Diminum', 
-          onPress: async () => {
-            setTrackingLoading(true);
-            try {
-              await api.post(`/patient/alarms/${id}/taken`);
-              Alert.alert('Berhasil ✅', 'Status obat hari ini telah dicatat sebagai diminum.');
-              fetchDashboard();
-            } catch (err: any) {
-              Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.');
-            } finally {
-              setTrackingLoading(false);
+    
+    // ANTI-ERROR UNTUK BROWSER WEB
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
+      if (confirm) {
+        setTrackingLoading(true);
+        api.post(`/patient/alarms/${id}/taken`)
+          .then(() => {
+            window.alert('Berhasil ✅ Status obat hari ini telah dicatat sebagai diminum.');
+            fetchDashboard();
+          })
+          .catch((err: any) => {
+            window.alert('Gagal: ' + (err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.'));
+          })
+          .finally(() => setTrackingLoading(false));
+      }
+    } 
+    // UNTUK APLIKASI NATIVE (HP)
+    else {
+      Alert.alert(
+        'Konfirmasi',
+        'Apakah Anda yakin sudah meminum obat ini?',
+        [
+          { text: 'Batal', style: 'cancel' },
+          { 
+            text: 'Ya, Sudah Diminum', 
+            onPress: async () => {
+              setTrackingLoading(true);
+              try {
+                await api.post(`/patient/alarms/${id}/taken`);
+                Alert.alert('Berhasil ✅', 'Status obat hari ini telah dicatat sebagai diminum.');
+                fetchDashboard();
+              } catch (err: any) {
+                Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat mencatat kepatuhan.');
+              } finally {
+                setTrackingLoading(false);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // ── Loading State ──

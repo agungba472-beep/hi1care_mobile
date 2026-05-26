@@ -65,8 +65,6 @@ const MedicationReminderScreen: React.FC = () => {
     return `${y}-${mo}-${d}`;
   }, [selectedDate]);
 
-  const fmtDateDisplay = useMemo(() => selectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }), [selectedDate]);
-
   // ── Load saved settings from AsyncStorage ──
   useFocusEffect(useCallback(() => {
     const loadSavedSettings = async () => {
@@ -94,10 +92,11 @@ const MedicationReminderScreen: React.FC = () => {
     loadSavedSettings();
   }, []));
 
-  // ── Fetch ──
-  const fetchData = useCallback(async () => {
+  // ── Fetch Data ──
+  // Parameter silent mencegah UI berkedip (hilang) saat memperbarui data dari aksi pengguna
+  const fetchData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [aR, rR, dR] = await Promise.all([
         api.get('/patient/alarms'), api.get('/patient/refill-history'), api.get('/patient/dashboard'),
       ]);
@@ -108,43 +107,75 @@ const MedicationReminderScreen: React.FC = () => {
         const diminum = kep.filter((k: any) => k.status === 'diminum').length;
         setCompliancePercent(Math.round((diminum / kep.length) * 100));
       }
-    } catch (e: any) { console.log('[MedReminder]', e.response?.data || e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) { 
+      console.log('[MedReminder]', e.response?.data || e.message); 
+    } finally { 
+      if (!silent) setLoading(false); 
+    }
   }, []);
+  
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
-  // ── Refill ──
+  // ── Refill (Web Safe) ──
   const handleRefill = async () => {
     setRefillLoading(true);
-    try { await api.post('/patient/refill/request'); Alert.alert('Berhasil ✅', 'Permintaan refill berhasil diajukan.'); fetchData(); }
-    catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengajukan refill.'); }
-    finally { setRefillLoading(false); }
+    try { 
+      await api.post('/patient/refill/request'); 
+      if (Platform.OS === 'web') {
+        setTimeout(() => window.alert('Berhasil ✅ Permintaan refill berhasil diajukan.'), 50);
+      } else {
+        Alert.alert('Berhasil ✅', 'Permintaan refill berhasil diajukan.'); 
+      }
+      fetchData(true); // Update diam-diam
+    } catch (e: any) { 
+      if (Platform.OS === 'web') {
+        setTimeout(() => window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat mengajukan refill.')), 50);
+      } else {
+        Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengajukan refill.'); 
+      }
+    } finally { setRefillLoading(false); }
   };
 
-  // ── Mark alarm as taken ──
+  // ── Mark alarm as taken (Web Safe) ──
   const handleMarkAsTaken = async (alarmId: number) => {
-    Alert.alert(
-      'Konfirmasi Minum Obat',
-      'Apakah Anda yakin sudah meminum obat ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Ya, Sudah Diminum',
-          onPress: async () => {
-            try {
-              await api.post(`/patient/alarms/${alarmId}/taken`);
-              Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
-              fetchData();
-            } catch (e: any) {
-              Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status alarm.');
-            }
+    if (Platform.OS === 'web') {
+      // Menggunakan setTimeout untuk mencegah pemblokiran thread UI oleh alert browser bawaan
+      setTimeout(async () => {
+        const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
+        if (confirm) {
+          try {
+            await api.post(`/patient/alarms/${alarmId}/taken`);
+            setTimeout(() => window.alert('Berhasil ✅ Obat berhasil ditandai sebagai diminum.'), 10);
+            fetchData(true); // Update diam-diam
+          } catch (e: any) {
+            setTimeout(() => window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat memperbarui status alarm.')), 10);
+          }
+        }
+      }, 50);
+    } else {
+      Alert.alert(
+        'Konfirmasi Minum Obat',
+        'Apakah Anda yakin sudah meminum obat ini?',
+        [
+          { text: 'Batal', style: 'cancel' },
+          {
+            text: 'Ya, Sudah Diminum',
+            onPress: async () => {
+              try {
+                await api.post(`/patient/alarms/${alarmId}/taken`);
+                Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
+                fetchData(true); // Update diam-diam
+              } catch (e: any) {
+                Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status alarm.');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
-  // ── Audio ──
+  // ── Audio (Web Safe) ──
   const pickAudio = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
@@ -158,18 +189,28 @@ const MedicationReminderScreen: React.FC = () => {
         await AsyncStorage.setItem('saved_sound_name', name);
         await AsyncStorage.setItem('saved_sound_uri', uri);
       }
-    } catch { Alert.alert('Error', 'Gagal memilih file audio.'); }
+    } catch { 
+      if (Platform.OS === 'web') setTimeout(() => window.alert('Gagal memilih file audio.'), 50);
+      else Alert.alert('Error', 'Gagal memilih file audio.'); 
+    }
   };
 
   const playSound = async () => {
-    if (!selectedSoundUri) { Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); return; }
+    if (!selectedSoundUri) { 
+      if (Platform.OS === 'web') setTimeout(() => window.alert('Pilih file audio terlebih dahulu.'), 50);
+      else Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); 
+      return; 
+    }
     try {
       await stopSound();
       const { sound } = await Audio.Sound.createAsync({ uri: selectedSoundUri }, { shouldPlay: true });
       soundRef.current = sound;
       setIsPlaying(true);
       sound.setOnPlaybackStatusUpdate((s) => { if ('didJustFinish' in s && s.didJustFinish) { setIsPlaying(false); sound.unloadAsync(); soundRef.current = null; } });
-    } catch { Alert.alert('Error', 'Tidak dapat memutar audio.'); }
+    } catch { 
+      if (Platform.OS === 'web') setTimeout(() => window.alert('Tidak dapat memutar audio.'), 50);
+      else Alert.alert('Error', 'Tidak dapat memutar audio.'); 
+    }
   };
 
   const stopSound = async () => {
@@ -177,11 +218,11 @@ const MedicationReminderScreen: React.FC = () => {
     setIsPlaying(false);
   };
 
-  // ── Save ──
+  // ── Save (Web Safe & Date Format Fixed) ──
   const handleSave = async () => {
     setSavingSettings(true);
     try {
-      // 1. Simpan ke AsyncStorage DULU
+      // 1. Simpan ke AsyncStorage
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
@@ -189,35 +230,52 @@ const MedicationReminderScreen: React.FC = () => {
         AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
       ]);
 
-      // 2. Kirim ke API
-      await api.post('/patient/alarms/settings', { waktu: fmtTime, tanggal: fmtDate, nada_dering: selectedSoundName });
+      // 2. Format jam & tanggal dengan manual dan pasti benar untuk API Laravel (H:i dan Y-m-d)
+      const jamFormat = selectedTime.getHours().toString().padStart(2, '0') + ':' + selectedTime.getMinutes().toString().padStart(2, '0');
+      const tglFormat = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
 
-      // 3. Daftarkan Local Notification via expo-notifications
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        await Notifications.cancelAllScheduledNotificationsAsync();
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Waktunya Minum ARV! 💊',
-            body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}). Tetap semangat dan jaga kesehatan!`,
-            sound: true,
-          },
-          trigger: {
-            hour: selectedTime.getHours(),
-            minute: selectedTime.getMinutes(),
-            repeats: true,
-          } as any,
-        });
+      // 3. Kirim ke API Laravel
+      await api.post('/patient/alarms/settings', { 
+        waktu: jamFormat, 
+        tanggal: tglFormat, 
+        nada_dering: selectedSoundName 
+      });
+
+      // 4. Daftarkan Notifikasi (HANYA AKTIF JIKA DIBUKA DI HP)
+      if (Platform.OS !== 'web') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status === 'granted') {
+          await Notifications.cancelAllScheduledNotificationsAsync();
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Waktunya Minum ARV! 💊',
+              body: `Halo, ini pengingat jadwal minum obat Anda (${jamFormat}). Tetap semangat dan jaga kesehatan!`,
+              sound: true,
+            },
+            trigger: {
+              hour: selectedTime.getHours(),
+              minute: selectedTime.getMinutes(),
+              repeats: true,
+            } as any,
+          });
+        }
       }
 
-      Alert.alert(
-        'Alarm Berhasil Diatur ✅', 
-        `Alarm ${fmtTime} disimpan.\n\nAlarm akan menggunakan suara standar notifikasi HP Anda.`
-      );
-      fetchData();
+      // 5. Alert Sukses
+      const successMessage = `Alarm ${jamFormat} berhasil disimpan.\n\n${Platform.OS === 'web' ? '(Peringatan: Notifikasi pop-up otomatis hanya muncul jika dibuka lewat Aplikasi HP)' : 'Alarm akan menggunakan suara standar notifikasi HP Anda.'}`;
+      
+      if (Platform.OS === 'web') {
+        setTimeout(() => window.alert(successMessage), 50);
+      } else {
+        Alert.alert('Alarm Berhasil Diatur ✅', successMessage);
+      }
+      
+      fetchData(true); // Update diam-diam
     } catch (e: any) {
       console.log('[MedReminder] Save error:', e.response?.data || e.message);
-      Alert.alert('Gagal', e.response?.data?.message || 'Gagal menyimpan pengaturan ke server, tapi penyimpanan lokal berhasil.');
+      const errorMsg = e.response?.data?.message || 'Gagal menyimpan pengaturan ke server.';
+      if (Platform.OS === 'web') setTimeout(() => window.alert('Gagal: ' + errorMsg), 50);
+      else Alert.alert('Gagal', errorMsg);
     }
     finally { setSavingSettings(false); }
   };
@@ -251,8 +309,7 @@ const MedicationReminderScreen: React.FC = () => {
 
   const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);
-  const latestRefill = refills[0] || null;
-  const pendingRefill = refills.find((r: any) => r.status === 'pending');
+  const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu'); 
 
   if (loading) return (
     <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
@@ -321,14 +378,16 @@ const MedicationReminderScreen: React.FC = () => {
                   <MaterialIcons name="schedule" size={22} color={C.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Jam</Text>
-                    <input type="time" value={fmtTime} onChange={onWebTimeChange} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    {/* @ts-ignore */}
+                    <input type="time" value={fmtTime} onChange={onWebTimeChange} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: '700', color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
                   <MaterialIcons name="event" size={22} color={C.secondary} />
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Tanggal</Text>
-                    <input type="date" value={fmtDate} onChange={onWebDateChange} min={new Date().toISOString().split('T')[0]} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    {/* @ts-ignore */}
+                    <input type="date" value={fmtDate} onChange={onWebDateChange} min={new Date().toISOString().split('T')[0]} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: '700', color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
               </View>
@@ -376,10 +435,12 @@ const MedicationReminderScreen: React.FC = () => {
           </View>
 
           {/* Save */}
-          <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
-            <MaterialIcons name="save" size={20} color="#fff" />
-            <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Alarm'}</Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
+              <MaterialIcons name="save" size={20} color="#fff" />
+              <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Alarm'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Refill */}
@@ -397,7 +458,7 @@ const MedicationReminderScreen: React.FC = () => {
               <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Riwayat Refill</Text>
               {refills.slice(0, 5).map((r: any, i: number) => (
                 <View style={st.logC} key={r.id || i}><MaterialIcons name="history" size={16} color={C.secondary} />
-                  <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' ? '#16a34a' : r.status === 'pending' ? C.secondary : C.outline }}>{r.status}</Text></Text>
+                  <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' || r.status === 'selesai' ? '#16a34a' : r.status === 'pending' || r.status === 'menunggu' ? C.secondary : C.outline }}>{r.status}</Text></Text>
                 </View>
               ))}
             </View>
