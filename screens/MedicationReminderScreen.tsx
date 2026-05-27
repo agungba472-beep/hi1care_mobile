@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Alert, Platform, Switch } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -8,6 +8,17 @@ import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import api from '../src/api';
+
+// ── FIX 1: PAKSA NOTIFIKASI BUNYI MESKIPUN APLIKASI SEDANG DIBUKA ──
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
@@ -39,6 +50,7 @@ const MedicationReminderScreen: React.FC = () => {
   // Alarm settings
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isEveryday, setIsEveryday] = useState(true);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedSoundName, setSelectedSoundName] = useState('Belum dipilih');
@@ -47,56 +59,48 @@ const MedicationReminderScreen: React.FC = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Cleanup sound on unmount
+  // ── FIX 2: TIMER UNTUK UPDATE GEMBOK WAKTU SETIAP 5 DETIK ──
+  const [currentTimeForUI, setCurrentTimeForUI] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTimeForUI(new Date()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     return () => { soundRef.current?.unloadAsync(); };
   }, []);
 
   const fmtTime = useMemo(() => {
-    const h = selectedTime.getHours().toString().padStart(2, '0');
-    const m = selectedTime.getMinutes().toString().padStart(2, '0');
-    return `${h}:${m}`;
+    return selectedTime.getHours().toString().padStart(2, '0') + ':' + selectedTime.getMinutes().toString().padStart(2, '0');
   }, [selectedTime]);
 
   const fmtDate = useMemo(() => {
-    const y = selectedDate.getFullYear();
-    const mo = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-    const d = selectedDate.getDate().toString().padStart(2, '0');
-    return `${y}-${mo}-${d}`;
+    return selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
   }, [selectedDate]);
 
-  // ── Load saved settings from AsyncStorage ──
   useFocusEffect(useCallback(() => {
     const loadSavedSettings = async () => {
       try {
-        const [savedTime, savedDate, savedSoundName, savedSoundUri] = await Promise.all([
+        const [savedTime, savedDate, savedSoundName, savedSoundUri, savedEveryday] = await Promise.all([
           AsyncStorage.getItem('saved_alarm_time'),
           AsyncStorage.getItem('saved_alarm_date'),
           AsyncStorage.getItem('saved_sound_name'),
           AsyncStorage.getItem('saved_sound_uri'),
+          AsyncStorage.getItem('saved_is_everyday')
         ]);
-        if (savedTime) {
-          const parsed = new Date(savedTime);
-          if (!isNaN(parsed.getTime())) setSelectedTime(parsed);
-        }
-        if (savedDate) {
-          const parsed = new Date(savedDate);
-          if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
-        }
+        if (savedTime) { const parsed = new Date(savedTime); if (!isNaN(parsed.getTime())) setSelectedTime(parsed); }
+        if (savedDate) { const parsed = new Date(savedDate); if (!isNaN(parsed.getTime())) setSelectedDate(parsed); }
         if (savedSoundName) setSelectedSoundName(savedSoundName);
         if (savedSoundUri) setSelectedSoundUri(savedSoundUri);
-      } catch (e) {
-        console.log('[MedReminder] Gagal memuat pengaturan tersimpan:', e);
-      }
+        if (savedEveryday !== null) setIsEveryday(savedEveryday === 'true');
+      } catch (e) {}
     };
     loadSavedSettings();
   }, []));
 
-  // ── Fetch Data ──
-  // Parameter silent mencegah UI berkedip (hilang) saat memperbarui data dari aksi pengguna
-  const fetchData = useCallback(async (silent = false) => {
+  const fetchData = useCallback(async () => {
     try {
-      if (!silent) setLoading(true);
+      setLoading(true);
       const [aR, rR, dR] = await Promise.all([
         api.get('/patient/alarms'), api.get('/patient/refill-history'), api.get('/patient/dashboard'),
       ]);
@@ -107,98 +111,95 @@ const MedicationReminderScreen: React.FC = () => {
         const diminum = kep.filter((k: any) => k.status === 'diminum').length;
         setCompliancePercent(Math.round((diminum / kep.length) * 100));
       }
-    } catch (e: any) { 
-      console.log('[MedReminder]', e.response?.data || e.message); 
-    } finally { 
-      if (!silent) setLoading(false); 
-    }
+    } catch (e) {} finally { setLoading(false); }
   }, []);
   
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
-  // ── Refill (Web Safe) ──
+  const handleDeleteAlarm = async (alarmId: number) => {
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm('Hapus jadwal alarm ini?');
+      if (confirm) {
+        try {
+          await api.delete(`/patient/alarms/${alarmId}`);
+          window.alert('Alarm dihapus.');
+          fetchData();
+        } catch (e) { window.alert('Gagal menghapus alarm.'); }
+      }
+    } else {
+      Alert.alert('Hapus Alarm', 'Hapus jadwal alarm ini?', [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/patient/alarms/${alarmId}`);
+              fetchData();
+            } catch (e) { Alert.alert('Gagal', 'Tidak dapat menghapus alarm.'); }
+          },
+        },
+      ]);
+    }
+  };
+
   const handleRefill = async () => {
     setRefillLoading(true);
     try { 
       await api.post('/patient/refill/request'); 
-      if (Platform.OS === 'web') {
-        setTimeout(() => window.alert('Berhasil ✅ Permintaan refill berhasil diajukan.'), 50);
-      } else {
-        Alert.alert('Berhasil ✅', 'Permintaan refill berhasil diajukan.'); 
-      }
-      fetchData(true); // Update diam-diam
+      if (Platform.OS === 'web') window.alert('Berhasil ✅ Permintaan refill berhasil diajukan.');
+      else Alert.alert('Berhasil ✅', 'Permintaan refill berhasil diajukan.'); 
+      fetchData(); 
     } catch (e: any) { 
-      if (Platform.OS === 'web') {
-        setTimeout(() => window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat mengajukan refill.')), 50);
-      } else {
-        Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengajukan refill.'); 
-      }
+      if (Platform.OS === 'web') window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat mengajukan refill.'));
+      else Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengajukan refill.'); 
     } finally { setRefillLoading(false); }
   };
 
-  // ── Mark alarm as taken (Web Safe) ──
   const handleMarkAsTaken = async (alarmId: number) => {
     if (Platform.OS === 'web') {
-      // Menggunakan setTimeout untuk mencegah pemblokiran thread UI oleh alert browser bawaan
-      setTimeout(async () => {
-        const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
-        if (confirm) {
-          try {
-            await api.post(`/patient/alarms/${alarmId}/taken`);
-            setTimeout(() => window.alert('Berhasil ✅ Obat berhasil ditandai sebagai diminum.'), 10);
-            fetchData(true); // Update diam-diam
-          } catch (e: any) {
-            setTimeout(() => window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat memperbarui status alarm.')), 10);
-          }
-        }
-      }, 50);
+      const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
+      if (confirm) {
+        try {
+          await api.post(`/patient/alarms/${alarmId}/taken`);
+          window.alert('Berhasil ✅ Obat berhasil ditandai sebagai diminum.');
+          fetchData();
+        } catch (e: any) { window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat memperbarui status.')); }
+      }
     } else {
-      Alert.alert(
-        'Konfirmasi Minum Obat',
-        'Apakah Anda yakin sudah meminum obat ini?',
-        [
-          { text: 'Batal', style: 'cancel' },
-          {
-            text: 'Ya, Sudah Diminum',
-            onPress: async () => {
-              try {
-                await api.post(`/patient/alarms/${alarmId}/taken`);
-                Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
-                fetchData(true); // Update diam-diam
-              } catch (e: any) {
-                Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status alarm.');
-              }
-            },
+      Alert.alert('Konfirmasi Minum Obat', 'Apakah Anda yakin sudah meminum obat ini?', [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ya, Sudah Diminum',
+          onPress: async () => {
+            try {
+              await api.post(`/patient/alarms/${alarmId}/taken`);
+              Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
+              fetchData();
+            } catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status.'); }
           },
-        ]
-      );
+        },
+      ]);
     }
   };
 
-  // ── Audio (Web Safe) ──
   const pickAudio = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
       if (!res.canceled && res.assets?.[0]) {
         const a = res.assets[0];
-        const name = a.name || 'Custom Audio';
-        const uri = a.uri;
-        setSelectedSoundName(name);
-        setSelectedSoundUri(uri);
+        setSelectedSoundName(a.name || 'Custom Audio');
+        setSelectedSoundUri(a.uri);
         await stopSound();
-        await AsyncStorage.setItem('saved_sound_name', name);
-        await AsyncStorage.setItem('saved_sound_uri', uri);
+        await AsyncStorage.setItem('saved_sound_name', a.name || 'Custom Audio');
+        await AsyncStorage.setItem('saved_sound_uri', a.uri);
       }
-    } catch { 
-      if (Platform.OS === 'web') setTimeout(() => window.alert('Gagal memilih file audio.'), 50);
-      else Alert.alert('Error', 'Gagal memilih file audio.'); 
-    }
+    } catch { }
   };
 
   const playSound = async () => {
     if (!selectedSoundUri) { 
-      if (Platform.OS === 'web') setTimeout(() => window.alert('Pilih file audio terlebih dahulu.'), 50);
-      else Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); 
+      Platform.OS === 'web' ? window.alert('Pilih file audio terlebih dahulu.') : Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); 
       return; 
     }
     try {
@@ -207,10 +208,7 @@ const MedicationReminderScreen: React.FC = () => {
       soundRef.current = sound;
       setIsPlaying(true);
       sound.setOnPlaybackStatusUpdate((s) => { if ('didJustFinish' in s && s.didJustFinish) { setIsPlaying(false); sound.unloadAsync(); soundRef.current = null; } });
-    } catch { 
-      if (Platform.OS === 'web') setTimeout(() => window.alert('Tidak dapat memutar audio.'), 50);
-      else Alert.alert('Error', 'Tidak dapat memutar audio.'); 
-    }
+    } catch { }
   };
 
   const stopSound = async () => {
@@ -218,98 +216,56 @@ const MedicationReminderScreen: React.FC = () => {
     setIsPlaying(false);
   };
 
-  // ── Save (Web Safe & Date Format Fixed) ──
   const handleSave = async () => {
     setSavingSettings(true);
     try {
-      // 1. Simpan ke AsyncStorage
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
         AsyncStorage.setItem('saved_sound_name', selectedSoundName),
         AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
+        AsyncStorage.setItem('saved_is_everyday', isEveryday.toString()),
       ]);
 
-      // 2. Format jam & tanggal dengan manual dan pasti benar untuk API Laravel (H:i dan Y-m-d)
-      const jamFormat = selectedTime.getHours().toString().padStart(2, '0') + ':' + selectedTime.getMinutes().toString().padStart(2, '0');
-      const tglFormat = selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
-
-      // 3. Kirim ke API Laravel
       await api.post('/patient/alarms/settings', { 
-        waktu: jamFormat, 
-        tanggal: tglFormat, 
-        nada_dering: selectedSoundName 
+        waktu: fmtTime, 
+        tanggal: fmtDate, 
+        nada_dering: selectedSoundName,
+        is_everyday: isEveryday 
       });
 
-      // 4. Daftarkan Notifikasi (HANYA AKTIF JIKA DIBUKA DI HP)
       if (Platform.OS !== 'web') {
         const { status } = await Notifications.requestPermissionsAsync();
         if (status === 'granted') {
           await Notifications.cancelAllScheduledNotificationsAsync();
           await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Waktunya Minum ARV! 💊',
-              body: `Halo, ini pengingat jadwal minum obat Anda (${jamFormat}). Tetap semangat dan jaga kesehatan!`,
-              sound: true,
-            },
-            trigger: {
-              hour: selectedTime.getHours(),
-              minute: selectedTime.getMinutes(),
-              repeats: true,
-            } as any,
+            content: { title: 'Waktunya Minum ARV! 💊', body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}).`, sound: true },
+            trigger: { hour: selectedTime.getHours(), minute: selectedTime.getMinutes(), repeats: true } as any,
           });
         }
       }
 
-      // 5. Alert Sukses
-      const successMessage = `Alarm ${jamFormat} berhasil disimpan.\n\n${Platform.OS === 'web' ? '(Peringatan: Notifikasi pop-up otomatis hanya muncul jika dibuka lewat Aplikasi HP)' : 'Alarm akan menggunakan suara standar notifikasi HP Anda.'}`;
+      const msg = `Alarm ${fmtTime} berhasil disimpan.${isEveryday ? '\n\nDijadwalkan otomatis untuk 30 hari.' : ''}`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Alarm Disimpan ✅', msg);
       
-      if (Platform.OS === 'web') {
-        setTimeout(() => window.alert(successMessage), 50);
-      } else {
-        Alert.alert('Alarm Berhasil Diatur ✅', successMessage);
-      }
-      
-      fetchData(true); // Update diam-diam
+      fetchData();
     } catch (e: any) {
-      console.log('[MedReminder] Save error:', e.response?.data || e.message);
-      const errorMsg = e.response?.data?.message || 'Gagal menyimpan pengaturan ke server.';
-      if (Platform.OS === 'web') setTimeout(() => window.alert('Gagal: ' + errorMsg), 50);
-      else Alert.alert('Gagal', errorMsg);
+      if (Platform.OS === 'web') window.alert('Gagal: ' + (e.response?.data?.message || 'Server error.'));
+      else Alert.alert('Gagal', e.response?.data?.message || 'Server error.');
     }
     finally { setSavingSettings(false); }
   };
 
-  // ── Pickers ──
-  const onTimeChange = (event: any, d?: Date) => {
-    if (Platform.OS === 'android') setShowTimePicker(false);
-    if (event.type === 'set' && d) setSelectedTime(d);
-  };
-  const onDateChange = (event: any, d?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (event.type === 'set' && d) setSelectedDate(d);
+  const getLocalDateString = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   };
 
-  const onWebTimeChange = (e: any) => {
-    const val = e.target.value; 
-    if (val) {
-      const [h, m] = val.split(':').map(Number);
-      const d = new Date(selectedTime);
-      d.setHours(h, m, 0, 0);
-      setSelectedTime(d);
-    }
-  };
-  const onWebDateChange = (e: any) => {
-    const val = e.target.value;
-    if (val) {
-      const d = new Date(val + 'T00:00:00');
-      if (!isNaN(d.getTime())) setSelectedDate(d);
-    }
-  };
-
-  const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === new Date().toISOString().split('T')[0]);
-  const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu'); 
+  const localTodayStr = getLocalDateString();
+  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === localTodayStr);
+  const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu');
+  const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   if (loading) return (
     <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
@@ -321,7 +277,6 @@ const MedicationReminderScreen: React.FC = () => {
       <View style={st.header}><Text style={st.headerT}>Pengingat Obat</Text></View>
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-        {/* Top Hero */}
         <View style={st.hero}>
           <View style={{ flex: 1 }}>
             <Text style={st.heroT}>Tingkat Kepatuhan</Text>
@@ -331,11 +286,19 @@ const MedicationReminderScreen: React.FC = () => {
         </View>
 
         <View style={st.sec}>
-          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{todayStr}</Text></View>
+          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{displayTodayStr}</Text></View>
           {todayAlarms.length > 0 ? (
             todayAlarms.map((alarm: any, idx: number) => {
               const isTaken = alarm.status === 'sudah';
               const isPending = !alarm.status || alarm.status === 'belum';
+
+              // ── LOGIKA GEMBOK WAKTU ──
+              const [h, m] = alarm.waktu.split(':').map(Number);
+              const alarmTimeObj = new Date();
+              alarmTimeObj.setHours(h, m, 0, 0);
+              // Cek apakah waktu saat ini sudah MENGLEWATI atau SAMA DENGAN jam alarm
+              const isTimePassed = currentTimeForUI >= alarmTimeObj;
+
               return (
                 <View style={st.doseCard} key={alarm.id || idx}>
                   <View style={st.dose}>
@@ -343,20 +306,41 @@ const MedicationReminderScreen: React.FC = () => {
                       <View style={[st.doseIc, isTaken && { backgroundColor: '#dcfce7' }]}>
                         <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? '#16a34a' : C.onSecondaryFixed} />
                       </View>
-                      <View><Text style={st.doseT}>ARV — {alarm.waktu}</Text></View>
+                      <View>
+                        <Text style={st.doseT}>ARV — {alarm.waktu}</Text>
+                        <Text style={st.doseSub}>Nada: {alarm.nada_dering || 'Default'}</Text>
+                      </View>
                     </View>
-                    {isTaken ? (
-                      <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
-                    ) : (
-                      <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
-                    )}
+                    
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      {isTaken ? (
+                        <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
+                      ) : (
+                        <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
+                      )}
+                      
+                      {isPending && (
+                        <TouchableOpacity onPress={() => handleDeleteAlarm(alarm.id)} style={{ padding: 4 }}>
+                           <MaterialIcons name="delete-outline" size={20} color={C.error} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
-                  {isPending && (
+                  
+                  {/* TAMPILAN TOMBOL BERDASARKAN GEMBOK WAKTU */}
+                  {isPending && isTimePassed && (
                     <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id)} activeOpacity={0.8}>
                       <MaterialIcons name="check-circle" size={18} color="#fff" />
                       <Text style={st.markTakenTxt}>Tandai Sudah Diminum</Text>
                     </TouchableOpacity>
                   )}
+                  {isPending && !isTimePassed && (
+                    <View style={[st.markTakenBtn, { backgroundColor: '#e2e8f0' }]}>
+                      <MaterialIcons name="lock-clock" size={18} color="#64748b" />
+                      <Text style={[st.markTakenTxt, { color: '#64748b' }]}>Tunggu Jam {alarm.waktu}</Text>
+                    </View>
+                  )}
+
                 </View>
               );
             })
@@ -369,7 +353,6 @@ const MedicationReminderScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Setting Alarm */}
           <View style={st.card}>
             <View style={st.cardH}><MaterialIcons name="alarm-on" size={22} color={C.primary} /><Text style={st.cardHT}>Setel Waktu Alarm</Text></View>
             {Platform.OS === 'web' ? (
@@ -379,15 +362,15 @@ const MedicationReminderScreen: React.FC = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Jam</Text>
                     {/* @ts-ignore */}
-                    <input type="time" value={fmtTime} onChange={onWebTimeChange} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: '700', color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    <input type="time" value={fmtTime} onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); const d = new Date(selectedTime); d.setHours(h, m, 0, 0); setSelectedTime(d); }} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
                   <MaterialIcons name="event" size={22} color={C.secondary} />
                   <View style={{ flex: 1 }}>
-                    <Text style={st.pickerLbl}>Tanggal</Text>
+                    <Text style={st.pickerLbl}>Mulai Tanggal</Text>
                     {/* @ts-ignore */}
-                    <input type="date" value={fmtDate} onChange={onWebDateChange} min={new Date().toISOString().split('T')[0]} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: '700', color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    <input type="date" value={fmtDate} onChange={(e) => { const d = new Date(e.target.value + 'T00:00:00'); if (!isNaN(d.getTime())) setSelectedDate(d); }} min={getLocalDateString()} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
               </View>
@@ -400,18 +383,33 @@ const MedicationReminderScreen: React.FC = () => {
                   </TouchableOpacity>
                   <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
                     <MaterialIcons name="event" size={22} color={C.secondary} />
-                    <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
+                    <View><Text style={st.pickerLbl}>Mulai Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
                   </TouchableOpacity>
                 </View>
-                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={onTimeChange} />}
-                {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={onDateChange} minimumDate={new Date()} />}
+                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={(e, d) => { setShowTimePicker(false); if(d) setSelectedTime(d); }} />}
+                {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if(d) setSelectedDate(d); }} minimumDate={new Date()} />}
               </>
             )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.sm, paddingHorizontal: S.xs, paddingTop: S.sm, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialIcons name="event-repeat" size={20} color={isEveryday ? C.primary : C.outline} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Ulangi Setiap Hari</Text>
+              </View>
+              <Switch 
+                value={isEveryday} 
+                onValueChange={setIsEveryday} 
+                trackColor={{ false: C.outlineVariant, true: C.primaryFixedDim }} 
+                thumbColor={isEveryday ? C.primary : C.surface} 
+              />
+            </View>
+            <Text style={{ fontSize: 11, color: C.outline, paddingHorizontal: S.xs, marginTop: -4 }}>
+              {isEveryday ? '*Sistem akan membuat jadwal otomatis hingga 30 hari ke depan.' : '*Alarm hanya akan berbunyi 1 kali pada tanggal tersebut.'}
+            </Text>
           </View>
 
-          {/* Custom Ringtone */}
           <View style={st.card}>
-            <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Nada Dering</Text></View>
+            <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Pilih Nada Dering</Text></View>
             <View style={st.audioInfo}>
               <MaterialIcons name={selectedSoundUri ? 'audiotrack' : 'music-off'} size={20} color={selectedSoundUri ? C.primary : C.outline} />
               <Text style={[st.audioName, selectedSoundUri && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>{selectedSoundName}</Text>
@@ -428,19 +426,12 @@ const MedicationReminderScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
             )}
-            <View style={[st.audioInfo, { backgroundColor: '#eff6ff' }]}>
-              <MaterialIcons name="info-outline" size={16} color={C.primary} />
-              <Text style={[st.audioName, { fontSize: 12 }]}>Saat app ditutup, alarm menggunakan suara standar HP.</Text>
-            </View>
           </View>
 
-          {/* Save */}
-          <View>
-            <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
-              <MaterialIcons name="save" size={20} color="#fff" />
-              <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan Alarm'}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
+            <MaterialIcons name="save" size={20} color="#fff" />
+            <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Alarm & Nada Dering'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Refill */}
@@ -465,7 +456,6 @@ const MedicationReminderScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Privacy */}
         <View style={st.privCard}><MaterialIcons name="enhanced-encryption" size={36} color={C.primary} style={{ opacity: 0.5 }} /><Text style={st.privTxt}>Data kesehatan Anda terenkripsi dan tetap sepenuhnya pribadi.</Text></View>
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -488,11 +478,11 @@ const st = StyleSheet.create({
   secT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onBackground },
   secD: { fontSize: 12, fontWeight: '500', color: C.outline },
   doseCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1, overflow: 'hidden' },
-  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: S.md },
-  doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  dose: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: S.md },
+  doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md, flex: 1 },
   doseIc: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.secondaryFixed, alignItems: 'center', justifyContent: 'center' },
   doseT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
-  doseSub: { fontSize: 12, fontWeight: '500', color: C.outline },
+  doseSub: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
   doseBdg: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
   doseBdgT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
   doseBdgTaken: { backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
