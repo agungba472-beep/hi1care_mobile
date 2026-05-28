@@ -99,9 +99,14 @@ const LoginScreen: React.FC = () => {
           disableDeviceFallback: true,
         });
 
-        // 5. Jika berhasil, langsung ke Dashboard
+        // 5. Jika berhasil, langsung ke Dashboard sesuai role
         if (result.success) {
-          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+          const userRole = await AsyncStorage.getItem('userRole');
+          if (userRole === 'nakes') {
+            navigation.reset({ index: 0, routes: [{ name: 'NakesTabs' as never }] });
+          } else {
+            navigation.reset({ index: 0, routes: [{ name: 'MainTabs' as never }] });
+          }
         }
       } catch (err) {
         console.log('[Biometric] Error:', err);
@@ -120,9 +125,23 @@ const LoginScreen: React.FC = () => {
     try {
       const response = await api.post('/login', { username: identifier, password: password });
       console.log("=== BALASAN SUKSES LOGIN ===", response.data);
-      const { token } = response.data;
+      
+      // Ambil token dan data user dari response
+      const { token, user } = response.data; 
+      
+      // Simpan token dan role ke AsyncStorage
       await AsyncStorage.setItem('userToken', token);
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' as never }] });
+      await AsyncStorage.setItem('userRole', user.role); // Simpan role untuk biometrik
+
+      // ── LOGIKA PERCABANGAN ROLE ──
+      if (user.role === 'nakes') {
+        // Jika Nakes, arahkan ke NakesTabs (bottom tabs khusus nakes)
+        navigation.reset({ index: 0, routes: [{ name: 'NakesTabs' as never }] });
+      } else {
+        // Jika Pasien, arahkan ke Dashboard Pasien (MainTabs)
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' as never }] });
+      }
+
     } catch (error: any) {
       console.log("=== ERROR LOGIN ===", error.response?.data || error.message);
       Alert.alert('Login Gagal', error.response?.data?.message || 'Username atau password salah.');

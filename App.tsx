@@ -2,9 +2,10 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './src/navigationRef';
+
 
 // Konfigurasi Notifikasi Global agar muncul meskipun aplikasi sedang aktif / di background
 Notifications.setNotificationHandler({
@@ -44,8 +45,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Education: undefined;
   NakesChat: undefined;
-  NakesDashboardScreen: undefined;
-  NakesPatientListScreen: undefined;
+  NakesTabs: undefined;
   NakesPatientDetailScreen: { patientId: number };
   Diary: undefined;
   HealthFacility: undefined;
@@ -93,6 +93,31 @@ function MainTabs() {
   );
 }
 
+// 3b. Nakes-specific Bottom Tabs
+function NakesTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName: any = 'dashboard';
+          if (route.name === 'NakesDashboard') iconName = 'dashboard';
+          else if (route.name === 'NakesPatients') iconName = 'people';
+          else if (route.name === 'NakesProfile') iconName = 'person';
+          return <MaterialIcons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#0043a2',
+        tabBarInactiveTintColor: '#737784',
+        tabBarStyle: { paddingBottom: 5, height: 60 },
+      })}
+    >
+      <Tab.Screen name="NakesDashboard" component={NakesDashboardScreen} options={{ title: 'Beranda' }} />
+      <Tab.Screen name="NakesPatients" component={NakesPatientListScreen} options={{ title: 'Monitoring' }} />
+      <Tab.Screen name="NakesProfile" component={ProfileScreen} options={{ title: 'Profil Akun' }} />
+    </Tab.Navigator>
+  );
+}
+
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   return (
@@ -110,8 +135,7 @@ export default function App() {
         {/* --- HALAMAN EKSTRA --- */}
         <Stack.Screen name="Education" component={EducationScreen} />
         <Stack.Screen name="NakesChat" component={NakesChatScreen} />
-        <Stack.Screen name="NakesDashboardScreen" component={NakesDashboardScreen} />
-        <Stack.Screen name="NakesPatientListScreen" component={NakesPatientListScreen} />
+        <Stack.Screen name="NakesTabs" component={NakesTabs} options={{ headerShown: false }} />
         <Stack.Screen name="NakesPatientDetailScreen" component={NakesPatientDetailScreen} />
         <Stack.Screen name="Diary" component={DiaryScreen} />
         <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
