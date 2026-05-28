@@ -24,6 +24,9 @@ import DashboardScreen from './screens/DashboardScreen';
 import MedicationReminderScreen from './screens/MedicationReminderScreen';
 import ChatScreen from './screens/ChatScreen';
 import NakesChatScreen from './screens/NakesChatScreen';
+import NakesDashboardScreen from './screens/NakesDashboardScreen';
+import NakesPatientListScreen from './screens/NakesPatientListScreen';
+import NakesPatientDetailScreen from './screens/NakesPatientDetailScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EducationScreen from './screens/EducationScreen';
 import BiometricAuthScreen from './screens/BiometricAuthScreen';
@@ -41,6 +44,9 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Education: undefined;
   NakesChat: undefined;
+  NakesDashboardScreen: undefined;
+  NakesPatientListScreen: undefined;
+  NakesPatientDetailScreen: { patientId: number };
   Diary: undefined;
   HealthFacility: undefined;
   Chatbot: undefined;
@@ -104,6 +110,9 @@ export default function App() {
         {/* --- HALAMAN EKSTRA --- */}
         <Stack.Screen name="Education" component={EducationScreen} />
         <Stack.Screen name="NakesChat" component={NakesChatScreen} />
+        <Stack.Screen name="NakesDashboardScreen" component={NakesDashboardScreen} />
+        <Stack.Screen name="NakesPatientListScreen" component={NakesPatientListScreen} />
+        <Stack.Screen name="NakesPatientDetailScreen" component={NakesPatientDetailScreen} />
         <Stack.Screen name="Diary" component={DiaryScreen} />
         <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} />
