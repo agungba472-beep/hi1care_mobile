@@ -44,7 +44,7 @@ export type RootStackParamList = {
   BiometricAuth: undefined;
   MainTabs: undefined;
   Education: undefined;
-  NakesChat: undefined;
+  NakesChat: { chatId?: number };
   NakesTabs: undefined;
   NakesPatientDetailScreen: { patientId: number };
   Diary: undefined;
