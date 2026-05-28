@@ -6,7 +6,7 @@ import { API_URL } from './api';
 (window as any).Pusher = Pusher;
 
 export const initEcho = async () => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem('userToken');
   
   return new Echo({
     broadcaster: 'pusher',

@@ -6,7 +6,9 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import { initEcho } from '../src/echo';
 
 // ── Design Tokens ──
 const C = {
@@ -36,6 +38,11 @@ interface ChatMessage {
 type Phase = 'list' | 'chat';
 
 const NakesChatScreen: React.FC = () => {
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
+  // receiver_id dikirim dari NakesPatientDetailScreen saat tombol Chat ditekan
+  const receiverIdFromParam: number | undefined = route.params?.receiver_id;
+
   const scrollRef = useRef<ScrollView>(null);
   const [phase, setPhase] = useState<Phase>('list');
 
@@ -54,11 +61,51 @@ const NakesChatScreen: React.FC = () => {
     if (phase === 'list') fetchActiveChats();
   }, [phase]));
 
+  // Jika ada receiver_id dari params, tunggu list dimuat lalu buka chat yg sesuai
+  useEffect(() => {
+    if (!receiverIdFromParam || activeChats.length === 0 || isLoading) return;
+    const target = activeChats.find(c => c.pasien_id === receiverIdFromParam);
+    if (target) {
+      openChat(target);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChats, isLoading]);
+
   useEffect(() => {
     if (phase !== 'chat' || !selectedChat) return;
     fetchMessages();
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
+  }, [phase, selectedChat]);
+
+  // [WEBSOCKET] Real-time listener per konsultasi
+  useEffect(() => {
+    let echoInstance: any = null;
+    if (phase !== 'chat' || !selectedChat) return;
+
+    const setup = async () => {
+      try {
+        echoInstance = await initEcho();
+        echoInstance.private(`konsultasi.${selectedChat.id}`)
+          .listen('.message.sent', (event: any) => {
+            const incoming = event.chat;
+            setMessages((prev) => {
+              const exists = prev.some(m => m.id === incoming.id);
+              if (exists) return prev;
+              return [...prev, incoming];
+            });
+          });
+      } catch (err) {
+        console.log('[NakesChat] Echo setup error:', err);
+      }
+    };
+    setup();
+
+    return () => {
+      if (echoInstance && selectedChat) {
+        echoInstance.leave(`konsultasi.${selectedChat.id}`);
+      }
+    };
   }, [phase, selectedChat]);
 
   // ═══ API ═══

@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
 
 const C = { primary: '#0043a2', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
 const NakesPatientDetailScreen: React.FC = () => {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { patientId } = route.params;
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,16 @@ const NakesPatientDetailScreen: React.FC = () => {
           <Text style={st.text}>No Reg HIV: {patient.master?.no_reg_hiv || '-'}</Text>
           <Text style={st.text}>Tgl Lahir: {patient.master?.tgl_lahir || '-'}</Text>
           <Text style={st.text}>Status: <Text style={{fontWeight: 'bold'}}>{patient.status_kepatuhan?.toUpperCase()}</Text></Text>
+          <TouchableOpacity
+            style={st.chatBtn}
+            onPress={() => navigation.navigate('NakesChat', {
+              receiver_id: patient.user?.id ?? patientId,
+            })}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="chat" size={18} color="#fff" />
+            <Text style={st.chatBtnText}>Chat Pasien</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Diary History */}
@@ -83,7 +94,9 @@ const st = StyleSheet.create({
   empty: { color: C.outline, fontStyle: 'italic' },
   logBox: { backgroundColor: '#fff', borderLeftWidth: 4, borderLeftColor: C.primary, padding: 12, marginBottom: 10, borderRadius: 4, elevation: 1 },
   logDate: { fontSize: 12, color: C.outline, marginBottom: 4 },
-  logContent: { fontSize: 14, color: '#333' }
+  logContent: { fontSize: 14, color: '#333' },
+  chatBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, backgroundColor: '#0043a2', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, justifyContent: 'center' },
+  chatBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 }
 });
 
 export default NakesPatientDetailScreen;
