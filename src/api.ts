@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Ganti IP ini dengan IPv4 Address laptopmu
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = 'http://192.168.0.209:8000/api';
 
 const api = axios.create({
   baseURL: API_URL,
