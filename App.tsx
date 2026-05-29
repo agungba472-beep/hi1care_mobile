@@ -103,7 +103,10 @@ function NakesTabs() {
           let iconName: any = 'dashboard';
           if (route.name === 'NakesDashboard') iconName = 'dashboard';
           else if (route.name === 'NakesPatients') iconName = 'people';
+          // --- ICON BARU UNTUK TAB PESAN ---
+          else if (route.name === 'NakesChatTab') iconName = 'chat'; 
           else if (route.name === 'NakesProfile') iconName = 'person';
+          
           return <MaterialIcons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#0043a2',
@@ -111,13 +114,32 @@ function NakesTabs() {
         tabBarStyle: { paddingBottom: 5, height: 60 },
       })}
     >
-      <Tab.Screen name="NakesDashboard" component={NakesDashboardScreen} options={{ title: 'Beranda' }} />
-      <Tab.Screen name="NakesPatients" component={NakesPatientListScreen} options={{ title: 'Monitoring' }} />
-      <Tab.Screen name="NakesProfile" component={ProfileScreen} options={{ title: 'Profil Akun' }} />
+      <Tab.Screen 
+        name="NakesDashboard" 
+        component={NakesDashboardScreen} 
+        options={{ title: 'Beranda' }} 
+      />
+      <Tab.Screen 
+        name="NakesPatients" 
+        component={NakesPatientListScreen} 
+        options={{ title: 'Monitoring' }} 
+      />
+      
+      {/* --- MENU TAB BARU UNTUK CHAT / INBOX --- */}
+      <Tab.Screen 
+        name="NakesChatTab" 
+        component={NakesChatScreen} 
+        options={{ title: 'Pesan' }} 
+      />
+
+      <Tab.Screen 
+        name="NakesProfile" 
+        component={ProfileScreen} 
+        options={{ title: 'Profil Akun' }} 
+      />
     </Tab.Navigator>
   );
 }
-
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   return (

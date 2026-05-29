@@ -7,25 +7,18 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../src/api';
-
-// [WEBSOCKET] Import fungsi Echo
 import { initEcho } from '../src/echo';
 
-// ── Design Tokens ──
 const C = {
   primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
   surface: '#f8f9ff', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  botBg: '#f1f5f9', botText: '#475569',
-  success: '#16a34a',
 } as const;
 
-// ── Types ──
 interface ChatMessage {
   id: number | string;
-  sender: 'pasien' | 'nakes' | 'bot';
+  sender: 'pasien' | 'nakes';
   pesan: string;
-  nakes_nama?: string | null;
   waktu: string;
 }
 
@@ -33,27 +26,40 @@ export default function PatientChatRoomScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // konsultasiId dikirim dari ChatScreen (riwayat konsultasi)
   const konsultasiId: number = route.params?.konsultasiId;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [chatStatus, setChatStatus] = useState<string>('bot');
-  const [nakesNama, setNakesNama] = useState<string>('Nakes');
-  const [nakesProfesi, setNakesProfesi] = useState<string>('-');
+  
+  // State Dinamis (Pintar)
+  const [myRole, setMyRole] = useState<'pasien' | 'nakes'>('pasien');
+  const [opponentName, setOpponentName] = useState<string>('Memuat...');
+  const [opponentRole, setOpponentRole] = useState<string>('-');
 
-  // ── Fetch messages dari backend ──
   const fetchMessages = async () => {
     try {
       const res = await api.get(`/chat/${konsultasiId}/messages`);
       if (res.data.status === 'success') {
-        setMessages(res.data.data.messages || []);
-        setChatStatus(res.data.data.konsultasi?.chat_status || 'bot');
-        setNakesNama(res.data.data.konsultasi?.nakes_nama || 'Nakes');
-        setNakesProfesi(res.data.data.konsultasi?.nakes_profesi || '-');
+        const data = res.data.data.konsultasi;
+        
+        // 1. Tentukan Role Saya
+        const role = data.current_role || 'pasien';
+        setMyRole(role);
+
+        // 2. Set Nama Lawan Bicara di Header
+        if (role === 'nakes') {
+          setOpponentName(data.pasien_nama || 'Pasien');
+          setOpponentRole('Pasien HI!-CARE');
+        } else {
+          setOpponentName(data.nakes_nama || 'Tenaga Kesehatan');
+          setOpponentRole(`✅ ${data.nakes_profesi || 'Nakes'}`);
+        }
+
+        // 3. Filter pesan bot
+        const humanMessages = res.data.data.messages.filter((m: any) => m.sender !== 'bot');
+        setMessages(humanMessages || []);
       }
     } catch (error: any) {
       console.error('Gagal mengambil chat:', error?.message);
@@ -62,7 +68,6 @@ export default function PatientChatRoomScreen() {
     }
   };
 
-  // 1. Fetch awal + polling setiap 5 detik sebagai fallback
   useEffect(() => {
     if (!konsultasiId) return;
     fetchMessages();
@@ -70,70 +75,49 @@ export default function PatientChatRoomScreen() {
     return () => clearInterval(interval);
   }, [konsultasiId]);
 
-  // 2. [WEBSOCKET] Subscribe ke channel konsultasi untuk real-time
   useEffect(() => {
     let echoInstance: any = null;
-
     const setupWebSocket = async () => {
       if (!konsultasiId) return;
-
       try {
         echoInstance = await initEcho();
-        const channelName = `konsultasi.${konsultasiId}`;
-
-        echoInstance.private(channelName)
+        echoInstance.private(`konsultasi.${konsultasiId}`)
           .listen('.message.sent', (event: any) => {
-            const incoming: ChatMessage = event.chat;
-
-            // Tambahkan pesan baru, hindari duplikasi
             setMessages((prev) => {
-              const exists = prev.some(m => m.id === incoming.id);
-              if (exists) return prev;
-              return [...prev, incoming];
+              if (prev.some(m => m.id === event.chat.id)) return prev;
+              return [...prev, event.chat];
             });
             setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 200);
           });
-      } catch (err) {
-        console.log('[Echo] WebSocket setup error:', err);
-      }
+      } catch (err) { console.log('WebSocket error:', err); }
     };
-
     setupWebSocket();
-
-    return () => {
-      if (echoInstance && konsultasiId) {
-        echoInstance.leave(`konsultasi.${konsultasiId}`);
-      }
-    };
+    return () => { if (echoInstance) echoInstance.leave(`konsultasi.${konsultasiId}`); };
   }, [konsultasiId]);
 
-  // 3. Kirim pesan
   const handleSend = async () => {
     const trimmed = newMessage.trim();
     if (!trimmed || isSending) return;
 
-    // Optimistic update
+    // Tampilkan di layar dengan role saya
     const optimistic: ChatMessage = {
       id: `temp-${Date.now()}`,
-      sender: 'pasien',
+      sender: myRole, // <--- Sudah Dinamis!
       pesan: trimmed,
       waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
+    
     setMessages((prev) => [...prev, optimistic]);
     setNewMessage('');
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
     setIsSending(true);
     try {
-      await api.post('/chat/send', {
-        konsultasi_id: konsultasiId,
-        pesan: trimmed,
-      });
-      // Refetch untuk dapat bot reply juga
-      await fetchMessages();
-    } catch (error: any) {
-      console.error('Gagal mengirim pesan:', error?.message);
-      Alert.alert('Gagal', 'Pesan gagal dikirim. Cek koneksi internet Anda.');
+      await api.post('/chat/send', { konsultasi_id: konsultasiId, pesan: trimmed });
+      fetchMessages();
+    } catch (error) {
+      setMessages((prev) => prev.filter(m => m.id !== optimistic.id));
+      Alert.alert('Gagal', 'Pesan gagal dikirim.');
     } finally {
       setIsSending(false);
     }
@@ -141,32 +125,28 @@ export default function PatientChatRoomScreen() {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-
-      {/* HEADER */}
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      {/* HEADER DINAMIS */}
       <View style={st.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn}>
             <MaterialIcons name="arrow-back" size={24} color="#64748b" />
           </TouchableOpacity>
           <View style={st.headerAvatar}>
-            <MaterialIcons name="medical-services" size={20} color="#fff" />
+            <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={20} color="#fff" />
           </View>
           <View>
-            <Text style={st.headerName}>{nakesNama}</Text>
-            <Text style={st.headerRole}>
-              {chatStatus === 'bot' ? '🤖 Mode Chatbot' : `✅ ${nakesProfesi}`}
-            </Text>
+            <Text style={st.headerName}>{opponentName}</Text>
+            <Text style={st.headerRole}>{opponentRole}</Text>
           </View>
         </View>
       </View>
 
-      {/* CHAT */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading ? (
           <View style={st.loadingWrap}>
             <ActivityIndicator size="large" color={C.primary} />
-            <Text style={st.loadingText}>Memuat percakapan...</Text>
           </View>
         ) : (
           <ScrollView
@@ -175,53 +155,30 @@ export default function PatientChatRoomScreen() {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           >
-            {chatStatus === 'bot' && (
-              <View style={st.botBanner}>
-                <MaterialIcons name="smart-toy" size={18} color={C.botText} />
-                <Text style={st.botBannerText}>
-                  Anda sedang berbicara dengan chatbot. Nakes akan mengambil alih jika diperlukan.
-                </Text>
-              </View>
-            )}
-
             {messages.length === 0 && (
               <View style={st.emptyState}>
                 <MaterialIcons name="chat" size={48} color={C.outlineVariant} />
-                <Text style={st.emptyText}>Belum ada pesan</Text>
-                <Text style={st.emptySubtext}>Kirim pesan untuk memulai percakapan</Text>
+                <Text style={st.emptyText}>Mulai Konsultasi</Text>
               </View>
             )}
 
             {messages.map((msg) => {
-              const isPasien = msg.sender === 'pasien';
-              const isBot = msg.sender === 'bot';
+              // LOGIKA BUBBLE DINAMIS
+              const isMe = msg.sender === myRole;
 
               return (
-                <View key={msg.id} style={[st.bubbleRow, isPasien && st.bubbleRowRight]}>
-                  <View style={[st.bubbleCol, isPasien && st.bubbleColRight]}>
-                    {!isPasien && (
+                <View key={msg.id} style={[st.bubbleRow, isMe && st.bubbleRowRight]}>
+                  <View style={[st.bubbleCol, isMe && st.bubbleColRight]}>
+                    {!isMe && (
                       <View style={st.senderLabel}>
-                        <MaterialIcons
-                          name={isBot ? 'smart-toy' : 'person'}
-                          size={12}
-                          color={isBot ? C.botText : C.primary}
-                        />
-                        <Text style={[st.senderLabelText, !isBot && { color: C.primary }]}>
-                          {isBot ? 'HI!-BOT' : msg.nakes_nama || 'Nakes'}
-                        </Text>
+                        <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={12} color={C.primary} />
+                        <Text style={st.senderLabelText}>{opponentName}</Text>
                       </View>
                     )}
-                    <View style={[
-                      st.bubble,
-                      isPasien ? st.bubblePasien : isBot ? st.bubbleBot : st.bubbleNakes,
-                    ]}>
-                      <Text style={[st.bubbleText, isPasien && { color: '#fff' }]}>
-                        {msg.pesan}
-                      </Text>
+                    <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleOpponent]}>
+                      <Text style={[st.bubbleText, isMe && { color: '#fff' }]}>{msg.pesan}</Text>
                     </View>
-                    <Text style={[st.timeText, isPasien && { textAlign: 'right' }]}>
-                      {msg.waktu}
-                    </Text>
+                    <Text style={[st.timeText, isMe && { textAlign: 'right' }]}>{msg.waktu}</Text>
                   </View>
                 </View>
               );
@@ -229,12 +186,11 @@ export default function PatientChatRoomScreen() {
           </ScrollView>
         )}
 
-        {/* INPUT */}
         <View style={st.inputBar}>
           <View style={st.inputWrap}>
             <TextInput
               style={st.textInput}
-              placeholder="Ketik pesan..."
+              placeholder="Tulis pesan..."
               placeholderTextColor="#94a3b8"
               value={newMessage}
               onChangeText={setNewMessage}
@@ -243,16 +199,8 @@ export default function PatientChatRoomScreen() {
               multiline
             />
           </View>
-          <TouchableOpacity
-            style={[st.sendBtn, (!newMessage.trim() || isSending) && { opacity: 0.4 }]}
-            onPress={handleSend}
-            disabled={!newMessage.trim() || isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <MaterialIcons name="send" size={22} color="#fff" />
-            )}
+          <TouchableOpacity style={[st.sendBtn, (!newMessage.trim() || isSending) && { opacity: 0.4 }]} onPress={handleSend} disabled={!newMessage.trim() || isSending}>
+            {isSending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="send" size={22} color="#fff" />}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -261,73 +209,29 @@ export default function PatientChatRoomScreen() {
 }
 
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.surface },
-
-  // Header
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2,
-  },
+  safe: { flex: 1, backgroundColor: '#f8f9ff' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
   backBtn: { padding: 4 },
-  headerAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.primaryContainer, alignItems: 'center', justifyContent: 'center',
-  },
-  headerName: { fontSize: 15, fontWeight: '700', color: C.onSurface },
-  headerRole: { fontSize: 11, fontWeight: '500', color: '#64748b' },
-
-  // Chat area
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { fontSize: 13, color: C.outline },
-  chatScroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, gap: 8 },
-
-  botBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fef3c7', borderRadius: 12, padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: '#fde68a',
-  },
-  botBannerText: { fontSize: 12, color: '#92400e', flex: 1, lineHeight: 18 },
-
+  headerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2a5cbe', alignItems: 'center', justifyContent: 'center' },
+  headerName: { fontSize: 16, fontWeight: '700', color: '#0d1c2e' },
+  headerRole: { fontSize: 12, fontWeight: '500', color: '#64748b' },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  chatScroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, gap: 12 },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: C.onSurfaceVariant },
-  emptySubtext: { fontSize: 13, color: C.outline },
-
-  // Bubbles
-  senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2, marginLeft: 4 },
-  senderLabelText: { fontSize: 10, fontWeight: '600', color: C.botText },
-
+  emptyText: { fontSize: 16, fontWeight: '600', color: '#434652' },
+  senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4, marginLeft: 4 },
+  senderLabelText: { fontSize: 11, fontWeight: '600', color: '#0043a2' },
   bubbleRow: { maxWidth: '85%', marginBottom: 4 },
   bubbleRowRight: { alignSelf: 'flex-end' },
-  bubbleCol: { gap: 2 },
+  bubbleCol: { gap: 4 },
   bubbleColRight: { alignItems: 'flex-end' },
   bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubblePasien: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
-  bubbleBot: {
-    backgroundColor: C.botBg, borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: '#e2e8f0',
-  },
-  bubbleNakes: {
-    backgroundColor: '#fff', borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: `${C.primary}30`,
-  },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: C.onSurface },
+  bubbleMe: { backgroundColor: '#0043a2', borderBottomRightRadius: 4 },
+  bubbleOpponent: { backgroundColor: '#ffffff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#0043a230', elevation: 1 },
+  bubbleText: { fontSize: 15, lineHeight: 22, color: '#0d1c2e' },
   timeText: { fontSize: 10, color: '#94a3b8', marginHorizontal: 4 },
-
-  // Input bar
-  inputBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9',
-  },
+  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   inputWrap: { flex: 1 },
-  textInput: {
-    backgroundColor: '#f8fafc', borderRadius: 9999,
-    paddingHorizontal: 20, paddingVertical: 10,
-    fontSize: 14, color: C.onSurface, maxHeight: 100,
-  },
-  sendBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', elevation: 4,
-  },
+  textInput: { backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12, fontSize: 14, color: '#0d1c2e', maxHeight: 100, borderWidth: 1, borderColor: '#e2e8f0' },
+  sendBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#0043a2', alignItems: 'center', justifyContent: 'center', elevation: 2 },
 });

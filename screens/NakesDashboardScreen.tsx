@@ -123,9 +123,12 @@ const NakesDashboardScreen: React.FC = () => {
                   <Text style={st.cardTitle}>{item.pasien?.master?.nama || item.pasien?.user?.nama}</Text>
                   <Text style={st.cardSub}>Pukul: {item.waktu}</Text>
                 </View>
-                <TouchableOpacity style={[st.btn, { backgroundColor: C.primary }]} onPress={() => navigation.navigate('NakesChatScreen', { chatId: item.id })}>
-                  <Text style={st.btnText}>Chat</Text>
-                </TouchableOpacity>
+                <TouchableOpacity 
+  style={[st.btn, { backgroundColor: C.primary }]} 
+  onPress={() => navigation.navigate('PatientChatRoom', { konsultasiId: item.id })}
+>
+  <Text style={st.btnText}>Chat</Text>
+</TouchableOpacity>
               </View>
             </View>
           ))
