@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Sta
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as DocumentPicker from 'expo-document-picker';
+// Nada dering bawaan (tidak perlu DocumentPicker)
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
@@ -53,11 +53,16 @@ const MedicationReminderScreen: React.FC = () => {
   const [isEveryday, setIsEveryday] = useState(true);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedSoundName, setSelectedSoundName] = useState('Belum dipilih');
-  const [selectedSoundUri, setSelectedSoundUri] = useState<string | null>(null);
+  // NADA DERING (Bawaan Aplikasi)
+  const [selectedSoundId, setSelectedSoundId] = useState('standar');
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+
+  // ── WEB AUDIO API: REFS UNTUK BYPASS AUTOPLAY POLICY ──
+  const webAudioCtxRef = useRef<AudioContext | null>(null);
+  const webAudioBuffersRef = useRef<Record<string, AudioBuffer>>({});
+  const webAudioReadyRef = useRef(false);
 
   // ── FIX 2: TIMER UNTUK UPDATE GEMBOK WAKTU SETIAP 5 DETIK ──
   const [currentTimeForUI, setCurrentTimeForUI] = useState(new Date());
@@ -65,6 +70,173 @@ const MedicationReminderScreen: React.FC = () => {
     const timer = setInterval(() => setCurrentTimeForUI(new Date()), 5000);
     return () => clearInterval(timer);
   }, []);
+
+  const getLocalDateString = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+
+  const localTodayStr = getLocalDateString();
+  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === localTodayStr);
+
+  // ── WEB AUDIO: AUTO PRELOAD saat komponen mount (tanpa perlu gesture) ──
+  // Buffer loading boleh dari background, tapi AudioContext tetap perlu gesture untuk unlock
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const preloadBuffers = async () => {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+
+        // Buat ctx dulu — mungkin suspended, tapi buffer bisa preload dulu
+        const ctx = new AudioCtx();
+        webAudioCtxRef.current = ctx;
+
+        const soundFiles = [
+          { id: 'standar', url: '/assets/?unstable_path=./assets/sounds/standard.wav' },
+          { id: 'ceria',   url: '/assets/?unstable_path=./assets/sounds/ceria.mp3' },
+          { id: 'darurat', url: '/assets/?unstable_path=./assets/sounds/darurat.mp3' },
+        ];
+
+        for (const s of soundFiles) {
+          try {
+            const response = await fetch(s.url);
+            if (response.ok) {
+              const arrayBuffer = await response.arrayBuffer();
+              const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+              webAudioBuffersRef.current[s.id] = audioBuffer;
+              console.log(`[WebAudio] ✅ Preloaded: ${s.id}`);
+            }
+          } catch (err) {
+            console.log(`[WebAudio] ❌ Gagal preload ${s.id}:`, err);
+          }
+        }
+
+        const loaded = Object.keys(webAudioBuffersRef.current).length;
+        if (loaded > 0) {
+          console.log(`[WebAudio] Buffer siap: ${loaded}/3`);
+          // Belum set Ready=true — tunggu user gesture untuk unlock ctx
+        }
+      } catch (e) {
+        console.log('[WebAudio] Preload gagal:', e);
+      }
+    };
+
+    preloadBuffers();
+
+    return () => {
+      webAudioCtxRef.current?.close().catch(() => {});
+    };
+  }, []);
+
+  // ── FUNGSI UNLOCK (dipanggil dari klik user) ──
+  const initAndUnlockWebAudio = useCallback(async () => {
+    if (Platform.OS !== 'web') return;
+    if (webAudioReadyRef.current) return;
+
+    const ctx = webAudioCtxRef.current;
+    if (!ctx) return;
+
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      console.log(`[WebAudio] AudioContext state: ${ctx.state}`);
+
+      // Jika buffer belum ada, load sekarang
+      if (Object.keys(webAudioBuffersRef.current).length === 0) {
+        const soundFiles = [
+          { id: 'standar', url: '/assets/?unstable_path=./assets/sounds/standard.wav' },
+          { id: 'ceria',   url: '/assets/?unstable_path=./assets/sounds/ceria.mp3' },
+          { id: 'darurat', url: '/assets/?unstable_path=./assets/sounds/darurat.mp3' },
+        ];
+        for (const s of soundFiles) {
+          try {
+            const res = await fetch(s.url);
+            if (res.ok) {
+              const ab = await res.arrayBuffer();
+              webAudioBuffersRef.current[s.id] = await ctx.decodeAudioData(ab);
+              console.log(`[WebAudio] ✅ Loaded on unlock: ${s.id}`);
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (Object.keys(webAudioBuffersRef.current).length > 0) {
+        webAudioReadyRef.current = true;
+        console.log('[WebAudio] ✅ SIAP & UNLOCKED!');
+      }
+    } catch (e) {
+      console.log('[WebAudio] Unlock gagal:', e);
+    }
+  }, []);
+
+  const playWebAlarmSound = useCallback((soundId: string) => {
+    const ctx = webAudioCtxRef.current;
+    const buffer = webAudioBuffersRef.current[soundId] || webAudioBuffersRef.current['standar'];
+    
+    if (!ctx || !buffer) {
+      console.log('[WebAudio] Belum siap, skip. Ctx:', !!ctx, '| Buffer:', !!buffer);
+      return;
+    }
+
+    const doPlay = () => {
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        console.log(`[WebAudio] 🔊 Memutar: "${soundId}"`);
+      } catch (e) {
+        console.log('[WebAudio] Gagal memutar:', e);
+      }
+    };
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(doPlay).catch(() => {});
+    } else {
+      doPlay();
+    }
+  }, []);
+
+  // ── JURUS KHUSUS WEB (LOCALHOST): DETEKSI ALARM MANUAL ──
+  useEffect(() => {
+    if (Platform.OS === 'web' && todayAlarms.length > 0) {
+      const checker = setInterval(() => {
+        const now = new Date();
+        const currentHour = now.getHours().toString().padStart(2, '0');
+        const currentMinute = now.getMinutes().toString().padStart(2, '0');
+        const currentTimeStr = `${currentHour}:${currentMinute}`;
+
+        // PERBAIKAN: Potong format HH:MM:SS dari DB menjadi HH:MM
+        const activeAlarm = todayAlarms.find((a: any) => {
+          const dbTime = a.waktu ? a.waktu.substring(0, 5) : "";
+          return dbTime === currentTimeStr && (!a.status || a.status !== 'sudah');
+        });
+
+        console.log(`[Web Alarm] Cek Jam: ${currentTimeStr} | Alarm hari ini: ${todayAlarms.length} | Cocok: ${activeAlarm ? 'YA ✅' : 'belum'}`);
+
+        if (activeAlarm) {
+          // Gunakan localStorage agar tidak bunyi berkali-kali di menit yang sama
+          const lastPlayed = localStorage.getItem('last_played_alarm_time');
+          if (lastPlayed !== currentTimeStr) {
+            localStorage.setItem('last_played_alarm_time', currentTimeStr);
+            
+            // 1. Putar Suara via Web Audio API (BYPASS AUTOPLAY POLICY!)
+            playWebAlarmSound(activeAlarm.nada_dering || 'standar');
+            
+            // 2. Munculkan Notifikasi Layar
+            setTimeout(() => {
+              window.alert(`⏰ WAKTUNYA MINUM OBAT ARV!\nJadwal: ${activeAlarm.waktu}\nNada: ${activeAlarm.nada_dering || 'standar'}`);
+            }, 500); // Beri jeda setengah detik agar suaranya main duluan
+          }
+        }
+      }, 5000); // Mesin mengecek jam setiap 5 detik
+
+      return () => clearInterval(checker);
+    }
+  }, [todayAlarms, playWebAlarmSound]);
 
   useEffect(() => {
     return () => { soundRef.current?.unloadAsync(); };
@@ -81,17 +253,15 @@ const MedicationReminderScreen: React.FC = () => {
   useFocusEffect(useCallback(() => {
     const loadSavedSettings = async () => {
       try {
-        const [savedTime, savedDate, savedSoundName, savedSoundUri, savedEveryday] = await Promise.all([
+        const [savedTime, savedDate, savedSoundId, savedEveryday] = await Promise.all([
           AsyncStorage.getItem('saved_alarm_time'),
           AsyncStorage.getItem('saved_alarm_date'),
-          AsyncStorage.getItem('saved_sound_name'),
-          AsyncStorage.getItem('saved_sound_uri'),
+          AsyncStorage.getItem('saved_sound_id'),
           AsyncStorage.getItem('saved_is_everyday')
         ]);
         if (savedTime) { const parsed = new Date(savedTime); if (!isNaN(parsed.getTime())) setSelectedTime(parsed); }
         if (savedDate) { const parsed = new Date(savedDate); if (!isNaN(parsed.getTime())) setSelectedDate(parsed); }
-        if (savedSoundName) setSelectedSoundName(savedSoundName);
-        if (savedSoundUri) setSelectedSoundUri(savedSoundUri);
+        if (savedSoundId) setSelectedSoundId(savedSoundId);
         if (savedEveryday !== null) setIsEveryday(savedEveryday === 'true');
       } catch (e) {}
     };
@@ -183,54 +353,60 @@ const MedicationReminderScreen: React.FC = () => {
     }
   };
 
-  const pickAudio = async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*' });
-      if (!res.canceled && res.assets?.[0]) {
-        const a = res.assets[0];
-        setSelectedSoundName(a.name || 'Custom Audio');
-        setSelectedSoundUri(a.uri);
-        await stopSound();
-        await AsyncStorage.setItem('saved_sound_name', a.name || 'Custom Audio');
-        await AsyncStorage.setItem('saved_sound_uri', a.uri);
-      }
-    } catch { }
-  };
+  // ── MANTRA AUDIO BAWAAN ──
+  const playPreviewSound = async (id: string) => {
+    // Init + Unlock web audio saat user klik preview (ini adalah user gesture!)
+    await initAndUnlockWebAudio();
 
-  const playSound = async () => {
-    if (!selectedSoundUri) { 
-      Platform.OS === 'web' ? window.alert('Pilih file audio terlebih dahulu.') : Alert.alert('Info', 'Pilih file audio terlebih dahulu.'); 
-      return; 
+    // Matikan suara yang sedang diputar
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+      setIsPlaying(false);
     }
+    
+    // Matikan preview jika diklik suara yang sama dua kali
+    if (isPlaying && selectedSoundId === id) return;
+
     try {
-      await stopSound();
-      const { sound } = await Audio.Sound.createAsync({ uri: selectedSoundUri }, { shouldPlay: true });
+      let soundAsset;
+      if (id === 'ceria') soundAsset = require('../assets/sounds/ceria.mp3');
+      else if (id === 'darurat') soundAsset = require('../assets/sounds/darurat.mp3');
+      else soundAsset = require('../assets/sounds/standard.wav');
+
+      const { sound } = await Audio.Sound.createAsync(soundAsset);
       soundRef.current = sound;
       setIsPlaying(true);
-      sound.setOnPlaybackStatusUpdate((s) => { if ('didJustFinish' in s && s.didJustFinish) { setIsPlaying(false); sound.unloadAsync(); soundRef.current = null; } });
-    } catch { }
-  };
+      await sound.playAsync();
 
-  const stopSound = async () => {
-    if (soundRef.current) { await soundRef.current.stopAsync(); await soundRef.current.unloadAsync(); soundRef.current = null; }
-    setIsPlaying(false);
+      sound.setOnPlaybackStatusUpdate((s) => {
+        if ('didJustFinish' in s && s.didJustFinish) {
+          setIsPlaying(false);
+          sound.unloadAsync();
+          soundRef.current = null;
+        }
+      });
+    } catch (e) {
+      console.log('Gagal memutar:', e);
+    }
   };
 
   const handleSave = async () => {
+    // Init + Unlock web audio saat user klik Simpan (ini adalah user gesture!)
+    await initAndUnlockWebAudio();
     setSavingSettings(true);
     try {
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
-        AsyncStorage.setItem('saved_sound_name', selectedSoundName),
-        AsyncStorage.setItem('saved_sound_uri', selectedSoundUri || ''),
+        AsyncStorage.setItem('saved_sound_id', selectedSoundId),
         AsyncStorage.setItem('saved_is_everyday', isEveryday.toString()),
       ]);
 
       await api.post('/patient/alarms/settings', { 
         waktu: fmtTime, 
         tanggal: fmtDate, 
-        nada_dering: selectedSoundName,
+        nada_dering: selectedSoundId, // Mengirimkan 'standar', 'ceria', atau 'darurat'
         is_everyday: isEveryday 
       });
 
@@ -257,13 +433,7 @@ const MedicationReminderScreen: React.FC = () => {
     finally { setSavingSettings(false); }
   };
 
-  const getLocalDateString = () => {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  };
 
-  const localTodayStr = getLocalDateString();
-  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === localTodayStr);
   const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu');
   const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -410,22 +580,28 @@ const MedicationReminderScreen: React.FC = () => {
 
           <View style={st.card}>
             <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Pilih Nada Dering</Text></View>
-            <View style={st.audioInfo}>
-              <MaterialIcons name={selectedSoundUri ? 'audiotrack' : 'music-off'} size={20} color={selectedSoundUri ? C.primary : C.outline} />
-              <Text style={[st.audioName, selectedSoundUri && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>{selectedSoundName}</Text>
-            </View>
-            <TouchableOpacity style={st.audioPickBtn} onPress={pickAudio} activeOpacity={0.8}>
-              <MaterialIcons name="folder-open" size={20} color={C.onPrimary} />
-              <Text style={st.audioPickTxt}>Pilih Audio dari Perangkat</Text>
-            </TouchableOpacity>
-            {selectedSoundUri && (
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity style={[st.previewBtn, { flex: 1, backgroundColor: isPlaying ? C.outline : C.secondaryContainer }]} onPress={isPlaying ? stopSound : playSound} activeOpacity={0.8}>
-                  <MaterialIcons name={isPlaying ? 'stop' : 'play-arrow'} size={22} color={isPlaying ? '#fff' : C.onSecondaryFixed} />
-                  <Text style={[st.previewTxt, isPlaying && { color: '#fff' }]}>{isPlaying ? 'Stop' : 'Preview Nada'}</Text>
+            
+            <View style={{ flexDirection: 'column', gap: 10, marginTop: 4 }}>
+              {[
+                { id: 'standar', name: 'Standar (Lembut)', icon: 'notifications' },
+                { id: 'ceria', name: 'Ceria (Semangat)', icon: 'sentiment-satisfied' },
+                { id: 'darurat', name: 'Darurat (Keras)', icon: 'warning' }
+              ].map((sound) => (
+                <TouchableOpacity 
+                  key={sound.id}
+                  style={[st.soundChip, selectedSoundId === sound.id && st.soundChipActive]}
+                  onPress={() => { setSelectedSoundId(sound.id); playPreviewSound(sound.id); }}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name={sound.icon as any} size={20} color={selectedSoundId === sound.id ? '#fff' : C.primary} />
+                  <Text style={[st.soundChipTxt, selectedSoundId === sound.id && { color: '#fff' }]}>{sound.name}</Text>
+                  {selectedSoundId === sound.id && isPlaying && (
+                    <MaterialIcons name="volume-up" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
+                  )}
                 </TouchableOpacity>
-              </View>
-            )}
+              ))}
+            </View>
+            <Text style={{ fontSize: 11, color: C.outline, marginTop: 4 }}>*Klik pada nada untuk mendengar pratinjau.</Text>
           </View>
 
           <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
@@ -501,14 +677,12 @@ const st = StyleSheet.create({
   pickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryFixed, paddingVertical: 14, paddingHorizontal: S.md, borderRadius: 10 },
   pickerLbl: { fontSize: 11, fontWeight: '500', color: C.outline, textTransform: 'uppercase', letterSpacing: 0.5 },
   pickerVal: { fontSize: 18, fontWeight: '700', color: C.primary },
-  audioInfo: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: C.surfaceContainerLow, padding: 12, borderRadius: 10 },
-  audioName: { fontSize: 13, color: C.onSurfaceVariant, flex: 1, lineHeight: 20 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primaryContainer, paddingVertical: 16, borderRadius: 12, elevation: 6 },
   saveTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  audioPickBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 12, borderRadius: 10 },
-  audioPickTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  previewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingVertical: 12, borderRadius: 10 },
-  previewTxt: { fontSize: 14, fontWeight: '600', color: C.onSecondaryFixed },
+  // Style untuk Tombol Pilihan Nada Bawaan
+  soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surfaceContainer, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: C.outlineVariant },
+  soundChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  soundChipTxt: { fontSize: 15, fontWeight: '600', color: C.primary },
 });
 
 export default MedicationReminderScreen;
