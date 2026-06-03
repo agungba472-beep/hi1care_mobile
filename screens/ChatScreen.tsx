@@ -7,7 +7,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
-import api from '../src/api';
+import api, { initEcho } from '../src/api';
 
 // ── Design Tokens ──
 const C = {
@@ -38,12 +38,12 @@ const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Types ──
 interface MyConsultation {
-  id: number; nakes_nama: string; nakes_profesi: string; tanggal: string;
+  id: number; nakes_nama: string; nakes_profesi: string; nakes_user_id?: number; tanggal: string;
   waktu: string; status: string; chat_status: string; last_message: string;
 }
 interface NakesSchedule {
   id: number; nakes_id: number; hari: string; jam_mulai: string; jam_selesai: string;
-  nakes: { id: number; nama: string; profesi: string; user?: { nama: string } };
+  nakes: { id: number; nama: string; profesi: string; user?: { id: number; nama: string } };
 }
 
 // ── Helpers ──
@@ -78,6 +78,27 @@ const ChatScreen: React.FC = () => {
   // Consultations
   const [myConsultations, setMyConsultations] = useState<MyConsultation[]>([]);
   const [isLoadingConsultations, setIsLoadingConsultations] = useState(true);
+
+  // Status Online
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+
+  // ── WebSocket Presence ──
+  React.useEffect(() => {
+    let echoInstance: any = null;
+    const setupWebSocket = async () => {
+      try {
+        echoInstance = await initEcho();
+        echoInstance.join('presence-klinik')
+          .here((users: any[]) => setOnlineUsers(users))
+          .joining((user: any) => setOnlineUsers((prev) => [...prev, user]))
+          .leaving((user: any) => setOnlineUsers((prev) => prev.filter((u) => u.id !== user.id)));
+      } catch (err) { console.log('WebSocket presence error:', err); }
+    };
+    setupWebSocket();
+    return () => {
+      if (echoInstance) echoInstance.leave('presence-klinik');
+    };
+  }, []);
 
   // ── Fetch on focus ──
   useFocusEffect(useCallback(() => {
@@ -219,6 +240,8 @@ const ChatScreen: React.FC = () => {
               nakesSchedules.map(s => {
                 const isSelected = selectedNakesId === s.nakes_id;
                 const nakesName = s.nakes?.user?.nama || s.nakes?.nama || 'Nakes';
+                const isOnline = s.nakes?.user?.id ? onlineUsers.some(u => u.id === s.nakes.user?.id) : false;
+
                 return (
                   <TouchableOpacity
                     key={s.id}
@@ -228,6 +251,13 @@ const ChatScreen: React.FC = () => {
                   >
                     <View style={[st.nakesChipAvatar, isSelected && st.nakesChipAvatarActive]}>
                       <MaterialIcons name="person" size={16} color={isSelected ? C.onPrimary : C.primary} />
+                      {/* TITIK STATUS ONLINE/OFFLINE DI AVATAR */}
+                      <View style={{
+                        position: 'absolute', bottom: -2, right: -2,
+                        width: 10, height: 10, borderRadius: 5,
+                        backgroundColor: isOnline ? '#10b981' : '#9ca3af',
+                        borderWidth: 1.5, borderColor: isSelected ? C.primary : '#f8fafc'
+                      }} />
                     </View>
                     <View>
                       <Text style={[st.nakesChipName, isSelected && st.nakesChipNameActive]} numberOfLines={1}>
@@ -337,13 +367,27 @@ const ChatScreen: React.FC = () => {
               .map(s => {
                 const nakesName = s.nakes?.user?.nama || s.nakes?.nama || 'Nakes';
                 const isLoading = isChatLangsung === s.nakes_id;
+                const isOnline = s.nakes?.user?.id ? onlineUsers.some(u => u.id === s.nakes.user?.id) : false;
+
                 return (
                   <View key={`direct-${s.nakes_id}`} style={st.directNakesRow}>
                     <View style={st.directNakesAvatar}>
                       <MaterialIcons name="person" size={18} color={C.primary} />
+                      {/* TITIK STATUS ONLINE/OFFLINE DI AVATAR */}
+                      <View style={{
+                        position: 'absolute', bottom: -2, right: -2,
+                        width: 10, height: 10, borderRadius: 5,
+                        backgroundColor: isOnline ? '#10b981' : '#9ca3af',
+                        borderWidth: 1.5, borderColor: '#fff'
+                      }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={st.directNakesName}>{nakesName}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={st.directNakesName}>{nakesName}</Text>
+                        <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600' }}>
+                          {isOnline ? 'Online' : 'Offline'}
+                        </Text>
+                      </View>
                       <Text style={st.directNakesProfesi}>{s.nakes?.profesi || '-'}</Text>
                     </View>
                     <TouchableOpacity
@@ -391,15 +435,29 @@ const ChatScreen: React.FC = () => {
         ) : (
           myConsultations.map(c => {
             const active = isConsultationActive(c);
+            const isOnline = c.nakes_user_id ? onlineUsers.some(u => u.id === c.nakes_user_id) : false;
+
             return (
               <View key={c.id} style={[st.consultCard, active && st.consultCardActive]}>
                 {active && <View style={st.activeStripe} />}
                 <View style={st.consultHeader}>
                   <View style={[st.consultAvatar, active && st.consultAvatarActive]}>
                     <MaterialIcons name="medical-services" size={20} color={active ? C.onPrimary : C.primary} />
+                    {/* TITIK STATUS ONLINE/OFFLINE DI AVATAR */}
+                    <View style={{
+                      position: 'absolute', bottom: -2, right: -2,
+                      width: 10, height: 10, borderRadius: 5,
+                      backgroundColor: isOnline ? '#10b981' : '#9ca3af',
+                      borderWidth: 1.5, borderColor: active ? C.primary : C.primaryLight
+                    }} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={st.consultName}>{c.nakes_nama}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={st.consultName}>{c.nakes_nama}</Text>
+                      <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600' }}>
+                        {isOnline ? 'Online' : 'Offline'}
+                      </Text>
+                    </View>
                     <Text style={st.consultProfesi}>{c.nakes_profesi}</Text>
                   </View>
                   <View style={[st.statusBadge, active ? st.statusActive : c.status === 'pending' ? st.statusPending : st.statusDefault]}>

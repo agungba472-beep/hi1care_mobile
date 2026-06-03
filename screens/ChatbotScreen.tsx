@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Platform
+  ScrollView, StatusBar, Platform, ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import api from '../src/api';
 
 // ── Design Tokens ──
 const C = {
@@ -49,11 +50,13 @@ const getAutoReply = (question: string): string => {
 };
 
 const ChatbotScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([
     { id: 'welcome', text: 'Halo! Saya HI!-BOT 🤖\nSaya siap membantu menjawab pertanyaan Anda. Silakan pilih topik pertanyaan di bawah ini:', isUser: false },
   ]);
+
+  const [isCheckingChat, setIsCheckingChat] = useState(false);
 
   const addMessage = (text: string, isUser: boolean) => {
     setMessages(prev => [...prev, { id: `${Date.now()}-${isUser ? 'u' : 'b'}`, text, isUser }]);
@@ -65,6 +68,40 @@ const ChatbotScreen: React.FC = () => {
     addMessage(question, true);
     // 2. Berikan delay sedikit agar terlihat seperti bot sedang "mengetik" balasannya
     setTimeout(() => addMessage(getAutoReply(question), false), 600);
+  };
+
+  const handleLiveChatClick = async () => {
+    if (isCheckingChat) return;
+    setIsCheckingChat(true);
+    
+    try {
+      const res = await api.get('/patient/my-consultations');
+      const consultations = res.data.data || [];
+      
+      const activeConsultation = consultations.find((c: any) => {
+        if (c.status === 'diterima' || c.chat_status === 'nakes') return true;
+        try {
+          const now = new Date();
+          const [h, m] = c.waktu.split(':').map(Number);
+          const consultDate = new Date(c.tanggal);
+          consultDate.setHours(h, m, 0, 0);
+          return now >= consultDate;
+        } catch { return false; }
+      });
+
+      if (activeConsultation) {
+        // Punya jadwal aktif, langsung masuk ke ruang chat
+        navigation.navigate('PatientChatRoom', { konsultasiId: activeConsultation.id });
+      } else {
+        // Tidak ada jadwal aktif, arahkan ke daftar Nakes
+        navigation.navigate('MainTabs', { screen: 'Chat' }); 
+      }
+    } catch (e) {
+      // Jika terjadi error (misal koneksi lambat), fallback ke ChatScreen biasa
+      navigation.navigate('MainTabs', { screen: 'Chat' });
+    } finally {
+      setIsCheckingChat(false);
+    }
   };
 
   return (
@@ -112,7 +149,6 @@ const ChatbotScreen: React.FC = () => {
         <Text style={st.quickReplyTitle}>Pilih Pertanyaan:</Text>
         
         <ScrollView style={st.quickReplyScroll} showsVerticalScrollIndicator={false}>
-          {/* Render 3 Tombol FAQ */}
           {FAQ.map((item, index) => (
             <TouchableOpacity 
               key={index} 
@@ -124,6 +160,23 @@ const ChatbotScreen: React.FC = () => {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* MANTRA BARU: Tombol Hubungi Nakes (Live Chat) */}
+        <TouchableOpacity 
+          style={[st.liveChatChip, isCheckingChat && { opacity: 0.7 }]} 
+          onPress={handleLiveChatClick}
+          activeOpacity={0.8}
+          disabled={isCheckingChat}
+        >
+          {isCheckingChat ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <MaterialIcons name="headset-mic" size={20} color="#ffffff" />
+          )}
+          <Text style={st.liveChatChipText}>
+            {isCheckingChat ? 'Memeriksa Jadwal...' : 'Bicara dengan Nakes (Live Chat)'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
     </SafeAreaView>

@@ -102,7 +102,7 @@ const DashboardScreen: React.FC = () => {
         setCompliancePercent(0);
       }
 
-      setAlarmsToday(d.alarm_hari_ini || []);
+      setAlarmsToday(d.jadwal_hari_ini || []);
     } catch (err: any) {
       console.log('[Dashboard] Error:', err.response?.data || err.message);
     } finally {
@@ -239,10 +239,9 @@ const DashboardScreen: React.FC = () => {
                       <MaterialIcons name={alarm.status === 'diminum' ? 'check-circle' : 'schedule'} size={16} color="#fff" />
                     </View>
                     <View>
-                      <Text style={st.arvName}>ARV — {alarm.waktu}</Text>
-                      <Text style={st.arvDose}>
-                        Status: {alarm.status === 'diminum' ? 'DIMINUM' : 'TERJADWAL'}
-                      </Text>
+                      <Text style={st.arvName}>⏰ {alarm.jam || alarm.waktu}</Text>
+                      <Text style={st.arvName}>{alarm.judul || 'Jadwal Minum Obat ARV 💊'}</Text>
+                      <Text style={st.arvDose}>Nada: {alarm.nada || 'standar'}</Text>
                     </View>
                   </View>
                   <View style={[st.arvBtn, alarm.status === 'diminum' && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>

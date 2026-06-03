@@ -37,6 +37,10 @@ export default function PatientChatRoomScreen() {
   const [myRole, setMyRole] = useState<'pasien' | 'nakes'>('pasien');
   const [opponentName, setOpponentName] = useState<string>('Memuat...');
   const [opponentRole, setOpponentRole] = useState<string>('-');
+  const [opponentUserId, setOpponentUserId] = useState<number | null>(null);
+  
+  // Status Online
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   const fetchMessages = async () => {
     try {
@@ -52,9 +56,11 @@ export default function PatientChatRoomScreen() {
         if (role === 'nakes') {
           setOpponentName(data.pasien_nama || 'Pasien');
           setOpponentRole('Pasien HI!-CARE');
+          setOpponentUserId(data.pasien_user_id);
         } else {
           setOpponentName(data.nakes_nama || 'Tenaga Kesehatan');
           setOpponentRole(`✅ ${data.nakes_profesi || 'Nakes'}`);
+          setOpponentUserId(data.nakes_user_id);
         }
 
         // 3. Filter pesan bot
@@ -75,12 +81,14 @@ export default function PatientChatRoomScreen() {
     return () => clearInterval(interval);
   }, [konsultasiId]);
 
-  useEffect(() => {
+    useEffect(() => {
     let echoInstance: any = null;
     const setupWebSocket = async () => {
       if (!konsultasiId) return;
       try {
         echoInstance = await initEcho();
+        
+        // Private Channel
         echoInstance.private(`konsultasi.${konsultasiId}`)
           .listen('.message.sent', (event: any) => {
             setMessages((prev) => {
@@ -89,10 +97,22 @@ export default function PatientChatRoomScreen() {
             });
             setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 200);
           });
+          
+        // Presence Channel
+        echoInstance.join('presence-klinik')
+          .here((users: any[]) => setOnlineUsers(users))
+          .joining((user: any) => setOnlineUsers((prev) => [...prev, user]))
+          .leaving((user: any) => setOnlineUsers((prev) => prev.filter((u) => u.id !== user.id)));
+
       } catch (err) { console.log('WebSocket error:', err); }
     };
     setupWebSocket();
-    return () => { if (echoInstance) echoInstance.leave(`konsultasi.${konsultasiId}`); };
+    return () => { 
+      if (echoInstance) {
+        echoInstance.leave(`konsultasi.${konsultasiId}`);
+        echoInstance.leave('presence-klinik');
+      }
+    };
   }, [konsultasiId]);
 
   const handleSend = async () => {
@@ -123,6 +143,8 @@ export default function PatientChatRoomScreen() {
     }
   };
 
+  const isOpponentOnline = onlineUsers.some((u) => u.id === opponentUserId);
+
   return (
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -137,7 +159,17 @@ export default function PatientChatRoomScreen() {
             <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={20} color="#fff" />
           </View>
           <View>
-            <Text style={st.headerName}>{opponentName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={st.headerName}>{opponentName}</Text>
+              {/* TITIK STATUS ONLINE/OFFLINE */}
+              <View style={{
+                width: 8, height: 8, borderRadius: 4, marginLeft: 6,
+                backgroundColor: isOpponentOnline ? '#10b981' : '#9ca3af'
+              }} />
+              <Text style={{ fontSize: 11, marginLeft: 4, color: isOpponentOnline ? '#10b981' : '#9ca3af', fontWeight: '500' }}>
+                {isOpponentOnline ? 'Online' : 'Offline'}
+              </Text>
+            </View>
             <Text style={st.headerRole}>{opponentRole}</Text>
           </View>
         </View>
