@@ -128,7 +128,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={st.submitBtnText}>{loading ? 'Memproses...' : 'Buat Akun Aman'}</Text>
+              <Text style={st.submitBtnText}>{loading ? 'Memproses...' : 'Buat Akun'}</Text>
             </TouchableOpacity>
           </View>
         </View>
