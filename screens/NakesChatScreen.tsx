@@ -66,7 +66,7 @@ export default function NakesChatScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       
       {/* HEADER */}
-      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={false} hideBell={true} />
+      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={false} hideBell={false} />
 
       {/* KONTEN */}
       {loading ? (

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, Activ
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 const C = { primary: '#0043a2', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
@@ -63,7 +64,7 @@ const NakesPatientListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}>
-      <View style={st.header}><Text style={st.headerT}>Monitoring Pasien</Text></View>
+      <CustomHeader title="Monitoring Pasien" showBackButton={false} hideBell={false} />
       {loading ? (
         <View style={st.center}>
           <ActivityIndicator size="large" color={C.primary} />
