@@ -8,6 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import api, { initEcho } from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
@@ -179,17 +180,7 @@ const ChatScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
 
       {/* ── HEADER ── */}
-      <View style={st.header}>
-        <View style={st.headerContent}>
-          <View style={st.headerIconWrap}>
-            <MaterialIcons name="health-and-safety" size={22} color={C.primary} />
-          </View>
-          <View>
-            <Text style={st.headerTitle}>Pusat Konsultasi</Text>
-            <Text style={st.headerSub}>Chatbot AI & Konsultasi Live</Text>
-          </View>
-        </View>
-      </View>
+      <CustomHeader title="Konsultasi Chat" showBackButton={false} hideBell={false} />
 
       <ScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
 

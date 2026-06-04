@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -19,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetToLogin } from '../src/navigationRef';
 import api from '../src/api';
 import * as ImagePicker from 'expo-image-picker';
+import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
@@ -71,12 +73,124 @@ const ToggleSwitch: React.FC<{ value: boolean; onToggle: () => void }> = ({ valu
   </TouchableOpacity>
 );
 
-const InfoField: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={st.infoField}>
-    <Text style={st.infoLabel}>{label}</Text>
-    <Text style={st.infoValue}>{value}</Text>
-  </View>
-);
+const InfoField: React.FC<{
+  label: string;
+  value: string;
+  isEditing?: boolean;
+  editValue?: string;
+  onChangeText?: (text: string) => void;
+  keyboardType?: 'default' | 'numeric' | 'phone-pad';
+  editable?: boolean;
+  placeholder?: string;
+}> = ({ label, value, isEditing, editValue, onChangeText, keyboardType = 'default', editable = true, placeholder }) => {
+  const [focused, setFocused] = useState(false);
+
+  if (isEditing && editable) {
+    return (
+      <View style={st.infoField}>
+        <Text style={st.infoLabel}>{label}</Text>
+        <TextInput
+          style={[
+            st.editInput,
+            focused && { borderColor: C.primary },
+          ]}
+          value={editValue}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          keyboardType={keyboardType}
+          placeholder={placeholder || label}
+          placeholderTextColor={C.outline}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={st.infoField}>
+      <Text style={st.infoLabel}>{label}</Text>
+      <Text style={st.infoValue}>{value}</Text>
+    </View>
+  );
+};
+
+const GenderSelector: React.FC<{
+  label: string;
+  value: string;
+  isEditing?: boolean;
+  editValue?: string;
+  onSelect?: (val: string) => void;
+}> = ({ label, value, isEditing, editValue, onSelect }) => {
+  if (isEditing) {
+    return (
+      <View style={st.infoField}>
+        <Text style={st.infoLabel}>{label}</Text>
+        <View style={st.genderRow}>
+          <TouchableOpacity
+            style={[
+              st.genderPill,
+              editValue === 'L' && st.genderPillActive,
+            ]}
+            onPress={() => onSelect?.('L')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                st.genderPillText,
+                editValue === 'L' && st.genderPillTextActive,
+              ]}
+            >
+              Laki-laki
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              st.genderPill,
+              editValue === 'P' && st.genderPillActive,
+            ]}
+            onPress={() => onSelect?.('P')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                st.genderPillText,
+                editValue === 'P' && st.genderPillTextActive,
+              ]}
+            >
+              Perempuan
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const displayValue = value === 'L' ? 'Laki-laki' : value === 'P' ? 'Perempuan' : value || '-';
+  return (
+    <View style={st.infoField}>
+      <Text style={st.infoLabel}>{label}</Text>
+      <Text style={st.infoValue}>{displayValue}</Text>
+    </View>
+  );
+};
+
+// ── Utility ──
+const calculateBMI = (berat: string, tinggi: string): string => {
+  const b = parseFloat(berat);
+  const t = parseFloat(tinggi);
+  if (!b || !t || t <= 0) return '-';
+  const bmi = b / Math.pow(t / 100, 2);
+  return bmi.toFixed(1);
+};
+
+const getBMICategory = (bmiStr: string): { label: string; color: string } => {
+  const bmi = parseFloat(bmiStr);
+  if (isNaN(bmi)) return { label: '', color: C.outline };
+  if (bmi < 18.5) return { label: 'Underweight', color: '#f59e0b' };
+  if (bmi < 25) return { label: 'Normal', color: '#22c55e' };
+  if (bmi < 30) return { label: 'Overweight', color: '#f59e0b' };
+  return { label: 'Obese', color: C.error };
+};
 
 // ── Component ──
 const ProfileScreen: React.FC = () => {
@@ -84,6 +198,10 @@ const ProfileScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [hiddenNotif, setHiddenNotif] = useState(true);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // ── Baca setting biometrik dari AsyncStorage ──
   useEffect(() => {
@@ -109,16 +227,31 @@ const ProfileScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [patientId, setPatientId] = useState('');
   const [status, setStatus] = useState('');
-  const [category, setCategory] = useState('Pasien');
+  const [category, setCategory] = useState('');
   const [adherencePercent, setAdherencePercent] = useState(0);
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState('-');
+  const [noHp, setNoHp] = useState('-');
   const [birthDate, setBirthDate] = useState('-');
   const [regNumber, setRegNumber] = useState('-');
   const [careLocation, setCareLocation] = useState('-');
+  const [alamat, setAlamat] = useState('-');
+  const [jenisKelamin, setJenisKelamin] = useState('-');
+  const [beratBadan, setBeratBadan] = useState('-');
+  const [tinggiBadan, setTinggiBadan] = useState('-');
   const [regimenName, setRegimenName] = useState('-');
   const [regimenDose, setRegimenDose] = useState('-');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  // Editable fields
+  const [editNama, setEditNama] = useState('');
+  const [editNoHp, setEditNoHp] = useState('');
+  const [editAlamat, setEditAlamat] = useState('');
+  const [editTanggalLahir, setEditTanggalLahir] = useState('');
+  const [editJenisKelamin, setEditJenisKelamin] = useState('');
+  const [editBeratBadan, setEditBeratBadan] = useState('');
+  const [editTinggiBadan, setEditTinggiBadan] = useState('');
 
   // Flag to skip overwriting the photo from API right after a local upload
   const justUploadedRef = useRef(false);
@@ -130,9 +263,18 @@ const ProfileScreen: React.FC = () => {
       const user = res.data.user;
       if (!user) return;
 
-      setName(user.nama || 'Pasien');
+      setName(user.nama || (user.role === 'nakes' ? 'Nakes' : 'Pasien'));
       setFullName(user.nama || '-');
+      setNoHp(user.no_hp || '-');
       setPatientId(user.id ? `HI-${user.id}` : '-');
+      // Set role and tags
+      const currentRole = user.role || 'pasien';
+      setRole(currentRole);
+      
+      if (currentRole === 'nakes') {
+        setStatus('Petugas Medis');
+        setCategory(user.nakes?.profesi || 'Tenaga Kesehatan');
+      }
 
       // Jangan timpa foto lokal jika baru saja upload (hindari race condition)
       if (!justUploadedRef.current) {
@@ -140,7 +282,7 @@ const ProfileScreen: React.FC = () => {
       }
 
       const pasien = user.pasien;
-      if (pasien) {
+      if (pasien && currentRole === 'pasien') {
         setStatus(pasien.status_kepatuhan || 'Aktif');
         setCategory(pasien.kategori || 'Pasien Rutin');
         setCareLocation(pasien.lokasi_perawatan || '-');
@@ -154,7 +296,11 @@ const ProfileScreen: React.FC = () => {
         const master = pasien.master;
         if (master) {
           setRegNumber(master.no_reg_hiv || master.no_reg || '-');
-          setBirthDate(master.tanggal_lahir || '-');
+          setBirthDate(master.tgl_lahir || master.tanggal_lahir || '-');
+          setAlamat(master.alamat || '-');
+          setJenisKelamin(master.jenis_kelamin || '-');
+          setBeratBadan(master.berat_badan || '-');
+          setTinggiBadan(master.tinggi_badan || '-');
           setRegimenName(master.regimen || '-');
           setRegimenDose(master.dosis || 'Sekali Sehari');
         }
@@ -170,6 +316,47 @@ const ProfileScreen: React.FC = () => {
   useFocusEffect(useCallback(() => {
     fetchProfile();
   }, [fetchProfile]));
+
+  // ── Edit Mode Handlers ──
+  const enterEditMode = () => {
+    setEditNama(fullName === '-' ? '' : fullName);
+    setEditNoHp(noHp === '-' ? '' : noHp);
+    setEditAlamat(alamat === '-' ? '' : alamat);
+    setEditTanggalLahir(birthDate === '-' ? '' : birthDate);
+    setEditJenisKelamin(jenisKelamin === '-' ? '' : jenisKelamin);
+    setEditBeratBadan(beratBadan === '-' ? '' : beratBadan);
+    setEditTinggiBadan(tinggiBadan === '-' ? '' : tinggiBadan);
+    setIsEditing(true);
+  };
+
+  const cancelEditMode = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        nama: editNama,
+        no_hp: editNoHp,
+        alamat: editAlamat,
+        tanggal_lahir: editTanggalLahir,
+        jenis_kelamin: editJenisKelamin,
+        berat_badan: parseFloat(editBeratBadan) || 0,
+        tinggi_badan: parseFloat(editTinggiBadan) || 0,
+      };
+      await api.post('/profile/update', payload);
+      Alert.alert('Berhasil', 'Profil berhasil diperbarui');
+      setIsEditing(false);
+      fetchProfile();
+    } catch (err: any) {
+      const message =
+        err.response?.data?.message || err.message || 'Terjadi kesalahan saat menyimpan profil.';
+      Alert.alert('Gagal', message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // ── Upload foto ke server (kompatibel Web & Mobile) ──
   const uploadPhotoToServer = async (uri: string) => {
@@ -289,6 +476,12 @@ const ProfileScreen: React.FC = () => {
     ]);
   };
 
+  // ── BMI Calculation ──
+  const bmiValue = isEditing
+    ? calculateBMI(editBeratBadan, editTinggiBadan)
+    : calculateBMI(beratBadan, tinggiBadan);
+  const bmiCategory = getBMICategory(bmiValue);
+
   if (loading) {
     return (
       <SafeAreaView style={st.loadingContainer}>
@@ -303,10 +496,8 @@ const ProfileScreen: React.FC = () => {
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
-      <View style={st.header}>
-        <Text style={st.headerTitle}>HI!-CARE</Text>
-      </View>
+      {/* ═══ CUSTOM HEADER ═══ */}
+      <CustomHeader title="Profil Saya" showBackButton={false} />
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
@@ -349,10 +540,12 @@ const ProfileScreen: React.FC = () => {
           </View>
 
           {/* Adherence Score */}
-          <View style={st.adherenceCard}>
-            <AdherenceCircle percent={adherencePercent} />
-            <Text style={st.adherenceLabel}>Adherence Score</Text>
-          </View>
+          {role === 'pasien' && (
+            <View style={st.adherenceCard}>
+              <AdherenceCircle percent={adherencePercent} />
+              <Text style={st.adherenceLabel}>Adherence Score</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Personal Info Card ── */}
@@ -361,29 +554,163 @@ const ProfileScreen: React.FC = () => {
             <MaterialIcons name="badge" size={24} color={C.primary} />
             <Text style={st.cardTitle}>Informasi Pribadi</Text>
           </View>
+
+          {/* Edit Profile Button (when not editing) */}
+          {!isEditing && (
+            <TouchableOpacity style={st.editBtn} onPress={enterEditMode} activeOpacity={0.7}>
+              <MaterialIcons name="edit" size={20} color={C.onPrimary} />
+              <Text style={st.editBtnText}>Edit Profil</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={st.infoGrid}>
-            <InfoField label="Nama Lengkap" value={fullName} />
-            <InfoField label="Tanggal Lahir" value={birthDate} />
-            <InfoField label="Nomor Registrasi" value={regNumber} />
-            <InfoField label="Lokasi Perawatan" value={careLocation} />
+            <InfoField
+              label="Nama Lengkap"
+              value={fullName}
+              isEditing={isEditing}
+              editValue={editNama}
+              onChangeText={setEditNama}
+              editable={!isSaving}
+              placeholder="Masukkan nama lengkap"
+            />
+            <InfoField
+              label="No. Handphone"
+              value={noHp}
+              isEditing={isEditing}
+              editValue={editNoHp}
+              onChangeText={setEditNoHp}
+              keyboardType="phone-pad"
+              editable={!isSaving}
+              placeholder="Contoh: 08123456789"
+            />
+            {role === 'pasien' && (
+              <>
+                <InfoField
+                  label="Tanggal Lahir"
+                  value={birthDate}
+                  isEditing={isEditing}
+                  editValue={editTanggalLahir}
+                  onChangeText={setEditTanggalLahir}
+                  editable={!isSaving}
+                  placeholder="YYYY-MM-DD"
+                />
+                <GenderSelector
+                  label="Jenis Kelamin"
+                  value={jenisKelamin}
+                  isEditing={isEditing}
+                  editValue={editJenisKelamin}
+                  onSelect={isSaving ? undefined : setEditJenisKelamin}
+                />
+                <InfoField
+                  label="Alamat"
+                  value={alamat}
+                  isEditing={isEditing}
+                  editValue={editAlamat}
+                  onChangeText={setEditAlamat}
+                  editable={!isSaving}
+                  placeholder="Masukkan alamat"
+                />
+                <InfoField label="Nomor Registrasi" value={regNumber} />
+                <InfoField label="Lokasi Perawatan" value={careLocation} />
+              </>
+            )}
           </View>
+
+          {/* Save / Cancel Buttons (when editing) */}
+          {isEditing && (
+            <View style={st.editActions}>
+              <TouchableOpacity
+                style={[st.saveBtn, isSaving && { opacity: 0.7 }]}
+                onPress={handleSaveProfile}
+                disabled={isSaving}
+                activeOpacity={0.7}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color={C.onPrimary} />
+                ) : (
+                  <MaterialIcons name="check" size={20} color={C.onPrimary} />
+                )}
+                <Text style={st.saveBtnText}>
+                  {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={st.cancelBtn}
+                onPress={cancelEditMode}
+                disabled={isSaving}
+                activeOpacity={0.7}
+              >
+                <Text style={st.cancelBtnText}>Batal</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {/* ── Medical Summary Card ── */}
-        <View style={st.card}>
-          <View style={st.cardHeader}>
-            <MaterialIcons name="medical-information" size={24} color={C.secondary} />
-            <Text style={st.cardTitle}>Ringkasan Medis</Text>
-          </View>
-          <View style={st.regimenCard}>
-            <MaterialIcons name="medication" size={24} color={C.secondary} style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.regimenLabel}>Regimen Saat Ini</Text>
-              <Text style={st.regimenName}>{regimenName}</Text>
-              <Text style={st.regimenDose}>{regimenDose}</Text>
+        {/* ── Data Fisik Card ── */}
+        {role === 'pasien' && (
+          <View style={st.card}>
+            <View style={st.cardHeader}>
+              <MaterialIcons name="straighten" size={24} color={C.primary} />
+              <Text style={st.cardTitle}>Data Fisik</Text>
+            </View>
+            <View style={st.infoGrid}>
+              <InfoField
+                label="Berat Badan (kg)"
+                value={beratBadan !== '-' ? `${beratBadan} kg` : '-'}
+                isEditing={isEditing}
+                editValue={editBeratBadan}
+                onChangeText={setEditBeratBadan}
+                keyboardType="numeric"
+                editable={!isSaving}
+                placeholder="Contoh: 65"
+              />
+              <InfoField
+                label="Tinggi Badan (cm)"
+                value={tinggiBadan !== '-' ? `${tinggiBadan} cm` : '-'}
+                isEditing={isEditing}
+                editValue={editTinggiBadan}
+                onChangeText={setEditTinggiBadan}
+                keyboardType="numeric"
+                editable={!isSaving}
+                placeholder="Contoh: 170"
+              />
+              {/* BMI (read-only) */}
+              <View style={st.infoField}>
+                <Text style={st.infoLabel}>Body Mass Index (BMI)</Text>
+                <View style={st.bmiRow}>
+                  <Text style={st.infoValue}>
+                    {bmiValue !== '-' ? bmiValue : '-'}
+                  </Text>
+                  {bmiValue !== '-' && (
+                    <View style={[st.bmiTag, { backgroundColor: bmiCategory.color + '20' }]}>
+                      <Text style={[st.bmiTagText, { color: bmiCategory.color }]}>
+                        {bmiCategory.label}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           </View>
-        </View>
+        )}
+
+        {/* ── Medical Summary Card ── */}
+        {role === 'pasien' && (
+          <View style={st.card}>
+            <View style={st.cardHeader}>
+              <MaterialIcons name="medical-information" size={24} color={C.secondary} />
+              <Text style={st.cardTitle}>Ringkasan Medis</Text>
+            </View>
+            <View style={st.regimenCard}>
+              <MaterialIcons name="medication" size={24} color={C.secondary} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={st.regimenLabel}>Regimen Saat Ini</Text>
+                <Text style={st.regimenName}>{regimenName}</Text>
+                <Text style={st.regimenDose}>{regimenDose}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ── Privacy Settings Card ── */}
         <View style={st.card}>
@@ -472,15 +799,6 @@ const st = StyleSheet.create({
     paddingTop: S.xl,
     paddingBottom: S.xl,
   },
-
-  // Header (Clean)
-  header: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 16,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-  },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
 
   /* Profile Bento */
   profileBento: {
@@ -666,6 +984,114 @@ const st = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: C.onBackground,
+  },
+
+  /* Edit Input */
+  editInput: {
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: C.onSurface,
+  },
+
+  /* Gender Selector */
+  genderRow: {
+    flexDirection: 'row',
+    gap: S.sm,
+  },
+  genderPill: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: S.md,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    backgroundColor: C.surfaceContainerLow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genderPillActive: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  genderPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+  },
+  genderPillTextActive: {
+    color: C.onPrimary,
+  },
+
+  /* BMI */
+  bmiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.sm,
+  },
+  bmiTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  bmiTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* Edit Button */
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: S.sm,
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: S.lg,
+  },
+  editBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.onPrimary,
+  },
+
+  /* Save / Cancel Buttons */
+  editActions: {
+    marginTop: S.lg,
+    gap: S.sm,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: S.sm,
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  saveBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.onPrimary,
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    backgroundColor: 'transparent',
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
   },
 
   /* Regimen */

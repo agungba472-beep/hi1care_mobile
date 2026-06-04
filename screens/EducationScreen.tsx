@@ -6,6 +6,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
@@ -81,10 +82,8 @@ const EducationScreen: React.FC = () => {
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
-      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
-      <View style={st.header}>
-        <Text style={st.headerTitle}>HI!-CARE</Text>
-      </View>
+      {/* ═══ CUSTOM HEADER ═══ */}
+      <CustomHeader title="Edukasi Kesehatan" showBackButton={false} hideBell={false} />
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

@@ -39,6 +39,9 @@ const NakesPatientDetailScreen: React.FC = () => {
           <Text style={st.title}>{patient.master?.nama || patient.user?.nama}</Text>
           <Text style={st.text}>No Reg HIV: {patient.master?.no_reg_hiv || '-'}</Text>
           <Text style={st.text}>Tgl Lahir: {patient.master?.tgl_lahir || '-'}</Text>
+          <Text style={st.text}>Jenis Kelamin: {patient.master?.jenis_kelamin === 'L' ? 'Laki-laki' : patient.master?.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</Text>
+          <Text style={st.text}>No. HP: {patient.user?.no_hp || '-'}</Text>
+          <Text style={st.text}>Alamat: {patient.master?.alamat || '-'}</Text>
           <Text style={st.text}>Status: <Text style={{fontWeight: 'bold'}}>{patient.status_kepatuhan?.toUpperCase()}</Text></Text>
           <TouchableOpacity
             style={st.chatBtn}
@@ -51,6 +54,18 @@ const NakesPatientDetailScreen: React.FC = () => {
             <Text style={st.chatBtnText}>Chat Pasien</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Data Fisik */}
+        {(patient.master?.berat_badan || patient.master?.tinggi_badan) && (
+          <View style={st.card}>
+            <Text style={[st.sectionTitle, {marginBottom: 8}]}>Data Fisik</Text>
+            <Text style={st.text}>Berat Badan: {patient.master?.berat_badan ? `${patient.master.berat_badan} kg` : '-'}</Text>
+            <Text style={st.text}>Tinggi Badan: {patient.master?.tinggi_badan ? `${patient.master.tinggi_badan} cm` : '-'}</Text>
+            {patient.master?.berat_badan && patient.master?.tinggi_badan && (
+              <Text style={st.text}>BMI: {(parseFloat(patient.master.berat_badan) / Math.pow(parseFloat(patient.master.tinggi_badan) / 100, 2)).toFixed(1)}</Text>
+            )}
+          </View>
+        )}
 
         {/* Diary History */}
         <Text style={st.sectionTitle}>Catatan Diary Keluhan (Terbaru)</Text>

@@ -102,19 +102,21 @@ const st = StyleSheet.create({
   
   // Desain Kartu (Card)
   card: { 
-    flexDirection: 'row', backgroundColor: C.surface, padding: 16, 
-    borderRadius: 12, marginBottom: 12, alignItems: 'center', 
-    elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }
+    flexDirection: 'row', backgroundColor: C.surface, padding: 20, 
+    borderRadius: 16, marginBottom: 16, alignItems: 'center', 
+    elevation: 3, shadowColor: C.primary, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1, borderColor: '#e2e8f0'
   },
   avatar: { 
-    width: 44, height: 44, borderRadius: 22, 
-    backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center', marginRight: 14 
+    width: 48, height: 48, borderRadius: 24, 
+    backgroundColor: '#eff4ff', justifyContent: 'center', alignItems: 'center', marginRight: 16,
+    borderWidth: 1.5, borderColor: '#dce9ff'
   },
   info: { flex: 1 },
-  name: { fontSize: 16, fontWeight: 'bold', color: '#0d1c2e' },
-  status: { fontSize: 13, color: C.outline, marginTop: 4 },
+  name: { fontSize: 17, fontWeight: '700', color: '#0d1c2e', marginBottom: 4 },
+  status: { fontSize: 13, color: C.outline, fontWeight: '500' },
   actionIcon: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#f1f5f9',
-    justifyContent: 'center', alignItems: 'center'
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#f1f5f9',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0'
   }
 });

@@ -312,6 +312,10 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
           <TouchableOpacity style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} onPress={handleLogin} activeOpacity={0.85} disabled={isLoading}>
             <Text style={styles.loginButtonText}>{isLoading ? 'Memproses...' : 'Masuk'}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.biometricBtn} onPress={() => navigation.navigate('BiometricAuth')} activeOpacity={0.7} disabled={isLoading}>
+            <MaterialIcons name="fingerprint" size={20} color={Colors.primary} />
+            <Text style={styles.biometricBtnText}>Login dengan Sidik Jari</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Divider */}
@@ -581,6 +585,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 24,
     color: Colors.onPrimary,
+  },
+  biometricBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: Spacing.md,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: `${Colors.primary}4D`,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceContainerLowest,
+  },
+  biometricBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 
   /* ── Divider ── */

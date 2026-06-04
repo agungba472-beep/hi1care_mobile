@@ -4,6 +4,10 @@ import {
   StatusBar, Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 // ── Design Tokens ──
 const C = {
@@ -30,8 +34,8 @@ interface BiometricAuthScreenProps {
 const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
   onMenuPress, onPrivacyToggle, onPasswordLogin, onBiometricScan, onNavPress,
 }) => {
-  const [activeTab, setActiveTab] = useState('Profile');
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const navigation = useNavigation<any>();
 
   // Pulse animation for scanning indicator
   useEffect(() => {
@@ -45,7 +49,38 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
     return () => loop.stop();
   }, [pulseAnim]);
 
-  const handleNav = (tab: string) => { setActiveTab(tab); onNavPress?.(tab); };
+  const handleBiometricAuth = async () => {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) {
+        Alert.alert('Tidak Didukung', 'Perangkat ini tidak memiliki sensor biometrik.');
+        return;
+      }
+      
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) {
+        Alert.alert('Belum Terdaftar', 'Anda belum mendaftarkan sidik jari atau biometrik di perangkat ini.');
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login ke HI-CARE',
+        fallbackLabel: 'Gunakan Password',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        const userRole = await AsyncStorage.getItem('userRole');
+        if (userRole === 'nakes') {
+          navigation.reset({ index: 0, routes: [{ name: 'NakesTabs' }] });
+        } else {
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      }
+    } catch (err) {
+      console.log('Biometric error:', err);
+    }
+  };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -61,7 +96,7 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
         <View style={st.container}>
 
           {/* ── Fingerprint Icon ── */}
-          <TouchableOpacity style={st.fpWrap} onPress={onBiometricScan} activeOpacity={0.8}>
+          <TouchableOpacity style={st.fpWrap} onPress={handleBiometricAuth} activeOpacity={0.8}>
             <View style={st.fpCircle}>
               <MaterialIcons name="fingerprint" size={64} color={C.primary} />
             </View>
@@ -85,7 +120,7 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
 
           {/* ── Actions ── */}
           <View style={st.actions}>
-            <TouchableOpacity style={st.passwordBtn} onPress={onPasswordLogin} activeOpacity={0.7}>
+            <TouchableOpacity style={st.passwordBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
               <MaterialIcons name="login" size={24} color={C.secondary} />
               <Text style={st.passwordBtnText}>Masuk dengan Kata Sandi</Text>
             </TouchableOpacity>
@@ -106,23 +141,6 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
             </View>
           </View>
         </View>
-      </View>
-
-      {/* ═══ BOTTOM NAV ═══ */}
-      <View style={st.bottomNav}>
-        {([
-          { icon: 'home', label: 'Home' }, { icon: 'medication', label: 'Schedule' },
-          { icon: 'edit-note', label: 'Log' }, { icon: 'chat', label: 'Chat' }, { icon: 'person', label: 'Profile' },
-        ] as { icon: keyof typeof MaterialIcons.glyphMap; label: string }[]).map((item) => {
-          const active = activeTab === item.label;
-          return (
-            <TouchableOpacity key={item.label} style={[st.navItem, active && st.navItemActive]}
-              onPress={() => handleNav(item.label)} activeOpacity={0.7}>
-              <MaterialIcons name={item.icon} size={24} color={active ? '#1d4ed8' : '#94a3b8'} />
-              <Text style={[st.navLabel, active && st.navLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
       </View>
     </SafeAreaView>
   );
