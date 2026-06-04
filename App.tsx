@@ -1,10 +1,12 @@
 import React from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './src/navigationRef';
+import FloatingPlusButton from './components/FloatingPlusButton';
 
 
 // Konfigurasi Notifikasi Global agar muncul meskipun aplikasi sedang aktif / di background
@@ -143,7 +145,8 @@ function NakesTabs() {
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   return (
-    <NavigationContainer ref={navigationRef}>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         
         {/* --- DUNIA BELUM LOGIN --- */}
@@ -166,6 +169,8 @@ export default function App() {
         <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
 
       </Stack.Navigator>
+      <FloatingPlusButton />
     </NavigationContainer>
+    </View>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
+import CustomHeader from '../components/CustomHeader';
 import api from '../src/api';
 import { Platform } from 'react-native';
 
@@ -85,6 +86,7 @@ const DashboardScreen: React.FC = () => {
   const [compliancePercent, setCompliancePercent] = useState(0);
   const [alarmsToday, setAlarmsToday] = useState<any[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -103,6 +105,7 @@ const DashboardScreen: React.FC = () => {
       }
 
       setAlarmsToday(d.jadwal_hari_ini || []);
+      setUnreadCount(d.unread_notif_count || 0);
     } catch (err: any) {
       console.log('[Dashboard] Error:', err.response?.data || err.message);
     } finally {
@@ -178,9 +181,7 @@ const DashboardScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
 
       {/* ═══ TOP APP BAR (CLEAN) ═══ */}
-      <View style={st.header}>
-        <Text style={st.headerTitle}>HI!-CARE</Text>
-      </View>
+      <CustomHeader title="Dashboard HI-CARE" />
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
@@ -226,17 +227,16 @@ const DashboardScreen: React.FC = () => {
             </View>
 
             {alarmsToday.length > 0 ? (
-              alarmsToday.map((alarm: any, idx: number) => (
-                <TouchableOpacity 
+              alarmsToday.map((alarm: any, idx: number) => {
+                const isTaken = alarm.status === 'sudah' || alarm.status === 'diminum';
+                return (
+                <View 
                   style={st.arvItem} 
                   key={alarm.id || idx}
-                  activeOpacity={0.8}
-                  onPress={() => handleMarkAsTaken(alarm.id)}
-                  disabled={trackingLoading || alarm.status === 'diminum'}
                 >
                   <View style={st.arvLeft}>
                     <View style={st.arvIconWrap}>
-                      <MaterialIcons name={alarm.status === 'diminum' ? 'check-circle' : 'schedule'} size={16} color="#fff" />
+                      <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={16} color="#fff" />
                     </View>
                     <View>
                       <Text style={st.arvName}>⏰ {alarm.jam || alarm.waktu}</Text>
@@ -244,13 +244,25 @@ const DashboardScreen: React.FC = () => {
                       <Text style={st.arvDose}>Nada: {alarm.nada || 'standar'}</Text>
                     </View>
                   </View>
-                  <View style={[st.arvBtn, alarm.status === 'diminum' && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                    <Text style={st.arvBtnText}>
-                      {trackingLoading ? '...' : alarm.status === 'diminum' ? 'SELESAI' : 'MINUM SEKARANG'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))
+                  
+                  {isTaken ? (
+                    <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}>
+                      <Text style={{ color: '#16a34a', fontWeight: 'bold', fontSize: 10 }}>✓ SUDAH DIMINUM</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={st.arvBtn}
+                      activeOpacity={0.8}
+                      onPress={() => handleMarkAsTaken(alarm.id)}
+                      disabled={trackingLoading}
+                    >
+                      <Text style={st.arvBtnText}>
+                        {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )})
             ) : (
               <View style={st.arvItem}>
                 <View style={st.arvLeft}>
@@ -367,10 +379,7 @@ const DashboardScreen: React.FC = () => {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* ═══ FAB ═══ */}
-      <TouchableOpacity style={st.fab} activeOpacity={0.85} onPress={() => navigation.navigate('Diary' as never)}>
-        <MaterialIcons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+
     </SafeAreaView>
   );
 };
@@ -401,13 +410,13 @@ const st = StyleSheet.create({
   },
 
   /* ── Header (Clean) ── */
-  header: {
+  headerContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: S.margin,
-    paddingVertical: 16,
-    backgroundColor: '#f8fafc',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
     shadowColor: C.primary,
@@ -415,6 +424,28 @@ const st = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  bellButton: {
+    position: 'relative',
+    padding: 5,
+  },
+  redBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+  },
+  redBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 20,

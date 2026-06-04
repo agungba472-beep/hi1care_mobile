@@ -5,9 +5,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 // Nada dering bawaan (tidak perlu DocumentPicker)
 import { Audio } from 'expo-av';
+import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 // ── FIX 1: PAKSA NOTIFIKASI BUNYI MESKIPUN APLIKASI SEDANG DIBUKA ──
 Notifications.setNotificationHandler({
@@ -79,8 +81,7 @@ const MedicationReminderScreen: React.FC = () => {
   const localTodayStr = getLocalDateString();
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === localTodayStr);
 
-  // ── WEB AUDIO: AUTO PRELOAD saat komponen mount (tanpa perlu gesture) ──
-  // Buffer loading boleh dari background, tapi AudioContext tetap perlu gesture untuk unlock
+  // ── WEB AUDIO: AUTO PRELOAD MENGGUNAKAN JALUR RESMI EXPO ──
   useEffect(() => {
     if (Platform.OS !== 'web') return;
 
@@ -89,34 +90,32 @@ const MedicationReminderScreen: React.FC = () => {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioCtx) return;
 
-        // Buat ctx dulu — mungkin suspended, tapi buffer bisa preload dulu
         const ctx = new AudioCtx();
         webAudioCtxRef.current = ctx;
 
+        // JALUR RESMI EXPO: Menggunakan require() agar file pasti ketemu
         const soundFiles = [
-          { id: 'standar', url: '/assets/?unstable_path=./assets/sounds/standard.wav' },
-          { id: 'ceria',   url: '/assets/?unstable_path=./assets/sounds/ceria.mp3' },
-          { id: 'darurat', url: '/assets/?unstable_path=./assets/sounds/darurat.mp3' },
+          { id: 'standar', module: require('../assets/sounds/standard.wav') },
+          { id: 'ceria',   module: require('../assets/sounds/ceria.mp3') },
+          { id: 'darurat', module: require('../assets/sounds/darurat.mp3') },
         ];
 
         for (const s of soundFiles) {
           try {
-            const response = await fetch(s.url);
+            const asset = Asset.fromModule(s.module);
+            await asset.downloadAsync(); // Paksa download file-nya
+            const uri = asset.localUri || asset.uri; // Dapatkan URL aslinya
+            
+            const response = await fetch(uri);
             if (response.ok) {
               const arrayBuffer = await response.arrayBuffer();
               const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
               webAudioBuffersRef.current[s.id] = audioBuffer;
-              console.log(`[WebAudio] ✅ Preloaded: ${s.id}`);
+              console.log(`[WebAudio] ✅ Berhasil Load: ${s.id}`);
             }
           } catch (err) {
-            console.log(`[WebAudio] ❌ Gagal preload ${s.id}:`, err);
+            console.log(`[WebAudio] ❌ Gagal Load ${s.id}:`, err);
           }
-        }
-
-        const loaded = Object.keys(webAudioBuffersRef.current).length;
-        if (loaded > 0) {
-          console.log(`[WebAudio] Buffer siap: ${loaded}/3`);
-          // Belum set Ready=true — tunggu user gesture untuk unlock ctx
         }
       } catch (e) {
         console.log('[WebAudio] Preload gagal:', e);
@@ -130,7 +129,7 @@ const MedicationReminderScreen: React.FC = () => {
     };
   }, []);
 
-  // ── FUNGSI UNLOCK (dipanggil dari klik user) ──
+  // ── FUNGSI UNLOCK (dipanggil saat klik Preview / Simpan) ──
   const initAndUnlockWebAudio = useCallback(async () => {
     if (Platform.OS !== 'web') return;
     if (webAudioReadyRef.current) return;
@@ -140,32 +139,13 @@ const MedicationReminderScreen: React.FC = () => {
 
     try {
       if (ctx.state === 'suspended') {
-        await ctx.resume();
+        await ctx.resume(); // Buka gembok browser!
       }
-      console.log(`[WebAudio] AudioContext state: ${ctx.state}`);
-
-      // Jika buffer belum ada, load sekarang
-      if (Object.keys(webAudioBuffersRef.current).length === 0) {
-        const soundFiles = [
-          { id: 'standar', url: '/assets/?unstable_path=./assets/sounds/standard.wav' },
-          { id: 'ceria',   url: '/assets/?unstable_path=./assets/sounds/ceria.mp3' },
-          { id: 'darurat', url: '/assets/?unstable_path=./assets/sounds/darurat.mp3' },
-        ];
-        for (const s of soundFiles) {
-          try {
-            const res = await fetch(s.url);
-            if (res.ok) {
-              const ab = await res.arrayBuffer();
-              webAudioBuffersRef.current[s.id] = await ctx.decodeAudioData(ab);
-              console.log(`[WebAudio] ✅ Loaded on unlock: ${s.id}`);
-            }
-          } catch (e) {}
-        }
-      }
-
+      
+      // Jika buffer sudah terisi, tandai bahwa mesin siap
       if (Object.keys(webAudioBuffersRef.current).length > 0) {
         webAudioReadyRef.current = true;
-        console.log('[WebAudio] ✅ SIAP & UNLOCKED!');
+        console.log('[WebAudio] ✅ GEMBOK TERBUKA & SIAP BERBUNYI!');
       }
     } catch (e) {
       console.log('[WebAudio] Unlock gagal:', e);
@@ -444,7 +424,7 @@ const MedicationReminderScreen: React.FC = () => {
   return (
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
-      <View style={st.header}><Text style={st.headerT}>Pengingat Obat</Text></View>
+      <CustomHeader title="Pengingat Obat" />
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         <View style={st.hero}>
