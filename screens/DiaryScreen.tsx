@@ -104,6 +104,32 @@ const DiaryScreen: React.FC = () => {
     }
   };
 
+  // ── Delete diary entry ──
+  const handleDelete = (id: number) => {
+    Alert.alert(
+      'Hapus Catatan',
+      'Apakah Anda yakin ingin menghapus catatan ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Hapus', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await api.delete(`/patient/diary/${id}`);
+              Alert.alert('Berhasil', 'Catatan berhasil dihapus.');
+              fetchDiary();
+            } catch (err: any) {
+              Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat menghapus catatan.');
+              setLoading(false);
+            }
+          } 
+        }
+      ]
+    );
+  };
+
   // ── Render diary card ──
   const renderDiaryCard = ({ item }: { item: DiaryItem }) => {
     const dateStr = item.tanggal || item.created_at;
@@ -121,7 +147,9 @@ const DiaryScreen: React.FC = () => {
               )}
             </View>
           </View>
-          <View style={st.diaryDot} />
+          <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ padding: 4 }}>
+            <MaterialIcons name="delete-outline" size={20} color="#ba1a1a" />
+          </TouchableOpacity>
         </View>
         <View style={st.diaryDivider} />
         <Text style={st.diaryContent}>{item.kondisi || item.catatan || '-'}</Text>

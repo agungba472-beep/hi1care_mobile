@@ -358,21 +358,21 @@ const DashboardScreen: React.FC = () => {
         <View style={st.tipsSection}>
           <View style={st.tipsTitleRow}>
             <Text style={st.tipsTitle}>Tips Kesehatan Harian</Text>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Edukasi' as never)}>
               <Text style={st.tipsLink}>LIHAT SEMUA</Text>
             </TouchableOpacity>
           </View>
-          <View style={st.articleCard}>
+          <TouchableOpacity style={st.articleCard} activeOpacity={0.85} onPress={() => navigation.navigate('Edukasi' as never)}>
             <Image
               source={{ uri: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=600&q=80' }}
               style={st.articleImg}
               resizeMode="cover"
             />
             <View style={st.articleOverlay}>
-              <Text style={st.articleTitle}>Managing Fatigue: Small Steps for Big Changes</Text>
-              <Text style={st.articleMeta}>3 min read • Nutrition & Wellness</Text>
+              <Text style={st.articleTitle}>Pentingnya Konsistensi Minum ARV Setiap Hari</Text>
+              <Text style={st.articleMeta}>Bacaan 3 Menit • Medis & Perawatan</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Bottom spacer */}

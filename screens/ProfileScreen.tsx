@@ -196,7 +196,6 @@ const getBMICategory = (bmiStr: string): { label: string; color: string } => {
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
-  const [hiddenNotif, setHiddenNotif] = useState(true);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
 
   // Edit mode state
@@ -712,23 +711,6 @@ const ProfileScreen: React.FC = () => {
           </View>
         )}
 
-        {/* ── Privacy Settings Card ── */}
-        <View style={st.card}>
-          <View style={st.cardHeader}>
-            <MaterialIcons name="security" size={24} color={C.primary} />
-            <Text style={st.cardTitle}>Pengaturan Privasi</Text>
-          </View>
-          <View style={st.settingRow}>
-            <View style={st.settingLeft}>
-              <MaterialIcons name="notifications-paused" size={24} color="#64748b" />
-              <View style={{ flex: 1 }}>
-                <Text style={st.settingTitle}>Notifikasi Tersembunyi</Text>
-                <Text style={st.settingDesc}>Samarkan konten notifikasi di layar kunci</Text>
-              </View>
-            </View>
-            <ToggleSwitch value={hiddenNotif} onToggle={() => setHiddenNotif(!hiddenNotif)} />
-          </View>
-        </View>
 
         {/* ── Security Settings Card ── */}
         <View style={st.card}>
@@ -755,13 +737,7 @@ const ProfileScreen: React.FC = () => {
 
         {/* ── Account Management ── */}
         <View style={st.accountSection}>
-          <TouchableOpacity style={st.accountBtn} activeOpacity={0.7}>
-            <View style={st.accountBtnLeft}>
-              <MaterialIcons name="settings" size={24} color={C.onSurface} />
-              <Text style={st.accountBtnText}>Pengaturan Akun</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+
           <TouchableOpacity style={st.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
             <MaterialIcons name="logout" size={24} color={C.error} />
             <Text style={st.logoutText}>Logout</Text>

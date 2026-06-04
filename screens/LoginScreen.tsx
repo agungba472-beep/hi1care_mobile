@@ -69,7 +69,7 @@ const LoginScreen: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
 
   // ── Biometric Authentication ──
@@ -172,8 +172,6 @@ const LoginScreen: React.FC = () => {
               setPassword={setPassword}
               showPassword={showPassword}
               setShowPassword={setShowPassword}
-              rememberMe={rememberMe}
-              setRememberMe={setRememberMe}
               isLoading={isLoading}
               handleLogin={handleLogin}
               navigation={navigation}
@@ -194,8 +192,6 @@ const LoginScreen: React.FC = () => {
             setPassword={setPassword}
             showPassword={showPassword}
             setShowPassword={setShowPassword}
-            rememberMe={rememberMe}
-            setRememberMe={setRememberMe}
             isLoading={isLoading}
             handleLogin={handleLogin}
             navigation={navigation}
@@ -218,8 +214,6 @@ interface FormContentProps {
   setPassword: (v: string) => void;
   showPassword: boolean;
   setShowPassword: (fn: (v: boolean) => boolean) => void;
-  rememberMe: boolean;
-  setRememberMe: (fn: (v: boolean) => boolean) => void;
   isLoading: boolean;
   handleLogin: () => void;
   navigation: any;
@@ -229,7 +223,6 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
   identifier, setIdentifier,
   password, setPassword,
   showPassword, setShowPassword,
-  rememberMe, setRememberMe,
   isLoading, handleLogin, navigation,
 }) => (
   <>
@@ -296,13 +289,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
 
         {/* Utilities Row */}
         <View style={styles.utilitiesRow}>
-          <TouchableOpacity style={styles.toggleRow} onPress={() => setRememberMe(v => !v)} activeOpacity={0.7}>
-            <View style={[styles.toggleTrack, rememberMe && styles.toggleTrackActive]}>
-              <View style={[styles.toggleThumb, rememberMe && styles.toggleThumbActive]} />
-            </View>
-            <Text style={styles.toggleLabel}>Ingat Saya</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert('Informasi', 'Silakan hubungi Admin Puskesmas untuk mereset kata sandi Anda.')} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => Alert.alert('Lupa Password', 'Demi keamanan data rekam medis, silakan hubungi Admin Klinik atau Tenaga Kesehatan Anda untuk melakukan reset password akun.')} activeOpacity={0.7}>
             <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
           </TouchableOpacity>
         </View>
@@ -513,7 +500,7 @@ const styles = StyleSheet.create({
   utilitiesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   toggleRow: {
     flexDirection: 'row',

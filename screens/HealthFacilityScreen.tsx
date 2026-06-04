@@ -148,23 +148,24 @@ const HealthFacilityScreen = () => {
     }
   };
 
-  // ACTION 2: Lempar Navigasi Rute Perjalanan Nyata ke Google Maps Eksternal
   const openGoogleMapsRoute = (lat: string | null, lng: string | null, name: string) => {
     if (!lat || !lng) {
       Alert.alert('Gagal Membuka Navigasi', 'Koordinat faskes tidak valid.');
       return;
     }
+    const universalUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    
     const url = Platform.select({
       ios: `maps:0,0?q=${lat},${lng}(${encodeURIComponent(name)})`,
       android: `geo:0,0?q=${lat},${lng}(${encodeURIComponent(name)})`,
-      default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      default: universalUrl
     });
 
     Linking.canOpenURL(url || '').then((supported) => {
       if (supported && url) {
         Linking.openURL(url);
       } else {
-        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+        Linking.openURL(universalUrl);
       }
     });
   };
