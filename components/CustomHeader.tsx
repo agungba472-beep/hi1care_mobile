@@ -6,15 +6,19 @@ import api from '../src/api';
 
 interface CustomHeaderProps {
   title: string;
+  showBackButton?: boolean;
+  hideBell?: boolean;
 }
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ title }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({ title, showBackButton, hideBell }) => {
   const navigation = useNavigation();
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Ambil data jumlah notifikasi setiap kali halaman di-fokuskan
   useFocusEffect(
     React.useCallback(() => {
+      if (hideBell) return;
+      
       const fetchNotifCount = async () => {
         try {
           const response = await api.get('/patient/dashboard');
@@ -29,28 +33,37 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ title }) => {
 
   return (
     <View style={st.headerContainer}>
-      <Text style={st.headerTitle}>{title}</Text>
-      
-      {/* TOMBOL LONCENG DENGAN NAVIGASI ASLI */}
-      <TouchableOpacity 
-        style={st.bellButton} 
-        onPress={() => {
-          // Ganti 'NotificationListScreen' dengan nama rute daftar notifikasimu di App.tsx
-          navigation.navigate('NotificationListScreen' as never);
-        }}
-        activeOpacity={0.7}
-      >
-        <MaterialIcons name="notifications-none" size={28} color="#0043a2" />
-        
-        {/* Titik Merah Notifikasi */}
-        {unreadCount > 0 && (
-          <View style={st.redBadge}>
-            <Text style={st.redBadgeText}>
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Text>
-          </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {showBackButton && (
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={{ marginRight: 12, padding: 4 }}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#0043a2" />
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+        <Text style={st.headerTitle}>{title}</Text>
+      </View>
+      
+      {!hideBell && (
+        <TouchableOpacity 
+          style={st.bellButton} 
+          onPress={() => {
+            navigation.navigate('NotificationListScreen' as never);
+          }}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="notifications-none" size={28} color="#0043a2" />
+          
+          {unreadCount > 0 && (
+            <View style={st.redBadge}>
+              <Text style={st.redBadgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

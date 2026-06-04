@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Sta
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 const C = {
   primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
@@ -64,7 +65,7 @@ const NakesDashboardScreen: React.FC = () => {
   return (
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
-      <View style={st.header}><Text style={st.headerT}>Dashboard Tenaga Kesehatan</Text></View>
+      <CustomHeader title="Dashboard Tenaga Kesehatan" showBackButton={false} hideBell={true} />
       
       <ScrollView contentContainerStyle={st.scroll}>
         {/* Welcome Card */}

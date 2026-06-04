@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, Activ
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
@@ -65,9 +66,7 @@ export default function NakesChatScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       
       {/* HEADER */}
-      <View style={st.header}>
-        <Text style={st.headerTitle}>Riwayat Obrolan Pasien</Text>
-      </View>
+      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={true} hideBell={true} />
 
       {/* KONTEN */}
       {loading ? (

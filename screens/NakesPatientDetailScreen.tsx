@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, To
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
+import CustomHeader from '../components/CustomHeader';
 
 const C = { primary: '#0043a2', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
@@ -30,7 +31,7 @@ const NakesPatientDetailScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}>
-      <View style={st.header}><Text style={st.headerT}>Detail Rekam Medis</Text></View>
+      <CustomHeader title="Rekam Medis Pasien" showBackButton={true} hideBell={true} />
       <ScrollView contentContainerStyle={st.scroll}>
         
         {/* Info Box */}

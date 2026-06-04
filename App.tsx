@@ -38,6 +38,7 @@ import HealthFacilityScreen from './screens/HealthFacilityScreen';
 import ChatbotScreen from './screens/ChatbotScreen';
 import PatientChatRoomScreen from './screens/PatientChatRoomScreen';
 import ArticleDetailScreen from './screens/ArticleDetailScreen';
+import NotificationListScreen from './screens/NotificationListScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
 export type RootStackParamList = {
@@ -54,6 +55,7 @@ export type RootStackParamList = {
   Chatbot: undefined;
   PatientChatRoom: { konsultasiId: number };
   ArticleDetail: { article: any };
+  NotificationListScreen: undefined;
 };
 
 // Pasangkan tipe datanya ke Stack
@@ -63,7 +65,8 @@ const Tab = createBottomTabNavigator();
 // 3. Buat Dunia Utama (Menu Bawah / Bottom Tabs)
 function MainTabs() {
   return (
-    <Tab.Navigator
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
@@ -92,6 +95,8 @@ function MainTabs() {
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
+    <FloatingPlusButton />
+    </View>
   );
 }
 
@@ -167,9 +172,9 @@ export default function App() {
         <Stack.Screen name="Chatbot" component={ChatbotScreen} />
         <Stack.Screen name="PatientChatRoom" component={PatientChatRoomScreen} />
         <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+        <Stack.Screen name="NotificationListScreen" component={NotificationListScreen} />
 
       </Stack.Navigator>
-      <FloatingPlusButton />
     </NavigationContainer>
     </View>
   );
