@@ -8,6 +8,7 @@ import { Audio } from 'expo-av';
 import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../src/api';
 import CustomHeader from '../components/CustomHeader';
 
@@ -79,7 +80,7 @@ const MedicationReminderScreen: React.FC = () => {
   };
 
   const localTodayStr = getLocalDateString();
-  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal === localTodayStr);
+  const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal.substring(0, 10) === localTodayStr);
 
   // ── WEB AUDIO: AUTO PRELOAD MENGGUNAKAN JALUR RESMI EXPO ──
   useEffect(() => {
@@ -306,30 +307,112 @@ const MedicationReminderScreen: React.FC = () => {
     } finally { setRefillLoading(false); }
   };
 
-  const handleMarkAsTaken = async (alarmId: number) => {
-    if (Platform.OS === 'web') {
-      const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
-      if (confirm) {
-        try {
-          await api.post(`/patient/alarms/${alarmId}/taken`);
-          window.alert('Berhasil ✅ Obat berhasil ditandai sebagai diminum.');
-          fetchData();
-        } catch (e: any) { window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat memperbarui status.')); }
+  const handleUploadRefillPhoto = async (refillId: number) => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.granted === false) {
+      if (Platform.OS === 'web') window.alert("Aplikasi butuh izin kamera untuk mengirim bukti foto botol kosong/resep!");
+      else Alert.alert("Izin Ditolak", "Aplikasi butuh izin kamera untuk mengirim bukti foto botol kosong/resep!");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      const formData = new FormData();
+      
+      if (Platform.OS === 'web') {
+        // @ts-ignore
+        formData.append('foto_bukti', result.assets[0].file);
+      } else {
+        const localUri = result.assets[0].uri;
+        const filename = localUri.split('/').pop() || 'refill.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        // @ts-ignore
+        formData.append('foto_bukti', { uri: localUri, name: filename, type });
       }
-    } else {
-      Alert.alert('Konfirmasi Minum Obat', 'Apakah Anda yakin sudah meminum obat ini?', [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Ya, Sudah Diminum',
-          onPress: async () => {
-            try {
-              await api.post(`/patient/alarms/${alarmId}/taken`);
-              Alert.alert('Berhasil ✅', 'Obat berhasil ditandai sebagai diminum.');
-              fetchData();
-            } catch (e: any) { Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat memperbarui status.'); }
+
+      try { 
+        await api.post(`/patient/refill/${refillId}/photo`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }); 
+        if (Platform.OS === 'web') window.alert('Berhasil ✅ Bukti foto berhasil diunggah.');
+        else Alert.alert('Berhasil ✅', 'Bukti foto berhasil diunggah.'); 
+        fetchData(); 
+      } catch (e: any) { 
+        if (Platform.OS === 'web') window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat mengunggah bukti foto.'));
+        else Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat mengunggah bukti foto.'); 
+      }
+    }
+  };
+
+  const handleMarkAsTaken = async (alarmId: number) => {
+    // 1. Minta izin akses kamera HP
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.granted === false) {
+      if (Platform.OS === 'web') {
+         window.alert("Aplikasi butuh izin kamera untuk mengirim bukti foto!");
+      } else {
+         Alert.alert("Izin Ditolak", "Aplikasi butuh izin kamera untuk mengirim bukti foto!");
+      }
+      return;
+    }
+
+    // 2. Buka Kamera
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5, // Kompres foto agar pengiriman cepat & hemat kuota
+    });
+
+    // 3. Jika pasien memotret (tidak membatalkan)
+    if (!result.canceled) {
+      const formData = new FormData();
+      
+      if (Platform.OS === 'web') {
+        // KHUSUS BROWSER LAPTOP (WEB)
+        // @ts-ignore
+        formData.append('foto_bukti', result.assets[0].file);
+      } else {
+        // KHUSUS HP ANDROID / IOS
+        const localUri = result.assets[0].uri;
+        const filename = localUri.split('/').pop() || 'bukti.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        
+        // @ts-ignore
+        formData.append('foto_bukti', { uri: localUri, name: filename, type });
+      }
+
+      formData.append('status', 'diminum');
+
+      try {
+        // Tembak API Laravel dengan tipe 'multipart/form-data'
+        await api.post(`/patient/alarms/${alarmId}/taken`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
           },
-        },
-      ]);
+        });
+        
+        if (Platform.OS === 'web') {
+           window.alert("Hebat! Bukti minum obat berhasil dikirim ke Admin.");
+        } else {
+           Alert.alert("Berhasil ✅", "Hebat! Bukti minum obat berhasil dikirim ke Admin.");
+        }
+        fetchData();
+        
+      } catch (error: any) {
+        console.log("Gagal kirim foto:", error);
+        const errorMsg = error.response?.data?.message || "Gagal mengirim bukti, periksa koneksi internet.";
+        if (Platform.OS === 'web') {
+           window.alert("Gagal: " + errorMsg);
+        } else {
+           Alert.alert("Gagal", errorMsg);
+        }
+      }
     }
   };
 
@@ -414,7 +497,7 @@ const MedicationReminderScreen: React.FC = () => {
   };
 
 
-  const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu');
+  const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu' || r.status === 'disetujui');
   const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   if (loading) return (
@@ -604,8 +687,23 @@ const MedicationReminderScreen: React.FC = () => {
             <View style={{ gap: S.sm, marginTop: S.md }}>
               <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Riwayat Refill</Text>
               {refills.slice(0, 5).map((r: any, i: number) => (
-                <View style={st.logC} key={r.id || i}><MaterialIcons name="history" size={16} color={C.secondary} />
-                  <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' || r.status === 'selesai' ? '#16a34a' : r.status === 'pending' || r.status === 'menunggu' ? C.secondary : C.outline }}>{r.status}</Text></Text>
+                <View style={[st.logC, { flexDirection: 'column', alignItems: 'stretch' }]} key={r.id || i}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                    <MaterialIcons name="history" size={16} color={C.secondary} />
+                    <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' || r.status === 'selesai' ? '#16a34a' : r.status === 'pending' || r.status === 'menunggu' ? C.secondary : r.status === 'disetujui' ? '#0ea5e9' : C.outline }}>{r.status}</Text></Text>
+                  </View>
+                  {r.status === 'disetujui' && !r.foto_bukti && (
+                    <TouchableOpacity style={{ marginTop: 8, backgroundColor: '#0ea5e9', padding: 8, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }} onPress={() => handleUploadRefillPhoto(r.id)} activeOpacity={0.8}>
+                      <MaterialIcons name="photo-camera" size={16} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Kirim Bukti Foto</Text>
+                    </TouchableOpacity>
+                  )}
+                  {r.status === 'disetujui' && r.foto_bukti && (
+                    <View style={{ marginTop: 8, backgroundColor: '#dcfce7', padding: 8, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                      <MaterialIcons name="check-circle" size={16} color="#16a34a" />
+                      <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '600' }}>Bukti Foto Terkirim, Menunggu Verifikasi</Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>

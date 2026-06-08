@@ -1,3 +1,5 @@
+// @ts-ignore
+global.Buffer = global.Buffer || require('buffer').Buffer;
 import React from 'react';
 import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -7,6 +9,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './src/navigationRef';
 import FloatingPlusButton from './components/FloatingPlusButton';
+
 
 
 // Konfigurasi Notifikasi Global agar muncul meskipun aplikasi sedang aktif / di background
@@ -73,7 +76,7 @@ function MainTabs() {
           let iconName;
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Alarm') {
+          } else if (route.name === 'Pengingat') {
             iconName = focused ? 'alarm' : 'alarm-outline';
           } else if (route.name === 'Edukasi') {
             iconName = focused ? 'book' : 'book-outline';
@@ -90,7 +93,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={DashboardScreen} />
-      <Tab.Screen name="Alarm" component={MedicationReminderScreen} />
+      <Tab.Screen name="Pengingat" component={MedicationReminderScreen} />
       <Tab.Screen name="Edukasi" component={EducationScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />

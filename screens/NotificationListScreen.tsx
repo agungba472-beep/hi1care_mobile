@@ -26,6 +26,16 @@ const NotificationListScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchNotifications();
+
+      // Lapor ke Laravel bahwa semua notifikasi sudah dilihat
+      const markAsRead = async () => {
+        try {
+          await api.post('/patient/notifications/mark-as-read');
+        } catch (error) {
+          console.log('Gagal update status notifikasi:', error);
+        }
+      };
+      markAsRead();
     }, [])
   );
 

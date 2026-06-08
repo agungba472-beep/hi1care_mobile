@@ -10,8 +10,9 @@ const FloatingPlusButton = () => {
     <TouchableOpacity
       style={st.fab}
       onPress={() => {
-        // Arahkan ke menu Alarm (sesuai dengan nama Tab.Screen di App.tsx)
-        navigation.navigate('Alarm' as never);
+        // Karena tombol ini di luar Tab.Navigator, kita harus memanggil nama Stack utama dulu,
+        // baru masuk ke nama Tab-nya.
+        navigation.navigate('MainTabs' as never, { screen: 'Pengingat' } as never);
       }}
       activeOpacity={0.85}
     >
