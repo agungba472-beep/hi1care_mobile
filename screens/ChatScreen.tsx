@@ -14,11 +14,11 @@ import CustomHeader from '../components/CustomHeader';
 const C = {
   bg: '#f0f4ff',
   surface: '#ffffff',
-  primary: '#0043a2',
+  primary: '#012D1D',
   primaryLight: '#e8f0fe',
   primaryDark: '#002d6e',
   onPrimary: '#ffffff',
-  accent: '#6b4ab2',
+  accent: '#00A86B',
   accentLight: '#f3eefe',
   onSurface: '#0d1c2e',
   onSurfaceVariant: '#434652',
@@ -30,9 +30,9 @@ const C = {
   warningLight: '#fef3c7',
   error: '#dc2626',
   errorLight: '#fee2e2',
-  gradientStart: '#0043a2',
-  gradientEnd: '#6b4ab2',
-  cardShadow: '#0043a2',
+  gradientStart: '#012D1D',
+  gradientEnd: '#00A86B',
+  cardShadow: '#012D1D',
 } as const;
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -540,7 +540,7 @@ const st = StyleSheet.create({
     marginTop: 20,
     overflow: 'hidden',
     ...SHADOW,
-    shadowColor: '#0043a2',
+    shadowColor: '#012D1D',
     shadowOpacity: 0.25,
   },
   aiCardGradient: {

@@ -9,14 +9,14 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location'; // <── Mengaktifkan Radar Sensor GPS HP
 import api from '../src/api';
 
-// ── Design Tokens (HI!-CARE Serene Assurance) ──
+// ── Design Tokens (WEAR Serene Assurance) ──
 const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
   onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
+  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff',
-  secondary: '#6b4ab2', background: '#f8f9ff',
+  secondary: '#00A86B', background: '#f8f9ff',
   success: '#16a34a' // Warna hijau sukses untuk keterangan jarak
 } as const;
 
@@ -235,7 +235,7 @@ const HealthFacilityScreen = () => {
                     data.payload.forEach(f => {
                         if (f.latitude && f.longitude) {
                             var marker = L.marker([parseFloat(f.latitude), parseFloat(f.longitude)]).addTo(map)
-                                .bindPopup('<b>' + f.nama + '</b><br/><span style="color:#6b4ab2;font-weight:600;">' + f.tipe + '</span><br/>' + f.alamat);
+                                .bindPopup('<b>' + f.nama + '</b><br/><span style="color:#00A86B;font-weight:600;">' + f.tipe + '</span><br/>' + f.alamat);
                             markers.push(marker);
                         }
                     });
@@ -371,7 +371,7 @@ const st = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBtn: { padding: 4, borderRadius: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#012D1D', letterSpacing: -0.3 },
   mapContainer: {
     height: '38%', backgroundColor: '#e0e0e0',
     borderBottomWidth: 2, borderBottomColor: C.outlineVariant

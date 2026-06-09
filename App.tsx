@@ -87,7 +87,7 @@ function MainTabs() {
           }
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#0043a2',
+        tabBarActiveTintColor: '#012D1D',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: { paddingBottom: 5, height: 60 },
       })}
@@ -119,7 +119,7 @@ function NakesTabs() {
           
           return <MaterialIcons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#0043a2',
+        tabBarActiveTintColor: '#012D1D',
         tabBarInactiveTintColor: '#737784',
         tabBarStyle: { paddingBottom: 5, height: 60 },
       })}

@@ -5,7 +5,7 @@ import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/nativ
 import api from '../src/api';
 import CustomHeader from '../components/CustomHeader';
 
-const C = { primary: '#0043a2', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
+const C = { primary: '#012D1D', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
 const NakesPatientDetailScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -104,19 +104,19 @@ const NakesPatientDetailScreen: React.FC = () => {
         <Text style={st.sectionTitle}>Data Fisik</Text>
         <View style={st.gridWrap}>
           <View style={st.gridBox}>
-            <View style={st.gridIconWrap}><MaterialIcons name="monitor-weight" size={24} color="#2563eb" /></View>
+            <View style={st.gridIconWrap}><MaterialIcons name="monitor-weight" size={24} color="#012D1D" /></View>
             <Text style={st.gridVal}>{patient.master?.berat_badan ? `${patient.master.berat_badan} kg` : '-'}</Text>
             <Text style={st.gridLabel}>Berat Badan</Text>
           </View>
 
           <View style={st.gridBox}>
-            <View style={st.gridIconWrap}><MaterialIcons name="height" size={24} color="#2563eb" /></View>
+            <View style={st.gridIconWrap}><MaterialIcons name="height" size={24} color="#012D1D" /></View>
             <Text style={st.gridVal}>{patient.master?.tinggi_badan ? `${patient.master.tinggi_badan} cm` : '-'}</Text>
             <Text style={st.gridLabel}>Tinggi Badan</Text>
           </View>
 
           <View style={st.gridBox}>
-            <View style={st.gridIconWrap}><MaterialIcons name={patient.master?.jenis_kelamin === 'P' ? 'female' : 'male'} size={24} color="#2563eb" /></View>
+            <View style={st.gridIconWrap}><MaterialIcons name={patient.master?.jenis_kelamin === 'P' ? 'female' : 'male'} size={24} color="#012D1D" /></View>
             <Text style={st.gridVal}>{patient.master?.jenis_kelamin === 'L' ? 'Laki-Laki' : patient.master?.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</Text>
             <Text style={st.gridLabel}>Jenis Kelamin</Text>
           </View>

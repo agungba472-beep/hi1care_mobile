@@ -39,7 +39,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ title, showBackButton, hide
             onPress={() => navigation.goBack()} 
             style={{ marginRight: 12, padding: 4 }}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#0043a2" />
+            <MaterialIcons name="arrow-back" size={24} color="#012D1D" />
           </TouchableOpacity>
         )}
         <Text style={st.headerTitle}>{title}</Text>
@@ -53,7 +53,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ title, showBackButton, hide
           }}
           activeOpacity={0.7}
         >
-          <MaterialIcons name="notifications-none" size={28} color="#0043a2" />
+          <MaterialIcons name="notifications-none" size={28} color="#012D1D" />
           
           {unreadCount > 0 && (
             <View style={st.redBadge}>
@@ -86,7 +86,7 @@ const st = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0043a2',
+    color: '#012D1D',
     letterSpacing: 0.5,
   },
   bellButton: {

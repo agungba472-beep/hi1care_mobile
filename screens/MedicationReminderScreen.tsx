@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Alert, Platform, Switch } from 'react-native';
+import { 
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, 
+  StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground 
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-// Nada dering bawaan (tidak perlu DocumentPicker)
 import { Audio } from 'expo-av';
 import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,25 +25,37 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// ── Design Tokens (Tema Emerald/Mint Sesuai Referensi HTML) ──
 const C = {
-  surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff', surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  onPrimaryContainer: '#d1dcff', primaryFixed: '#dae2ff', primaryFixedDim: '#b1c5ff',
-  secondary: '#6b4ab2', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
-  secondaryFixed: '#eaddff', onSecondaryFixed: '#24005b', secondaryFixedDim: '#d1bcff',
-  tertiary: '#42495c', error: '#ba1a1a', background: '#f8f9ff', onBackground: '#0d1c2e',
+  surface: '#f9f9f8', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#f3f4f3',
+  surfaceContainer: '#edeeed', surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c', onSurfaceVariant: '#414844',
+  outline: '#717973', outlineVariant: '#c1c8c2',
+  primary: '#012d1d', onPrimary: '#ffffff', primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99', primaryFixed: '#c1ecd4', onPrimaryFixed: '#012d1d', primaryFixedDim: '#a5d0b9',
+  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0',
+  secondaryFixed: '#cee9d3', onSecondaryFixed: '#092012', secondaryFixedDim: '#b3cdb7',
+  tertiary: '#002d1b', error: '#ba1a1a', background: '#f9f9f8', onBackground: '#191c1c',
 } as const;
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
-const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, size }) => (
-  <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-    <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: 'rgba(255,255,255,0.2)' }} />
-    <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: '#fff', borderRightColor: percent < 100 ? 'rgba(255,255,255,0.2)' : '#fff', transform: [{ rotate: '-90deg' }] }} />
-  </View>
-);
+const S = { xs: 8, sm: 12, md: 16, lg: 24, xl: 32, margin: 16 } as const;
+
+const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, size }) => {
+  const r = (size - 6) / 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - percent / 100);
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, borderColor: 'rgba(255,255,255,0.2)' }} />
+      <View style={{ 
+        position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 6, 
+        borderColor: '#ffffff', borderTopColor: offset > circumference * 0.75 ? 'rgba(255,255,255,0.2)' : '#ffffff', 
+        transform: [{ rotate: '-90deg' }] 
+      }} />
+      <Text style={{ position: 'absolute', color: '#ffffff', fontWeight: 'bold', fontSize: 14 }}>{percent}%</Text>
+    </View>
+  );
+};
 
 const MedicationReminderScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -104,8 +118,8 @@ const MedicationReminderScreen: React.FC = () => {
         for (const s of soundFiles) {
           try {
             const asset = Asset.fromModule(s.module);
-            await asset.downloadAsync(); // Paksa download file-nya
-            const uri = asset.localUri || asset.uri; // Dapatkan URL aslinya
+            await asset.downloadAsync(); 
+            const uri = asset.localUri || asset.uri; 
             
             const response = await fetch(uri);
             if (response.ok) {
@@ -196,8 +210,6 @@ const MedicationReminderScreen: React.FC = () => {
           return dbTime === currentTimeStr && (!a.status || a.status !== 'sudah');
         });
 
-        console.log(`[Web Alarm] Cek Jam: ${currentTimeStr} | Alarm hari ini: ${todayAlarms.length} | Cocok: ${activeAlarm ? 'YA ✅' : 'belum'}`);
-
         if (activeAlarm) {
           // Gunakan localStorage agar tidak bunyi berkali-kali di menit yang sama
           const lastPlayed = localStorage.getItem('last_played_alarm_time');
@@ -209,7 +221,9 @@ const MedicationReminderScreen: React.FC = () => {
             
             // 2. Munculkan Notifikasi Layar
             setTimeout(() => {
-              window.alert(`⏰ WAKTUNYA MINUM OBAT ARV!\nJadwal: ${activeAlarm.waktu}\nNada: ${activeAlarm.nada_dering || 'standar'}`);
+              window.alert(`⏰ WAKTUNYA MINUM OBAT ARV!
+Jadwal: ${activeAlarm.waktu}
+Nada: ${activeAlarm.nada_dering || 'standar'}`);
             }, 500); // Beri jeda setengah detik agar suaranya main duluan
           }
         }
@@ -365,7 +379,7 @@ const MedicationReminderScreen: React.FC = () => {
     // 2. Buka Kamera
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.5, // Kompres foto agar pengiriman cepat & hemat kuota
+      quality: 0.5, 
     });
 
     // 3. Jika pasien memotret (tidak membatalkan)
@@ -373,11 +387,9 @@ const MedicationReminderScreen: React.FC = () => {
       const formData = new FormData();
       
       if (Platform.OS === 'web') {
-        // KHUSUS BROWSER LAPTOP (WEB)
         // @ts-ignore
         formData.append('foto_bukti', result.assets[0].file);
       } else {
-        // KHUSUS HP ANDROID / IOS
         const localUri = result.assets[0].uri;
         const filename = localUri.split('/').pop() || 'bukti.jpg';
         const match = /\.(\w+)$/.exec(filename);
@@ -390,7 +402,6 @@ const MedicationReminderScreen: React.FC = () => {
       formData.append('status', 'diminum');
 
       try {
-        // Tembak API Laravel dengan tipe 'multipart/form-data'
         await api.post(`/patient/alarms/${alarmId}/taken`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -418,17 +429,14 @@ const MedicationReminderScreen: React.FC = () => {
 
   // ── MANTRA AUDIO BAWAAN ──
   const playPreviewSound = async (id: string) => {
-    // Init + Unlock web audio saat user klik preview (ini adalah user gesture!)
     await initAndUnlockWebAudio();
 
-    // Matikan suara yang sedang diputar
     if (soundRef.current) {
       await soundRef.current.unloadAsync();
       soundRef.current = null;
       setIsPlaying(false);
     }
     
-    // Matikan preview jika diklik suara yang sama dua kali
     if (isPlaying && selectedSoundId === id) return;
 
     try {
@@ -455,7 +463,6 @@ const MedicationReminderScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    // Init + Unlock web audio saat user klik Simpan (ini adalah user gesture!)
     await initAndUnlockWebAudio();
     setSavingSettings(true);
     try {
@@ -469,7 +476,7 @@ const MedicationReminderScreen: React.FC = () => {
       await api.post('/patient/alarms/settings', { 
         waktu: fmtTime, 
         tanggal: fmtDate, 
-        nada_dering: selectedSoundId, // Mengirimkan 'standar', 'ceria', atau 'darurat'
+        nada_dering: selectedSoundId, 
         is_everyday: isEveryday 
       });
 
@@ -484,7 +491,7 @@ const MedicationReminderScreen: React.FC = () => {
         }
       }
 
-      const msg = `Alarm ${fmtTime} berhasil disimpan.${isEveryday ? '\n\nDijadwalkan otomatis untuk 30 hari.' : ''}`;
+      const msg = `Alarm ${fmtTime} berhasil disimpan.${isEveryday ? '\\n\\nDijadwalkan otomatis untuk 30 hari.' : ''}`;
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Alarm Disimpan ✅', msg);
       
@@ -496,9 +503,8 @@ const MedicationReminderScreen: React.FC = () => {
     finally { setSavingSettings(false); }
   };
 
-
   const pendingRefill = refills.find((r: any) => r.status === 'pending' || r.status === 'menunggu' || r.status === 'disetujui');
-  const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) return (
     <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
@@ -510,84 +516,105 @@ const MedicationReminderScreen: React.FC = () => {
       <CustomHeader title="Pengingat Obat" />
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-        <View style={st.hero}>
-          <View style={{ flex: 1 }}>
-            <Text style={st.heroT}>Tingkat Kepatuhan</Text>
-            <Text style={st.heroS}>{compliancePercent >= 80 ? 'Luar biasa! Pertahankan rutinitas Anda.' : 'Ayo tingkatkan konsistensi Anda!'}</Text>
-          </View>
-          <CircleProgress percent={compliancePercent} size={72} />
-        </View>
+        
+        {/* HERO SECTION DENGAN GAMBAR BACKGROUND (Diperpanjang membungkus Jadwal Hari Ini) */}
+        <ImageBackground 
+          source={require('../assets/img/bg_obat.jpeg')} 
+          style={st.heroFull} 
+          imageStyle={{ opacity: 0.15 }} // Opacity dinaikkan sedikit agar tekstur medis lebih terlihat
+        >
+          <View style={st.heroOverlayFull}>
+            {/* Bagian Atas: Ringkasan Kepatuhan */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.lg }}>
+              <View style={{ flex: 1 }}>
+                <Text style={st.heroT}>Tetap Kuat</Text>
+                <Text style={st.heroS}>Kepatuhan ARV harian di {compliancePercent}%</Text>
+              </View>
+              <CircleProgress percent={compliancePercent} size={72} />
+            </View>
 
-        <View style={st.sec}>
-          <View style={st.secH}><Text style={st.secT}>Jadwal Hari Ini</Text><Text style={st.secD}>{displayTodayStr}</Text></View>
-          {todayAlarms.length > 0 ? (
-            todayAlarms.map((alarm: any, idx: number) => {
-              const isTaken = alarm.status === 'sudah';
-              const isPending = !alarm.status || alarm.status === 'belum';
+            {/* Bagian Bawah: JADWAL HARI INI di dalam Background */}
+            <View style={st.secH}>
+              <Text style={[st.secT, { color: '#ffffff' }]}>Jadwal Hari Ini</Text>
+              <Text style={[st.secD, { color: C.primaryFixedDim }]}>{displayTodayStr}</Text>
+            </View>
+            
+            <View style={{ gap: S.md, marginTop: 8 }}>
+              {todayAlarms.length > 0 ? (
+                todayAlarms.map((alarm: any, idx: number) => {
+                  const isTaken = alarm.status === 'sudah';
+                  const isPending = !alarm.status || alarm.status === 'belum';
 
-              // ── LOGIKA GEMBOK WAKTU ──
-              const [h, m] = alarm.waktu.split(':').map(Number);
-              const alarmTimeObj = new Date();
-              alarmTimeObj.setHours(h, m, 0, 0);
-              // Cek apakah waktu saat ini sudah MENGLEWATI atau SAMA DENGAN jam alarm
-              const isTimePassed = currentTimeForUI >= alarmTimeObj;
+                  const [h, m] = alarm.waktu.split(':').map(Number);
+                  const alarmTimeObj = new Date();
+                  alarmTimeObj.setHours(h, m, 0, 0);
+                  const isTimePassed = currentTimeForUI >= alarmTimeObj;
 
-              return (
-                <View style={st.doseCard} key={alarm.id || idx}>
-                  <View style={st.dose}>
-                    <View style={st.doseL}>
-                      <View style={[st.doseIc, isTaken && { backgroundColor: '#dcfce7' }]}>
-                        <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? '#16a34a' : C.onSecondaryFixed} />
+                  return (
+                    <View style={st.doseCard} key={alarm.id || idx}>
+                      <View style={st.dose}>
+                        <View style={st.doseL}>
+                          <View style={[st.doseIc, isTaken ? { backgroundColor: C.secondaryFixed } : { backgroundColor: C.surfaceContainer }]}>
+                            <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? C.onSecondaryFixed : C.onSurface} />
+                          </View>
+                          <View>
+                            <Text style={st.doseT}>ARV — {alarm.waktu}</Text>
+                            <Text style={st.doseSub}>Nada: {alarm.nada_dering || 'Standar'}</Text>
+                          </View>
+                        </View>
+                        
+                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                          {isTaken ? (
+                            <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
+                          ) : (
+                            <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
+                          )}
+                          
+                          {isPending && (
+                            <TouchableOpacity onPress={() => handleDeleteAlarm(alarm.id)} style={{ padding: 4 }}>
+                              <MaterialIcons name="delete-outline" size={20} color={C.error} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
-                      <View>
-                        <Text style={st.doseT}>ARV — {alarm.waktu}</Text>
-                        <Text style={st.doseSub}>Nada: {alarm.nada_dering || 'Default'}</Text>
-                      </View>
-                    </View>
-                    
-                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                      {isTaken ? (
-                        <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
-                      ) : (
-                        <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
-                      )}
                       
-                      {isPending && (
-                        <TouchableOpacity onPress={() => handleDeleteAlarm(alarm.id)} style={{ padding: 4 }}>
-                           <MaterialIcons name="delete-outline" size={20} color={C.error} />
+                      {isPending && isTimePassed && (
+                        <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id)} activeOpacity={0.8}>
+                          <MaterialIcons name="check-circle" size={18} color="#fff" />
+                          <Text style={st.markTakenTxt}>Tandai Sudah Diminum</Text>
                         </TouchableOpacity>
                       )}
+                      {isPending && !isTimePassed && (
+                        <View style={[st.markTakenBtn, { backgroundColor: C.surfaceContainer }]}>
+                          <MaterialIcons name="lock-clock" size={18} color={C.outline} />
+                          <Text style={[st.markTakenTxt, { color: C.outline }]}>Tunggu Jam {alarm.waktu}</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={st.doseCard}>
+                  <View style={st.dose}>
+                    <View style={st.doseL}>
+                      <View style={[st.doseIc, { backgroundColor: C.surfaceContainer }]}><MaterialIcons name="done-all" size={24} color={C.onSurfaceVariant} /></View>
+                      <View><Text style={st.doseT}>Belum ada jadwal</Text><Text style={st.doseSub}>Anda bisa mengaturnya di bawah</Text></View>
                     </View>
                   </View>
-                  
-                  {/* TAMPILAN TOMBOL BERDASARKAN GEMBOK WAKTU */}
-                  {isPending && isTimePassed && (
-                    <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id)} activeOpacity={0.8}>
-                      <MaterialIcons name="check-circle" size={18} color="#fff" />
-                      <Text style={st.markTakenTxt}>Tandai Sudah Diminum</Text>
-                    </TouchableOpacity>
-                  )}
-                  {isPending && !isTimePassed && (
-                    <View style={[st.markTakenBtn, { backgroundColor: '#e2e8f0' }]}>
-                      <MaterialIcons name="lock-clock" size={18} color="#64748b" />
-                      <Text style={[st.markTakenTxt, { color: '#64748b' }]}>Tunggu Jam {alarm.waktu}</Text>
-                    </View>
-                  )}
-
                 </View>
-              );
-            })
-          ) : (
-            <View style={st.dose}>
-              <View style={st.doseL}>
-                <View style={[st.doseIc, { backgroundColor: C.outlineVariant }]}><MaterialIcons name="done-all" size={24} color={C.onSurfaceVariant} /></View>
-                <View><Text style={st.doseT}>Belum ada jadwal</Text><Text style={st.doseSub}>Anda bisa mengaturnya di bawah</Text></View>
-              </View>
+              )}
             </View>
-          )}
+          </View>
+        </ImageBackground>
 
+        {/* SETTINGS ALARM */}
+        <View style={st.sec}>
+          <Text style={st.secT}>Pengaturan Alarm</Text>
           <View style={st.card}>
-            <View style={st.cardH}><MaterialIcons name="alarm-on" size={22} color={C.primary} /><Text style={st.cardHT}>Setel Waktu Alarm</Text></View>
+            <View style={st.cardH}>
+              <MaterialIcons name="notifications-active" size={20} color={C.primary} />
+              <Text style={st.cardHT}>Setel Waktu & Tanggal</Text>
+            </View>
             {Platform.OS === 'web' ? (
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
@@ -595,15 +622,15 @@ const MedicationReminderScreen: React.FC = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={st.pickerLbl}>Jam</Text>
                     {/* @ts-ignore */}
-                    <input type="time" value={fmtTime} onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); const d = new Date(selectedTime); d.setHours(h, m, 0, 0); setSelectedTime(d); }} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    <input type="time" value={fmtTime} onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); const d = new Date(selectedTime); d.setHours(h, m, 0, 0); setSelectedTime(d); }} style={{ border: 'none', background: 'transparent', fontSize: 16, fontWeight: 700, color: '#012D1D', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
                   <MaterialIcons name="event" size={22} color={C.secondary} />
                   <View style={{ flex: 1 }}>
-                    <Text style={st.pickerLbl}>Mulai Tanggal</Text>
+                    <Text style={st.pickerLbl}>Tanggal</Text>
                     {/* @ts-ignore */}
-                    <input type="date" value={fmtDate} onChange={(e) => { const d = new Date(e.target.value + 'T00:00:00'); if (!isNaN(d.getTime())) setSelectedDate(d); }} min={getLocalDateString()} style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, color: '#0043a2', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
+                    <input type="date" value={fmtDate} onChange={(e) => { const d = new Date(e.target.value + 'T00:00:00'); if (!isNaN(d.getTime())) setSelectedDate(d); }} min={getLocalDateString()} style={{ border: 'none', background: 'transparent', fontSize: 16, fontWeight: 700, color: '#012D1D', outline: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }} />
                   </View>
                 </View>
               </View>
@@ -616,7 +643,7 @@ const MedicationReminderScreen: React.FC = () => {
                   </TouchableOpacity>
                   <TouchableOpacity style={[st.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
                     <MaterialIcons name="event" size={22} color={C.secondary} />
-                    <View><Text style={st.pickerLbl}>Mulai Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
+                    <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
                   </TouchableOpacity>
                 </View>
                 {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={(e, d) => { setShowTimePicker(false); if(d) setSelectedTime(d); }} />}
@@ -624,10 +651,10 @@ const MedicationReminderScreen: React.FC = () => {
               </>
             )}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.sm, paddingHorizontal: S.xs, paddingTop: S.sm, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.sm, paddingHorizontal: S.xs, paddingTop: S.sm, borderTopWidth: 1, borderTopColor: C.outlineVariant }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <MaterialIcons name="event-repeat" size={20} color={isEveryday ? C.primary : C.outline} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Ulangi Setiap Hari</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: C.onSurface }}>Ulangi Setiap Hari</Text>
               </View>
               <Switch 
                 value={isEveryday} 
@@ -636,15 +663,14 @@ const MedicationReminderScreen: React.FC = () => {
                 thumbColor={isEveryday ? C.primary : C.surface} 
               />
             </View>
-            <Text style={{ fontSize: 11, color: C.outline, paddingHorizontal: S.xs, marginTop: -4 }}>
-              {isEveryday ? '*Sistem akan membuat jadwal otomatis hingga 30 hari ke depan.' : '*Alarm hanya akan berbunyi 1 kali pada tanggal tersebut.'}
+            <Text style={{ fontSize: 10, color: C.outline, paddingHorizontal: S.xs, marginTop: -4 }}>
+              {isEveryday ? '*Alarm pintar: jadwal otomatis hingga 30 hari ke depan.' : '*Alarm hanya 1 kali pada tanggal tersebut.'}
             </Text>
           </View>
 
           <View style={st.card}>
-            <View style={st.cardH}><MaterialIcons name="music-note" size={22} color={C.secondary} /><Text style={st.cardHT}>Pilih Nada Dering</Text></View>
-            
-            <View style={{ flexDirection: 'column', gap: 10, marginTop: 4 }}>
+            <View style={st.cardH}><MaterialIcons name="music-note" size={20} color={C.secondary} /><Text style={st.cardHT}>Pilih Nada Dering</Text></View>
+            <View style={{ flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {[
                 { id: 'standar', name: 'Standar (Lembut)', icon: 'notifications' },
                 { id: 'ceria', name: 'Ceria (Semangat)', icon: 'sentiment-satisfied' },
@@ -656,19 +682,19 @@ const MedicationReminderScreen: React.FC = () => {
                   onPress={() => { setSelectedSoundId(sound.id); playPreviewSound(sound.id); }}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name={sound.icon as any} size={20} color={selectedSoundId === sound.id ? '#fff' : C.primary} />
-                  <Text style={[st.soundChipTxt, selectedSoundId === sound.id && { color: '#fff' }]}>{sound.name}</Text>
+                  <MaterialIcons name={sound.icon as any} size={20} color={selectedSoundId === sound.id ? '#ffffff' : C.primary} />
+                  <Text style={[st.soundChipTxt, selectedSoundId === sound.id && { color: '#ffffff' }]}>{sound.name}</Text>
                   {selectedSoundId === sound.id && isPlaying && (
-                    <MaterialIcons name="volume-up" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
+                    <MaterialIcons name="volume-up" size={18} color="#ffffff" style={{ marginLeft: 'auto' }} />
                   )}
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={{ fontSize: 11, color: C.outline, marginTop: 4 }}>*Klik pada nada untuk mendengar pratinjau.</Text>
+            <Text style={{ fontSize: 10, color: C.outline, marginTop: 4 }}>*Klik untuk pratinjau suara.</Text>
           </View>
 
           <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
-            <MaterialIcons name="save" size={20} color="#fff" />
+            <MaterialIcons name="save" size={20} color="#ffffff" />
             <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Alarm & Nada Dering'}</Text>
           </TouchableOpacity>
         </View>
@@ -676,91 +702,122 @@ const MedicationReminderScreen: React.FC = () => {
         {/* Refill */}
         <View style={st.sec}>
           <Text style={st.secT}>Pengisian Ulang Obat</Text>
-          {pendingRefill ? (
-            <View style={[st.refBtn, { backgroundColor: C.outline }]}><MaterialIcons name="hourglass-top" size={20} color="#fff" /><Text style={st.refBtnT}>Menunggu Persetujuan Refill...</Text></View>
-          ) : (
-            <TouchableOpacity style={st.refBtn} onPress={handleRefill} activeOpacity={0.85} disabled={refillLoading}>
-              <MaterialIcons name="local-pharmacy" size={20} color="#fff" /><Text style={st.refBtnT}>{refillLoading ? 'Memproses...' : 'Ajukan Refill Obat'}</Text>
-            </TouchableOpacity>
-          )}
-          {refills.length > 0 && (
-            <View style={{ gap: S.sm, marginTop: S.md }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: C.onSurface }}>Riwayat Refill</Text>
-              {refills.slice(0, 5).map((r: any, i: number) => (
-                <View style={[st.logC, { flexDirection: 'column', alignItems: 'stretch' }]} key={r.id || i}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    <MaterialIcons name="history" size={16} color={C.secondary} />
-                    <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' || r.status === 'selesai' ? '#16a34a' : r.status === 'pending' || r.status === 'menunggu' ? C.secondary : r.status === 'disetujui' ? '#0ea5e9' : C.outline }}>{r.status}</Text></Text>
-                  </View>
-                  {r.status === 'disetujui' && !r.foto_bukti && (
-                    <TouchableOpacity style={{ marginTop: 8, backgroundColor: '#0ea5e9', padding: 8, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }} onPress={() => handleUploadRefillPhoto(r.id)} activeOpacity={0.8}>
-                      <MaterialIcons name="photo-camera" size={16} color="#fff" />
-                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Kirim Bukti Foto</Text>
-                    </TouchableOpacity>
-                  )}
-                  {r.status === 'disetujui' && r.foto_bukti && (
-                    <View style={{ marginTop: 8, backgroundColor: '#dcfce7', padding: 8, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
-                      <MaterialIcons name="check-circle" size={16} color="#16a34a" />
-                      <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '600' }}>Bukti Foto Terkirim, Menunggu Verifikasi</Text>
+          <View style={st.card}>
+            {pendingRefill ? (
+              <View style={[st.refBtn, { backgroundColor: C.outline }]}><MaterialIcons name="hourglass-top" size={20} color="#ffffff" /><Text style={st.refBtnT}>Menunggu Persetujuan Refill...</Text></View>
+            ) : (
+              <TouchableOpacity style={st.refBtn} onPress={handleRefill} activeOpacity={0.85} disabled={refillLoading}>
+                <MaterialIcons name="local-pharmacy" size={20} color="#ffffff" /><Text style={st.refBtnT}>{refillLoading ? 'Memproses...' : 'Ajukan Refill Obat'}</Text>
+              </TouchableOpacity>
+            )}
+            
+            {refills.length > 0 && (
+              <View style={{ gap: S.sm, marginTop: S.md }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: C.onSurface }}>Riwayat Refill</Text>
+                {refills.slice(0, 5).map((r: any, i: number) => (
+                  <View style={st.logC} key={r.id || i}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                      <MaterialIcons name="history" size={16} color={C.secondary} />
+                      <Text style={st.logT}>Siklus ke-{r.siklus_ke} • {r.tanggal_refill} • <Text style={{ fontWeight: '700', color: r.status === 'approved' || r.status === 'selesai' ? '#16a34a' : r.status === 'pending' || r.status === 'menunggu' ? C.secondary : r.status === 'disetujui' ? C.primary : C.outline }}>{r.status}</Text></Text>
                     </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
+                    {r.status === 'disetujui' && !r.foto_bukti && (
+                      <TouchableOpacity style={{ marginTop: 8, backgroundColor: C.primary, padding: 10, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }} onPress={() => handleUploadRefillPhoto(r.id)} activeOpacity={0.8}>
+                        <MaterialIcons name="photo-camera" size={16} color="#ffffff" />
+                        <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Kirim Bukti Foto</Text>
+                      </TouchableOpacity>
+                    )}
+                    {r.status === 'disetujui' && r.foto_bukti && (
+                      <View style={{ marginTop: 8, backgroundColor: C.secondaryFixed, padding: 10, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                        <MaterialIcons name="check-circle" size={16} color={C.onSecondaryFixed} />
+                        <Text style={{ color: C.onSecondaryFixed, fontSize: 12, fontWeight: '700' }}>Bukti Foto Terkirim, Menunggu Verifikasi</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
-        <View style={st.privCard}><MaterialIcons name="enhanced-encryption" size={36} color={C.primary} style={{ opacity: 0.5 }} /><Text style={st.privTxt}>Data kesehatan Anda terenkripsi dan tetap sepenuhnya pribadi.</Text></View>
-        <View style={{ height: 32 }} />
+        {/* Privacy Card */}
+        <View style={st.privCard}>
+          <View style={st.privImgWrap}>
+            <MaterialIcons name="enhanced-encryption" size={32} color={C.outline} />
+          </View>
+          <Text style={st.privTxt}>Data kesehatan Anda terenkripsi dan tetap sepenuhnya pribadi.</Text>
+        </View>
+        <View style={{ height: 48 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// ── Styles (Tema Material 3 / Emerald-Mint) ──
 const st = StyleSheet.create({
   loadWrap: { flex: 1, backgroundColor: C.background, justifyContent: 'center', alignItems: 'center' },
   loadTxt: { marginTop: S.md, fontSize: 16, color: C.outline },
   safe: { flex: 1, backgroundColor: C.background },
   scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
-  header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.margin, paddingVertical: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  headerT: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
-  hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.primaryContainer, padding: S.lg, borderRadius: 12, elevation: 6, marginBottom: S.lg, overflow: 'hidden' },
-  heroT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: '#fff', marginBottom: S.xs },
-  heroS: { fontSize: 16, lineHeight: 24, color: C.primaryFixedDim, opacity: 0.9 },
+  
+  // Hero Image Background Style (Diperpanjang)
+  heroFull: { 
+    backgroundColor: C.primaryContainer, 
+    borderRadius: 16, 
+    marginBottom: S.lg, 
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 
+  },
+  heroOverlayFull: { 
+    padding: S.lg,
+    backgroundColor: 'rgba(27, 67, 50, 0.5)', // Dibuat sedikit lebih gelap agar elemen di dalamnya sangat kontras
+  },
+  heroT: { fontSize: 24, fontWeight: '700', lineHeight: 32, color: '#ffffff', marginBottom: S.xs },
+  heroS: { fontSize: 14, lineHeight: 20, color: C.primaryFixedDim, opacity: 0.9 },
+  
   sec: { gap: S.md, marginBottom: S.lg },
-  secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  secT: { fontSize: 24, fontWeight: '600', lineHeight: 32, color: C.onBackground },
-  secD: { fontSize: 12, fontWeight: '500', color: C.outline },
-  doseCard: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1, overflow: 'hidden' },
+  secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 },
+  secT: { fontSize: 20, fontWeight: '700', lineHeight: 28, color: C.onBackground },
+  secD: { fontSize: 12, fontWeight: '600', color: C.outline },
+  
+  doseCard: { backgroundColor: C.surfaceContainerLowest, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', elevation: 1, overflow: 'hidden' }, // Border disesuaikan untuk background gelap
   dose: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: S.md },
   doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md, flex: 1 },
-  doseIc: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.secondaryFixed, alignItems: 'center', justifyContent: 'center' },
-  doseT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
+  doseIc: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  doseT: { fontSize: 16, fontWeight: '700', color: C.onSurface },
   doseSub: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
-  doseBdg: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
-  doseBdgT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.onSecondaryFixed, textTransform: 'uppercase' },
-  doseBdgTaken: { backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999 },
-  doseBdgTakenT: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#16a34a', textTransform: 'uppercase' },
-  markTakenBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#16a34a', paddingVertical: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
-  markTakenTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, elevation: 4 },
-  refBtnT: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  logC: { flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#fff', padding: S.md, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', elevation: 1 },
-  logT: { fontSize: 14, color: C.onSurface, flex: 1 },
-  privCard: { backgroundColor: '#eff6ff', borderRadius: 16, padding: S.xl, borderWidth: 1, borderColor: '#dbeafe', alignItems: 'center', gap: S.md },
-  privTxt: { fontSize: 14, color: C.primary, textAlign: 'center', maxWidth: 200 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: S.md, borderWidth: 1, borderColor: '#e2e8f0', gap: 12, elevation: 1 },
+  
+  doseBdg: { backgroundColor: C.surfaceContainer, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  doseBdgT: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: C.onSurfaceVariant, textTransform: 'uppercase' },
+  doseBdgTaken: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  doseBdgTakenT: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: C.onSecondaryFixed, textTransform: 'uppercase' },
+  
+  markTakenBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, paddingVertical: 12, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
+  markTakenTxt: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+  
+  refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12 },
+  refBtnT: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  logC: { flexDirection: 'column', alignItems: 'stretch', backgroundColor: C.surfaceContainerLowest, padding: S.sm, borderRadius: 12, borderWidth: 1, borderColor: C.outlineVariant },
+  logT: { fontSize: 12, color: C.onSurface, flex: 1 },
+  
+  privCard: { backgroundColor: C.surfaceContainer, borderRadius: 16, padding: S.xl, borderWidth: 1, borderColor: C.outlineVariant, alignItems: 'center', gap: S.md },
+  privImgWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.outlineVariant },
+  privTxt: { fontSize: 12, color: C.primary, textAlign: 'center', maxWidth: 220 },
+  
+  card: { backgroundColor: C.surfaceContainerLow, borderRadius: 16, padding: S.md, borderWidth: 1, borderColor: C.outlineVariant, gap: 12 },
   cardH: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-  cardHT: { fontSize: 16, fontWeight: '600', color: C.onSurface },
-  pickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryFixed, paddingVertical: 14, paddingHorizontal: S.md, borderRadius: 10 },
-  pickerLbl: { fontSize: 11, fontWeight: '500', color: C.outline, textTransform: 'uppercase', letterSpacing: 0.5 },
-  pickerVal: { fontSize: 18, fontWeight: '700', color: C.primary },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primaryContainer, paddingVertical: 16, borderRadius: 12, elevation: 6 },
-  saveTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  // Style untuk Tombol Pilihan Nada Bawaan
-  soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surfaceContainer, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: C.outlineVariant },
+  cardHT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  
+  pickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryFixed, paddingVertical: 12, paddingHorizontal: S.sm, borderRadius: 12 },
+  pickerLbl: { fontSize: 10, fontWeight: '600', color: C.onPrimaryFixed, opacity: 0.8 },
+  pickerVal: { fontSize: 16, fontWeight: '700', color: C.primary },
+  
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.secondary, paddingVertical: 14, borderRadius: 12 },
+  saveTxt: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  
+  soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surfaceContainerLowest, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: C.outlineVariant },
   soundChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-  soundChipTxt: { fontSize: 15, fontWeight: '600', color: C.primary },
+  soundChipTxt: { fontSize: 13, fontWeight: '700', color: C.primary },
 });
 
 export default MedicationReminderScreen;

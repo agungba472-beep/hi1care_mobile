@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  StatusBar, Animated,
+  StatusBar, Animated, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -14,8 +14,8 @@ const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
   surfaceVariant: '#d5e3fc', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  secondary: '#6b4ab2', secondaryContainer: '#b191fd', onSecondaryContainer: '#44208a',
+  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
+  secondary: '#00A86B', secondaryContainer: '#b191fd', onSecondaryContainer: '#44208a',
   background: '#f8f9ff',
 } as const;
 
@@ -64,7 +64,7 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Login ke HI-CARE',
+        promptMessage: 'Login ke WEAR',
         fallbackLabel: 'Gunakan Password',
         disableDeviceFallback: false,
       });
@@ -88,7 +88,11 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
 
       {/* ═══ TOP APP BAR (CLEAN) ═══ */}
       <View style={st.header}>
-        <Text style={st.headerTitle}>HI!-CARE</Text>
+        <Image 
+          source={require('../assets/img/logo_wear.jpeg')} 
+          style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} 
+        />
+        <Text style={st.headerTitle}>WEAR</Text>
       </View>
 
       {/* ═══ MAIN CONTENT (Centered) ═══ */}
@@ -125,7 +129,7 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
               <Text style={st.passwordBtnText}>Masuk dengan Kata Sandi</Text>
             </TouchableOpacity>
             <Text style={st.disclaimer}>
-              Data biometrik Anda aman dan hanya disimpan secara lokal di perangkat ini sesuai dengan protokol HI!-CARE.
+              Data biometrik Anda aman dan hanya disimpan secara lokal di perangkat ini sesuai dengan protokol WEAR.
             </Text>
           </View>
 
@@ -157,7 +161,7 @@ const st = StyleSheet.create({
     backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 4,
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#012D1D', letterSpacing: 0.5 },
 
   // Main centered content
   main: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
@@ -218,7 +222,7 @@ const st = StyleSheet.create({
   navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   navItemActive: { backgroundColor: '#eff6ff' },
   navLabel: { fontSize: 10, fontWeight: '500', color: '#94a3b8', marginTop: 2 },
-  navLabelActive: { color: '#1d4ed8', fontWeight: '700' },
+  navLabelActive: { color: '#012D1D', fontWeight: '700' },
 });
 
 export default BiometricAuthScreen;

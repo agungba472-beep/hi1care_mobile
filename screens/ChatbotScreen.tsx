@@ -7,12 +7,17 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import api from '../src/api';
 
-// ── Design Tokens ──
+// ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {
-  bg: '#f0f4ff', surface: '#ffffff', primary: '#0043a2', primaryLight: '#e8f0fe',
-  onPrimary: '#ffffff', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
-  botBubble: '#f1f5ff', userBubble: '#0043a2',
+  surface: '#f9f9f8', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#f3f4f3',
+  surfaceContainer: '#edeeed', surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c', onSurfaceVariant: '#414844',
+  outline: '#717973', outlineVariant: '#c1c8c2',
+  primary: '#012d1d', onPrimary: '#ffffff', primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99', primaryFixed: '#c1ecd4', onPrimaryFixed: '#012d1d', primaryFixedDim: '#a5d0b9',
+  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0',
+  secondaryFixed: '#cee9d3', onSecondaryFixed: '#092012', secondaryFixedDim: '#b3cdb7',
+  background: '#f9f9f8', onBackground: '#191c1c',
 } as const;
 
 interface ChatMsg { id: string; text: string; isUser: boolean; }
@@ -24,7 +29,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   { 
     q: 'Kapan minum ARV?', 
-    a: 'ARV harus diminum setiap hari pada jam yang sama secara konsisten. Gunakan fitur Alarm di aplikasi HI!-CARE ini untuk membantu Anda mengingat jadwal minum obat.' 
+    a: 'ARV harus diminum setiap hari pada jam yang sama secara konsisten. Gunakan fitur Alarm di aplikasi WEAR ini untuk membantu Anda mengingat jadwal minum obat.' 
   },
   { 
     q: 'Apa efek samping ARV?', 
@@ -32,7 +37,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   { 
     q: 'Bagaimana prosedur Refill Obat?', 
-    a: 'Tidak perlu khawatir! Sistem HI!-CARE dan Admin Puskesmas akan memberikan pengingat (notifikasi) secara otomatis kepada Anda saat jadwal stok obat sudah hampir habis.' 
+    a: 'Tidak perlu khawatir! Sistem WEAR dan Admin Puskesmas akan memberikan pengingat (notifikasi) secara otomatis kepada Anda saat jadwal stok obat sudah hampir habis.' 
   },
   { 
     q: 'Apakah HIV bisa sembuh?', 
@@ -106,15 +111,15 @@ const ChatbotScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
       
       {/* ── Header ── */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn}>
-          <MaterialIcons name="arrow-back" size={24} color={C.onSurfaceVariant} />
+          <MaterialIcons name="arrow-back" size={24} color={C.onSurface} />
         </TouchableOpacity>
         <View style={st.headerAvatar}>
-          <MaterialIcons name="smart-toy" size={24} color={C.onPrimary} />
+          <MaterialIcons name="smart-toy" size={22} color={C.onPrimaryFixed} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={st.headerTitle}>HI!-BOT</Text>
@@ -134,11 +139,11 @@ const ChatbotScreen: React.FC = () => {
           <View key={msg.id} style={[st.bubbleRow, msg.isUser && st.bubbleRowUser]}>
             {!msg.isUser && (
               <View style={st.botMiniAvatar}>
-                <MaterialIcons name="smart-toy" size={14} color={C.primary} />
+                <MaterialIcons name="smart-toy" size={16} color={C.primary} />
               </View>
             )}
             <View style={[st.bubble, msg.isUser ? st.bubbleUser : st.bubbleBot]}>
-              <Text style={[st.bubbleText, msg.isUser && { color: '#fff' }]}>{msg.text}</Text>
+              <Text style={[st.bubbleText, msg.isUser && { color: '#ffffff' }]}>{msg.text}</Text>
             </View>
           </View>
         ))}
@@ -157,11 +162,12 @@ const ChatbotScreen: React.FC = () => {
               activeOpacity={0.7}
             >
               <Text style={st.chipText}>{item.q}</Text>
+              <MaterialIcons name="send" size={16} color={C.primary} style={{ opacity: 0.7 }} />
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* MANTRA BARU: Tombol Hubungi Nakes (Live Chat) */}
+        {/* Tombol Hubungi Nakes (Live Chat) */}
         <TouchableOpacity 
           style={[st.liveChatChip, isCheckingChat && { opacity: 0.7 }]} 
           onPress={handleLiveChatClick}
@@ -169,9 +175,9 @@ const ChatbotScreen: React.FC = () => {
           disabled={isCheckingChat}
         >
           {isCheckingChat ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={C.onPrimaryContainer} />
           ) : (
-            <MaterialIcons name="headset-mic" size={20} color="#ffffff" />
+            <MaterialIcons name="headset-mic" size={20} color={C.onPrimaryContainer} />
           )}
           <Text style={st.liveChatChipText}>
             {isCheckingChat ? 'Memeriksa Jadwal...' : 'Bicara dengan Nakes (Live Chat)'}
@@ -183,96 +189,108 @@ const ChatbotScreen: React.FC = () => {
   );
 };
 
+// ── Styles (Tema Emerald/Mint Material 3) ──
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+  safe: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: '#e8edf5', elevation: 2,
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: C.surfaceContainerLowest, 
+    borderBottomWidth: 1, borderBottomColor: C.outlineVariant,
+    elevation: 2,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3
   },
   backBtn: { padding: 4 },
   headerAvatar: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: C.primaryFixed, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: C.onSurface },
-  headerSub: { fontSize: 11, color: C.outline, marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, letterSpacing: -0.5 },
+  headerSub: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
 
-  chatScroll: { padding: 16, paddingBottom: 16, gap: 12 },
+  chatScroll: { padding: 16, paddingBottom: 24, gap: 16 },
 
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, maxWidth: '85%' },
   bubbleRowUser: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
   botMiniAvatar: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+    backgroundColor: C.primaryFixed, alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  bubble: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '90%' },
+  bubble: { 
+    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '90%',
+  },
   bubbleBot: {
-    backgroundColor: C.surface, borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: '#e8edf5',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+    backgroundColor: C.surfaceContainerLow, 
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: C.outlineVariant,
   },
   bubbleUser: {
-    backgroundColor: C.userBubble, borderBottomRightRadius: 4,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3,
+    backgroundColor: C.primary, 
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 4,
+    elevation: 2, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
   },
-  bubbleText: { fontSize: 14, lineHeight: 21, color: C.onSurface },
+  bubbleText: { fontSize: 14, lineHeight: 22, color: C.onSurface },
 
   // Style untuk Container Quick Replies di bawah
   quickReplyContainer: {
-    backgroundColor: C.surface,
+    backgroundColor: C.surfaceContainerLowest,
     borderTopWidth: 1,
-    borderTopColor: '#e8edf5',
+    borderTopColor: C.outlineVariant,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    maxHeight: '45%', // Membatasi agar tombol tidak menutupi seluruh layar chat
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    maxHeight: '48%', 
   },
   quickReplyTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: C.onSurfaceVariant,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   quickReplyScroll: {
     gap: 8,
   },
   chip: {
-    backgroundColor: C.primaryLight,
-    borderRadius: 12,
+    backgroundColor: C.surfaceContainerLow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginBottom: 8,
     borderWidth: 1, 
-    borderColor: C.primary + '30',
+    borderColor: C.outlineVariant,
   },
   chipText: { 
+    flex: 1,
     fontSize: 13, 
     fontWeight: '600', 
     color: C.primary,
     lineHeight: 18,
+    marginRight: 8,
   },
   liveChatChip: {
-    backgroundColor: '#059669', // Warna Hijau agar kontras dan terlihat sebagai opsi manusia
-    borderRadius: 12,
+    backgroundColor: C.primaryContainer, 
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
-    marginBottom: 8,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 4,
     elevation: 3,
+    shadowColor: C.primaryContainer,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
   liveChatChipText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
+    color: C.onPrimaryContainer,
   },
 });
 

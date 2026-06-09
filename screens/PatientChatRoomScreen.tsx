@@ -9,10 +9,18 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../src/api';
 import { initEcho } from '../src/echo';
 
+// ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  surface: '#f8f9ff', onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
+  surface: '#f9f9f8', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#f3f4f3',
+  surfaceContainer: '#edeeed', surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c', onSurfaceVariant: '#414844',
+  outline: '#717973', outlineVariant: '#c1c8c2',
+  primary: '#012d1d', onPrimary: '#ffffff', primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99', primaryFixed: '#c1ecd4', onPrimaryFixed: '#012d1d', primaryFixedDim: '#a5d0b9',
+  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0',
+  secondaryFixed: '#cee9d3', onSecondaryFixed: '#092012', secondaryFixedDim: '#b3cdb7',
+  background: '#f9f9f8', onBackground: '#191c1c',
+  online: '#10b981', offline: '#9ca3af'
 } as const;
 
 interface ChatMessage {
@@ -55,7 +63,7 @@ export default function PatientChatRoomScreen() {
         // 2. Set Nama Lawan Bicara di Header
         if (role === 'nakes') {
           setOpponentName(data.pasien_nama || 'Pasien');
-          setOpponentRole('Pasien HI!-CARE');
+          setOpponentRole('Pasien WEAR');
           setOpponentUserId(data.pasien_user_id);
         } else {
           setOpponentName(data.nakes_nama || 'Tenaga Kesehatan');
@@ -81,7 +89,7 @@ export default function PatientChatRoomScreen() {
     return () => clearInterval(interval);
   }, [konsultasiId]);
 
-    useEffect(() => {
+  useEffect(() => {
     let echoInstance: any = null;
     const setupWebSocket = async () => {
       if (!konsultasiId) return;
@@ -147,26 +155,29 @@ export default function PatientChatRoomScreen() {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
       
       {/* HEADER DINAMIS */}
       <View style={st.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn}>
-            <MaterialIcons name="arrow-back" size={24} color="#64748b" />
+            <MaterialIcons name="arrow-back" size={24} color={C.onSurface} />
           </TouchableOpacity>
           <View style={st.headerAvatar}>
-            <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={20} color="#fff" />
+            <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={22} color={C.onPrimaryFixed} />
           </View>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={st.headerName}>{opponentName}</Text>
               {/* TITIK STATUS ONLINE/OFFLINE */}
-              <View style={{
-                width: 8, height: 8, borderRadius: 4, marginLeft: 6,
-                backgroundColor: isOpponentOnline ? '#10b981' : '#9ca3af'
-              }} />
-              <Text style={{ fontSize: 11, marginLeft: 4, color: isOpponentOnline ? '#10b981' : '#9ca3af', fontWeight: '500' }}>
+              <View style={[
+                st.statusDot, 
+                { backgroundColor: isOpponentOnline ? C.online : C.offline }
+              ]} />
+              <Text style={[
+                st.statusText, 
+                { color: isOpponentOnline ? C.online : C.offline }
+              ]}>
                 {isOpponentOnline ? 'Online' : 'Offline'}
               </Text>
             </View>
@@ -189,8 +200,11 @@ export default function PatientChatRoomScreen() {
           >
             {messages.length === 0 && (
               <View style={st.emptyState}>
-                <MaterialIcons name="chat" size={48} color={C.outlineVariant} />
+                <View style={st.emptyIconWrap}>
+                  <MaterialIcons name="forum" size={48} color={C.primaryFixed} />
+                </View>
                 <Text style={st.emptyText}>Mulai Konsultasi</Text>
+                <Text style={st.emptySub}>Kirim pesan untuk memulai percakapan.</Text>
               </View>
             )}
 
@@ -203,12 +217,12 @@ export default function PatientChatRoomScreen() {
                   <View style={[st.bubbleCol, isMe && st.bubbleColRight]}>
                     {!isMe && (
                       <View style={st.senderLabel}>
-                        <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={12} color={C.primary} />
+                        <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={14} color={C.primary} />
                         <Text style={st.senderLabelText}>{opponentName}</Text>
                       </View>
                     )}
                     <View style={[st.bubble, isMe ? st.bubbleMe : st.bubbleOpponent]}>
-                      <Text style={[st.bubbleText, isMe && { color: '#fff' }]}>{msg.pesan}</Text>
+                      <Text style={[st.bubbleText, isMe && { color: '#ffffff' }]}>{msg.pesan}</Text>
                     </View>
                     <Text style={[st.timeText, isMe && { textAlign: 'right' }]}>{msg.waktu}</Text>
                   </View>
@@ -223,7 +237,7 @@ export default function PatientChatRoomScreen() {
             <TextInput
               style={st.textInput}
               placeholder="Tulis pesan..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={C.outline}
               value={newMessage}
               onChangeText={setNewMessage}
               returnKeyType="send"
@@ -231,8 +245,13 @@ export default function PatientChatRoomScreen() {
               multiline
             />
           </View>
-          <TouchableOpacity style={[st.sendBtn, (!newMessage.trim() || isSending) && { opacity: 0.4 }]} onPress={handleSend} disabled={!newMessage.trim() || isSending}>
-            {isSending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="send" size={22} color="#fff" />}
+          <TouchableOpacity 
+            style={[st.sendBtn, (!newMessage.trim() || isSending) && { opacity: 0.5 }]} 
+            onPress={handleSend} 
+            disabled={!newMessage.trim() || isSending}
+            activeOpacity={0.8}
+          >
+            {isSending ? <ActivityIndicator size="small" color="#ffffff" /> : <MaterialIcons name="send" size={20} color="#ffffff" style={{ marginLeft: 4 }} />}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -240,30 +259,77 @@ export default function PatientChatRoomScreen() {
   );
 }
 
+// ── Styles (Tema Emerald/Mint Material 3) ──
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', elevation: 2 },
+  safe: { flex: 1, backgroundColor: C.background },
+  header: { 
+    flexDirection: 'row', alignItems: 'center', 
+    paddingHorizontal: 16, paddingVertical: 14, 
+    backgroundColor: C.surfaceContainerLowest, 
+    borderBottomWidth: 1, borderBottomColor: C.outlineVariant, 
+    elevation: 2, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3 
+  },
   backBtn: { padding: 4 },
-  headerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2a5cbe', alignItems: 'center', justifyContent: 'center' },
-  headerName: { fontSize: 16, fontWeight: '700', color: '#0d1c2e' },
-  headerRole: { fontSize: 12, fontWeight: '500', color: '#64748b' },
+  headerAvatar: { 
+    width: 42, height: 42, borderRadius: 21, 
+    backgroundColor: C.primaryFixed, 
+    alignItems: 'center', justifyContent: 'center' 
+  },
+  headerName: { fontSize: 16, fontWeight: '700', color: C.onSurface },
+  headerRole: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
+  statusDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8 },
+  statusText: { fontSize: 11, marginLeft: 4, fontWeight: '600' },
+  
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  chatScroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, gap: 12 },
-  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: '#434652' },
-  senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4, marginLeft: 4 },
-  senderLabelText: { fontSize: 11, fontWeight: '600', color: '#0043a2' },
+  chatScroll: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 24, gap: 16 },
+  
+  emptyState: { alignItems: 'center', paddingVertical: 80, gap: 12 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.surfaceContainer, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  emptyText: { fontSize: 18, fontWeight: '700', color: C.onSurface },
+  emptySub: { fontSize: 14, color: C.outline, textAlign: 'center' },
+  
+  senderLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, marginLeft: 4 },
+  senderLabelText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  
   bubbleRow: { maxWidth: '85%', marginBottom: 4 },
   bubbleRowRight: { alignSelf: 'flex-end' },
   bubbleCol: { gap: 4 },
   bubbleColRight: { alignItems: 'flex-end' },
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMe: { backgroundColor: '#0043a2', borderBottomRightRadius: 4 },
-  bubbleOpponent: { backgroundColor: '#ffffff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#0043a230', elevation: 1 },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: '#0d1c2e' },
-  timeText: { fontSize: 10, color: '#94a3b8', marginHorizontal: 4 },
-  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  
+  bubble: { paddingHorizontal: 16, paddingVertical: 12, maxWidth: '100%' },
+  bubbleOpponent: { 
+    backgroundColor: C.surfaceContainerLow, 
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: C.outlineVariant 
+  },
+  bubbleMe: { 
+    backgroundColor: C.primary, 
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 4,
+    elevation: 2, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 
+  },
+  
+  bubbleText: { fontSize: 15, lineHeight: 22, color: C.onSurface },
+  timeText: { fontSize: 11, color: C.outline, marginHorizontal: 4, fontWeight: '500' },
+  
+  inputBar: { 
+    flexDirection: 'row', alignItems: 'center', gap: 12, 
+    paddingHorizontal: 16, paddingVertical: 12, 
+    backgroundColor: C.surfaceContainerLowest, 
+    borderTopWidth: 1, borderTopColor: C.outlineVariant 
+  },
   inputWrap: { flex: 1 },
-  textInput: { backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12, fontSize: 14, color: '#0d1c2e', maxHeight: 100, borderWidth: 1, borderColor: '#e2e8f0' },
-  sendBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#0043a2', alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  textInput: { 
+    backgroundColor: C.surfaceContainerLow, 
+    borderRadius: 24, 
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, 
+    fontSize: 15, color: C.onSurface, 
+    maxHeight: 120, 
+    borderWidth: 1, borderColor: C.outlineVariant 
+  },
+  sendBtn: { 
+    width: 48, height: 48, borderRadius: 24, 
+    backgroundColor: C.primary, 
+    alignItems: 'center', justifyContent: 'center', 
+    elevation: 2, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3 
+  },
 });

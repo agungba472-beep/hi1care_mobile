@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Alert,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -33,13 +34,13 @@ const Colors = {
   onSurfaceVariant: '#434652',
   outline: '#737784',
   outlineVariant: '#c3c6d5',
-  primary: '#0043a2',
+  primary: '#012D1D',
   onPrimary: '#ffffff',
   primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff',
   primaryFixed: '#d6e2ff',
   onPrimaryFixed: '#001a41',
-  secondary: '#6b4ab2',
+  secondary: '#00A86B',
   onSecondary: '#ffffff',
   secondaryContainer: '#865cd6',
   secondaryFixed: '#e8ddff',
@@ -94,7 +95,7 @@ const LoginScreen: React.FC = () => {
 
         // 4. Prompt biometrik
         const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Gunakan Sidik Jari untuk masuk ke HI!-CARE',
+          promptMessage: 'Gunakan Sidik Jari untuk masuk ke WEAR',
           cancelLabel: 'Gunakan Password',
           disableDeviceFallback: true,
         });
@@ -229,12 +230,13 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
     <View style={styles.container}>
       {/* ═══ Branding ═══ */}
       <View style={styles.brandingSection}>
-        <View style={styles.brandIcon}>
-          <MaterialIcons name="health-and-safety" size={32} color={Colors.onPrimaryContainer} />
-        </View>
-        <Text style={styles.brandTitle}>HI!-CARE</Text>
+        <Image 
+          source={require('../assets/img/logo_wear.jpeg')} 
+          style={{ width: 80, height: 80, borderRadius: 40, marginBottom: Spacing.md }} 
+        />
+        <Text style={styles.brandTitle}>WEAR</Text>
         <View style={styles.brandSubRow}>
-          <Text style={styles.brandSubText}>Baru di HI!-CARE? </Text>
+          <Text style={styles.brandSubText}>Baru di WEAR? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
             <Text style={styles.linkBold}>Daftar</Text>
           </TouchableOpacity>
@@ -314,7 +316,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
 
         {/* Register CTA */}
         <View style={styles.registerRow}>
-          <Text style={styles.bodyMdVariant}>Baru di HI!-CARE? </Text>
+          <Text style={styles.bodyMdVariant}>Baru di WEAR? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
             <Text style={styles.linkBold}>Daftar</Text>
           </TouchableOpacity>
@@ -329,7 +331,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
           <MaterialIcons name="privacy-tip" size={28} color={Colors.outline} style={styles.trustIcon} />
         </View>
         <Text style={styles.trustText}>
-          Data kesehatan Anda terenkripsi dan aman.{'\n'}HI!-CARE mengikuti standar privasi klinis.
+          Data kesehatan Anda terenkripsi dan aman.{'\n'}WEAR mengikuti standar privasi klinis.
         </Text>
       </View>
     </View>

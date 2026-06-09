@@ -15,9 +15,9 @@ const C = {
   surfaceContainerHighest: '#d5e3fc', surfaceVariant: '#d5e3fc',
   onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
+  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff', primaryFixed: '#dae2ff',
-  secondary: '#6b4ab2', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
+  secondary: '#00A86B', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
   onSecondaryContainer: '#44208a', secondaryFixed: '#eaddff',
   onSecondaryFixed: '#24005b',
   tertiary: '#42495c', error: '#ba1a1a', background: '#f8f9ff',
@@ -286,7 +286,7 @@ const st = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBtn: { padding: 4, borderRadius: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1d4ed8', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#012D1D', letterSpacing: -0.3 },
 
   /* Hero */
   heroSection: {

@@ -11,48 +11,38 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Platform
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import CustomHeader from '../components/CustomHeader';
 import api from '../src/api';
-import { Platform } from 'react-native';
 
-// ── Design Tokens (DESIGN.md – Serene Assurance) ──
+// ── Design Tokens (Tema Emerald/Mint Sesuai Referensi) ──
 const C = {
-  surface: '#f8f9ff',
+  surface: '#f9f9f8',
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff',
-  surfaceContainerHigh: '#dce9ff',
-  surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc',
-  onSurface: '#0d1c2e',
-  onSurfaceVariant: '#434652',
-  outline: '#737784',
-  outlineVariant: '#c3c6d5',
-  primary: '#0043a2',
-  onPrimary: '#ffffff',
-  primaryContainer: '#2a5cbe',
-  onPrimaryContainer: '#d1dcff',
-  primaryFixed: '#dae2ff',
-  secondary: '#6b4ab2',
+  surfaceContainerLow: '#f3f4f3',
+  surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c',
+  onSurfaceVariant: '#414844',
+  outline: '#717973',
+  outlineVariant: '#c1c8c2',
+  primary: '#012d1d',
+  primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99',
+  secondary: '#4c6452',
   onSecondary: '#ffffff',
-  secondaryContainer: '#b191fd',
-  tertiary: '#42495c',
-  error: '#ba1a1a',
-  background: '#f8f9ff',
-  inverseSurface: '#233144',
-  inverseOnSurface: '#eaf1ff',
+  background: '#f9f9f8',
 } as const;
 
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
+const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 16 } as const;
 const { width: SCREEN_W } = Dimensions.get('window');
 const BENTO_HALF = (SCREEN_W - S.margin * 2 - S.gutter) / 2;
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
-// ── Circular Progress ──
+// ── Circular Progress (Diperbarui dengan warna tema baru) ──
 const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: number }> = ({
   percent, size, strokeWidth,
 }) => {
@@ -73,7 +63,7 @@ const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: n
         borderTopColor: offset > circumference * 0.75 ? C.surfaceContainerHigh : C.primary,
         transform: [{ rotate: '-90deg' }],
       }} />
-      <MaterialIcons name="verified" size={24} color={C.primary} />
+      <MaterialIcons name="verified" size={28} color={C.primary} />
     </View>
   );
 };
@@ -81,6 +71,8 @@ const CircularProgress: React.FC<{ percent: number; size: number; strokeWidth: n
 // ── Component ──
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
+  
+  // LOGIKA ASLI ANDA (TIDAK DIUBAH SAMA SEKALI)
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [compliancePercent, setCompliancePercent] = useState(0);
@@ -122,7 +114,6 @@ const DashboardScreen: React.FC = () => {
   const handleMarkAsTaken = (id?: number) => {
     if (!id) return;
     
-    // ANTI-ERROR UNTUK BROWSER WEB
     if (Platform.OS === 'web') {
       const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
       if (confirm) {
@@ -137,9 +128,7 @@ const DashboardScreen: React.FC = () => {
           })
           .finally(() => setTrackingLoading(false));
       }
-    } 
-    // UNTUK APLIKASI NATIVE (HP)
-    else {
+    } else {
       Alert.alert(
         'Konfirmasi',
         'Apakah Anda yakin sudah meminum obat ini?',
@@ -180,11 +169,15 @@ const DashboardScreen: React.FC = () => {
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
 
-      {/* ═══ TOP APP BAR (CLEAN) ═══ */}
-      <CustomHeader title="Dashboard HI-CARE" />
+      {/* ═══ TOP APP BAR ═══ */}
+      {/* Menggunakan CustomHeader bawaan Anda, kita bungkus di view jika butuh styling luar */}
+      <View style={st.headerWrapper}>
+        <CustomHeader title="WEAR" />
+      </View>
 
-      {/* ═══ SCROLLABLE CONTENT ═══ */}
+      {/* ═══ SCROLLABLE CONTENT (Desain Baru) ═══ */}
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+        
         {/* ── Greeting ── */}
         <View style={st.greeting}>
           <View style={st.greetRow}>
@@ -199,9 +192,9 @@ const DashboardScreen: React.FC = () => {
         {/* ── BENTO GRID ── */}
         <View style={st.bentoGrid}>
 
-          {/* Card: Kepatuhan Obat (full width) */}
+          {/* Card: Kepatuhan Obat */}
           <View style={st.complianceCard}>
-            <View style={{ gap: S.sm, flex: 1 }}>
+            <View style={{ gap: S.xs, flex: 1 }}>
               <Text style={st.labelUpper}>KEPATUHAN OBAT</Text>
               <Text style={st.complianceVal}>{compliancePercent}%</Text>
               <View style={st.trendRow}>
@@ -212,12 +205,12 @@ const DashboardScreen: React.FC = () => {
             <CircularProgress percent={compliancePercent} size={80} strokeWidth={6} />
           </View>
 
-          {/* Card: Resimen Hari Ini (full width) */}
+          {/* Card: Resimen Hari Ini (Prioritas) */}
           <View style={st.regimenCard}>
             <View style={st.regimenHeader}>
               <View style={st.regimenTitleRow}>
                 <View style={st.regimenIconWrap}>
-                  <MaterialIcons name="medication" size={20} color="#fff" />
+                  <MaterialIcons name="medication" size={20} color="#ffffff" />
                 </View>
                 <Text style={st.regimenTitle}>Resimen Hari Ini</Text>
               </View>
@@ -230,66 +223,58 @@ const DashboardScreen: React.FC = () => {
               alarmsToday.map((alarm: any, idx: number) => {
                 const isTaken = alarm.status === 'sudah' || alarm.status === 'diminum';
                 return (
-                <View 
-                  style={st.arvItem} 
-                  key={alarm.id || idx}
-                >
-                  <View style={st.arvLeft}>
-                    <View style={st.arvIconWrap}>
-                      <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={16} color="#fff" />
+                  <View style={st.arvItem} key={alarm.id || idx}>
+                    <View style={st.arvLeft}>
+                      <View style={st.arvIconWrap}>
+                        <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={18} color="#ffffff" />
+                      </View>
+                      <View>
+                        <Text style={st.arvName}>{alarm.judul || 'ARV (Dolutegravir)'}</Text>
+                        <Text style={st.arvDose}>⏰ {alarm.jam || alarm.waktu} • Nada: {alarm.nada || 'standar'}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text style={st.arvName}>⏰ {alarm.jam || alarm.waktu}</Text>
-                      <Text style={st.arvName}>{alarm.judul || 'Jadwal Minum Obat ARV 💊'}</Text>
-                      <Text style={st.arvDose}>Nada: {alarm.nada || 'standar'}</Text>
-                    </View>
+                    
+                    {isTaken ? (
+                      <View style={st.takenBadge}>
+                        <Text style={st.takenText}>SUDAH DIMINUM</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity 
+                        style={st.arvBtn}
+                        activeOpacity={0.8}
+                        onPress={() => handleMarkAsTaken(alarm.id)}
+                        disabled={trackingLoading}
+                      >
+                        <Text style={st.arvBtnText}>
+                          {trackingLoading ? '...' : 'MINUM SEKARANG'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  
-                  {isTaken ? (
-                    <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}>
-                      <Text style={{ color: '#16a34a', fontWeight: 'bold', fontSize: 10 }}>✓ SUDAH DIMINUM</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={st.arvBtn}
-                      activeOpacity={0.8}
-                      onPress={() => handleMarkAsTaken(alarm.id)}
-                      disabled={trackingLoading}
-                    >
-                      <Text style={st.arvBtnText}>
-                        {trackingLoading ? '...' : 'MINUM SEKARANG'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )})
+                );
+              })
             ) : (
               <View style={st.arvItem}>
                 <View style={st.arvLeft}>
                   <View style={st.arvIconWrap}>
-                    <MaterialIcons name="check-circle" size={16} color="#fff" />
+                    <MaterialIcons name="check-circle" size={18} color="#ffffff" />
                   </View>
                   <View>
                     <Text style={st.arvName}>Tidak ada jadwal hari ini</Text>
                     <Text style={st.arvDose}>Atau data belum tersedia</Text>
                   </View>
                 </View>
-                <View style={[st.arvBtn, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                  <Text style={st.arvBtnText}>
-                    TIDAK ADA JADWAL
-                  </Text>
-                </View>
               </View>
             )}
           </View>
 
-          {/* Row: Chat + Edukasi (half-width each) */}
+          {/* Row: Chat Nakes & Edukasi */}
           <View style={st.bentoRow}>
             {/* Chat Nakes */}
             <View style={[st.quickCard, { width: BENTO_HALF }]}>
-              <MaterialIcons name="forum" size={24} color={C.secondary} />
+              <MaterialIcons name="forum" size={28} color={C.secondary} />
               <View>
-                <Text style={st.quickTitle}>Chat dengan Nakes</Text>
+                <Text style={st.quickTitle}>Chat Nakes</Text>
                 <Text style={st.quickSub}>Dukungan profesional 24/7</Text>
               </View>
               <TouchableOpacity
@@ -300,12 +285,13 @@ const DashboardScreen: React.FC = () => {
                 <Text style={st.quickBtnText}>Chat Sekarang</Text>
               </TouchableOpacity>
             </View>
+
             {/* Edukasi */}
             <View style={[st.quickCard, { width: BENTO_HALF }]}>
-              <MaterialIcons name="menu-book" size={24} color={C.primary} />
+              <MaterialIcons name="menu-book" size={28} color={C.primary} />
               <View>
                 <Text style={st.quickTitle}>Edukasi</Text>
-                <Text style={st.quickSub}>Tips & sumber daya perawatan</Text>
+                <Text style={st.quickSub}>Tips & sumber daya</Text>
               </View>
               <TouchableOpacity
                 style={[st.quickBtn, { backgroundColor: C.primary }]}
@@ -317,17 +303,17 @@ const DashboardScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Catatan Harian (full width) */}
+          {/* Catatan Harian (Diary) */}
           <View style={st.faskesCard}>
             <View style={st.faskesLeft}>
-              <MaterialIcons name="auto-stories" size={28} color={C.secondary} />
+              <MaterialIcons name="edit-note" size={32} color={C.secondary} />
               <View>
                 <Text style={st.quickTitle}>Catatan Harian</Text>
-                <Text style={st.quickSub}>Catat kondisi kesehatanmu</Text>
+                <Text style={st.quickSub}>Catat kondisi & keluhanmu</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={[st.quickBtn, { backgroundColor: C.secondary, paddingHorizontal: 16 }]}
+              style={[st.quickBtn, { backgroundColor: C.secondary, paddingHorizontal: 20, marginTop: 0 }]}
               onPress={() => navigation.navigate('Diary' as never)}
               activeOpacity={0.85}
             >
@@ -335,23 +321,24 @@ const DashboardScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Cari Faskes (full width) */}
-          <View style={st.faskesCard}>
+          {/* Cari Faskes */}
+          <View style={[st.faskesCard, { backgroundColor: C.surfaceContainerHigh }]}>
             <View style={st.faskesLeft}>
               <MaterialIcons name="local-hospital" size={28} color={C.primary} />
               <View>
-                <Text style={st.quickTitle}>Cari Fasilitas Kesehatan</Text>
-                <Text style={st.quickSub}>Temukan klinik & RS terdekat</Text>
+                <Text style={st.quickTitle}>Fasilitas Kesehatan</Text>
+                <Text style={st.quickSub}>Temukan klinik terdekat</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 16 }]}
+              style={[st.quickBtn, { backgroundColor: C.primary, paddingHorizontal: 20, marginTop: 0 }]}
               onPress={() => navigation.navigate('HealthFacility' as never)}
               activeOpacity={0.85}
             >
               <Text style={st.quickBtnText}>Cari</Text>
             </TouchableOpacity>
           </View>
+
         </View>
 
         {/* ── Tips Kesehatan Harian ── */}
@@ -362,31 +349,34 @@ const DashboardScreen: React.FC = () => {
               <Text style={st.tipsLink}>LIHAT SEMUA</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={st.articleCard} activeOpacity={0.85} onPress={() => navigation.navigate('Edukasi' as never)}>
+          <TouchableOpacity style={st.articleCard} activeOpacity={0.95} onPress={() => navigation.navigate('Edukasi' as never)}>
             <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=600&q=80' }}
+              source={{ uri: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80' }}
               style={st.articleImg}
               resizeMode="cover"
             />
             <View style={st.articleOverlay}>
-              <Text style={st.articleTitle}>Pentingnya Konsistensi Minum ARV Setiap Hari</Text>
-              <Text style={st.articleMeta}>Bacaan 3 Menit • Medis & Perawatan</Text>
+              <Text style={st.articleTitle}>Managing Fatigue: Small Steps for Big Changes</Text>
+              <Text style={st.articleMeta}>3 min read • Nutrition & Wellness</Text>
             </View>
           </TouchableOpacity>
         </View>
 
         {/* Bottom spacer */}
-        <View style={{ height: 32 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* FAB - Tombol Tambah Mengambang */}
+      <TouchableOpacity style={st.fab} activeOpacity={0.8}>
+        <MaterialIcons name="add" size={28} color="#ffffff" />
+      </TouchableOpacity>
 
     </SafeAreaView>
   );
 };
 
-// ── Styles ──
+// ── Styles (Tema Baru) ──
 const st = StyleSheet.create({
-  /* ── Loading ── */
   loadingContainer: {
     flex: 1,
     backgroundColor: C.background,
@@ -397,66 +387,22 @@ const st = StyleSheet.create({
     marginTop: S.md,
     fontSize: 16,
     color: C.outline,
+    fontFamily: 'System',
   },
-
-  /* ── Root ── */
   safe: {
     flex: 1,
     backgroundColor: C.background,
+  },
+  headerWrapper: {
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceContainerHigh,
   },
   scroll: {
     paddingHorizontal: S.margin,
     paddingTop: S.lg,
   },
-
-  /* ── Header (Clean) ── */
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  bellButton: {
-    position: 'relative',
-    padding: 5,
-  },
-  redBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 4,
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-  },
-  redBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1d4ed8',
-    letterSpacing: 0.5,
-  },
-
-  /* ── Greeting ── */
   greeting: {
-    gap: S.sm,
     marginBottom: S.lg,
   },
   greetRow: {
@@ -466,21 +412,20 @@ const st = StyleSheet.create({
   },
   greetName: {
     fontSize: 24,
-    fontWeight: '600',
-    lineHeight: 32,
+    fontWeight: '700',
     color: C.onSurface,
   },
   greetDay: {
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
     color: C.secondary,
   },
   greetSub: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
     color: C.onSurfaceVariant,
+    marginTop: 4,
+    lineHeight: 20,
   },
-
-  /* ── Bento Grid ── */
   bentoGrid: {
     gap: S.gutter,
   },
@@ -488,36 +433,27 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     gap: S.gutter,
   },
-
-  /* ── Compliance Card ── */
   complianceCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: C.surfaceContainerLowest,
-    borderRadius: 12,
-    padding: S.md,
+    borderRadius: 16,
+    padding: S.lg,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#1e3a5f',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: C.outlineVariant,
   },
   labelUpper: {
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 16,
-    letterSpacing: 1.2,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
     color: C.outline,
-    textTransform: 'uppercase',
   },
   complianceVal: {
-    fontSize: 24,
-    fontWeight: '600',
-    lineHeight: 32,
+    fontSize: 36,
+    fontWeight: '700',
     color: C.primary,
+    marginVertical: 2,
   },
   trendRow: {
     flexDirection: 'row',
@@ -529,23 +465,21 @@ const st = StyleSheet.create({
     fontWeight: '600',
     color: C.secondary,
   },
-
-  /* ── Regimen Card ── */
   regimenCard: {
     backgroundColor: C.primaryContainer,
-    borderRadius: 12,
-    padding: S.md,
+    borderRadius: 16,
+    padding: 20,
     gap: S.md,
-    shadowColor: '#1e3a5f',
+    shadowColor: C.primaryContainer,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   regimenHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   regimenTitleRow: {
     flexDirection: 'row',
@@ -554,14 +488,13 @@ const st = StyleSheet.create({
   },
   regimenIconWrap: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 4,
+    padding: 6,
     borderRadius: 8,
   },
   regimenTitle: {
     fontSize: 18,
     fontWeight: '700',
-    lineHeight: 28,
-    color: C.onPrimaryContainer,
+    color: '#ffffff',
   },
   priorityBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -572,17 +505,16 @@ const st = StyleSheet.create({
   priorityText: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.5,
-    color: C.onPrimaryContainer,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#ffffff',
   },
   arvItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
-    padding: S.sm,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    padding: S.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
@@ -593,81 +525,87 @@ const st = StyleSheet.create({
     flex: 1,
   },
   arvIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   arvName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: C.onPrimaryContainer,
+    color: '#ffffff',
   },
   arvDose: {
     fontSize: 12,
-    color: C.onPrimaryContainer,
-    opacity: 0.8,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
   arvBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   arvBtnText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: C.primary,
+    color: C.primaryContainer,
   },
-
-  /* ── Quick Access Cards ── */
+  takenBadge: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffffff'
+  },
+  takenText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 10,
+  },
   quickCard: {
     backgroundColor: C.surfaceContainerLow,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: S.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: C.outlineVariant,
     justifyContent: 'space-between',
-    gap: S.sm,
+    minHeight: 150,
   },
   quickTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: C.onSurface,
+    marginTop: S.sm,
   },
   quickSub: {
     fontSize: 10,
     color: C.outline,
+    marginTop: 2,
   },
   quickBtn: {
     paddingVertical: 8,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: S.sm,
+    marginTop: S.md,
   },
   quickBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: '#ffffff',
   },
-
-  /* ── Faskes Card ── */
   faskesCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: C.surfaceContainerHigh,
-    borderRadius: 12,
+    backgroundColor: C.surfaceContainerLow,
+    borderRadius: 16,
     padding: S.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#1e3a5f',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: C.outlineVariant,
   },
   faskesLeft: {
     flexDirection: 'row',
@@ -675,37 +613,31 @@ const st = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-
-  /* ── Tips Section ── */
   tipsSection: {
-    gap: S.md,
     marginTop: S.lg,
+    marginBottom: S.md,
   },
   tipsTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: S.sm,
   },
   tipsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 28,
+    fontSize: 16,
+    fontWeight: '700',
     color: C.onSurface,
   },
   tipsLink: {
     fontSize: 12,
     fontWeight: '700',
     color: C.primary,
-    textTransform: 'uppercase',
   },
   articleCard: {
     borderRadius: 16,
     overflow: 'hidden',
     aspectRatio: 16 / 9,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    position: 'relative',
   },
   articleImg: {
     width: '100%',
@@ -716,23 +648,19 @@ const st = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: S.md,
-    paddingBottom: S.md,
-    paddingTop: 40,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    padding: S.md,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   articleTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: '#ffffff',
   },
   articleMeta: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 4,
   },
-
-  /* ── FAB ── */
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -744,10 +672,10 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 4,
+    elevation: 6,
   },
 });
 

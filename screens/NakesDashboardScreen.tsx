@@ -6,8 +6,8 @@ import api from '../src/api';
 import CustomHeader from '../components/CustomHeader';
 
 const C = {
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  secondary: '#6b4ab2', secondaryContainer: '#b191fd',
+  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
+  secondary: '#00A86B', secondaryContainer: '#b191fd',
   background: '#f8f9ff', surface: '#ffffff', outline: '#737784',
   error: '#ba1a1a', success: '#16a34a', warning: '#eab308'
 };
@@ -74,7 +74,7 @@ const NakesDashboardScreen: React.FC = () => {
             <View>
               <Text style={st.heroGreeting}>Selamat datang,</Text>
               <Text style={st.heroTitle}>{dashboard?.profil?.user?.nama || 'Nakes'}!</Text>
-              <Text style={st.heroSub}>{dashboard?.profil?.profesi || 'Tenaga Kesehatan'} HI!-CARE</Text>
+              <Text style={st.heroSub}>{dashboard?.profil?.profesi || 'Tenaga Kesehatan'} WEAR</Text>
             </View>
             <View style={st.heroAvatar}>
               <MaterialIcons name="health-and-safety" size={32} color={C.primary} />
@@ -91,7 +91,7 @@ const NakesDashboardScreen: React.FC = () => {
             onPress={() => navigation.navigate('NakesPatients')}
           >
             <View style={[st.iconWrap, { backgroundColor: '#eff6ff' }]}>
-              <MaterialIcons name="groups" size={24} color="#2563eb" />
+              <MaterialIcons name="groups" size={24} color="#012D1D" />
             </View>
             <Text style={st.gridNum}>{dashboard?.statistik?.total_pasien || '0'}</Text>
             <Text style={st.gridLbl}>Total Pasien</Text>

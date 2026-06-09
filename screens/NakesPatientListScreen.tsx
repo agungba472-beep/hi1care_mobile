@@ -5,7 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
 import CustomHeader from '../components/CustomHeader';
 
-const C = { primary: '#0043a2', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
+const C = { primary: '#012D1D', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
 const NakesPatientListScreen: React.FC = () => {
   const navigation = useNavigation<any>();

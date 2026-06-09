@@ -26,7 +26,7 @@ const MapSection: React.FC<Props> = ({ mapHeight = 300, userLocation, faskesData
   if (!userLocation) {
     return (
       <View style={[st.container, { height: mapHeight, alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color="#0043a2" />
+        <ActivityIndicator size="large" color="#012D1D" />
         <Text style={st.loadingText}>Mencari lokasi Anda...</Text>
       </View>
     );

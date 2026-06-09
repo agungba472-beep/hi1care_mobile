@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert,
+  ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,9 +14,9 @@ const C = {
   surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
   onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
   outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
+  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
   onPrimaryContainer: '#d1dcff',
-  secondary: '#6b4ab2', background: '#f8f9ff',
+  secondary: '#00A86B', background: '#f8f9ff',
 } as const;
 
 const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
@@ -90,10 +90,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
     <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={st.container}>
         <View style={st.headerSection}>
-          <View style={st.logoBox}>
-            <MaterialIcons name="health-and-safety" size={32} color={C.onPrimary} />
-          </View>
-          <Text style={st.brandTitle}>HI!-CARE</Text>
+          <Image 
+            source={require('../assets/img/logo_wear.jpeg')} 
+            style={{ width: 80, height: 80, borderRadius: 40, marginBottom: S.sm }} 
+          />
+          <Text style={st.brandTitle}>WEAR</Text>
           <Text style={st.brandSub}>
             Masuki ruang aman untuk perjalanan kesehatan Anda. Empati radikal dalam setiap interaksi.
           </Text>
@@ -135,7 +136,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
 
         <View style={st.footer}>
           <View style={st.footerRow}>
-            <Text style={st.footerText}>Sudah punya akun HI!-CARE? </Text>
+            <Text style={st.footerText}>Sudah punya akun WEAR? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
               <Text style={st.footerLink}>Masuk di sini</Text>
             </TouchableOpacity>

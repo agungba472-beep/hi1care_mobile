@@ -22,37 +22,21 @@ import api from '../src/api';
 import * as ImagePicker from 'expo-image-picker';
 import CustomHeader from '../components/CustomHeader';
 
-// ── Design Tokens ──
+// ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {
-  surface: '#f8f9ff',
-  surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff',
-  surfaceContainerHigh: '#dce9ff',
-  surfaceContainerHighest: '#d5e3fc',
-  surfaceVariant: '#d5e3fc',
-  onSurface: '#0d1c2e',
-  onSurfaceVariant: '#434652',
-  outline: '#737784',
-  outlineVariant: '#c3c6d5',
-  primary: '#0043a2',
-  onPrimary: '#ffffff',
-  primaryContainer: '#2a5cbe',
-  primaryFixed: '#dae2ff',
-  onPrimaryFixed: '#001946',
-  secondary: '#6b4ab2',
-  onSecondary: '#ffffff',
-  secondaryContainer: '#b191fd',
-  onSecondaryContainer: '#44208a',
-  secondaryFixed: '#eaddff',
-  onSecondaryFixed: '#24005b',
-  tertiary: '#42495c',
-  error: '#ba1a1a',
-  background: '#f8f9ff',
-  onBackground: '#0d1c2e',
+  surface: '#f9f9f8', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#f3f4f3',
+  surfaceContainer: '#edeeed', surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c', onSurfaceVariant: '#414844',
+  outline: '#717973', outlineVariant: '#c1c8c2',
+  primary: '#012d1d', onPrimary: '#ffffff', primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99', primaryFixed: '#c1ecd4', onPrimaryFixed: '#012d1d', primaryFixedDim: '#a5d0b9',
+  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0',
+  secondaryFixed: '#cee9d3', onSecondaryFixed: '#092012', secondaryFixedDim: '#b3cdb7',
+  background: '#f9f9f8', onBackground: '#191c1c',
+  error: '#ba1a1a', onError: '#ffffff', errorContainer: '#ffdad6', onErrorContainer: '#410002',
 } as const;
 
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
+const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 16 } as const;
 
 // ── Sub-Components ──
 const AdherenceCircle: React.FC<{ percent: number }> = ({ percent }) => (
@@ -92,7 +76,7 @@ const InfoField: React.FC<{
         <TextInput
           style={[
             st.editInput,
-            focused && { borderColor: C.primary },
+            focused && { borderColor: C.primary, backgroundColor: C.surfaceContainerLowest },
           ]}
           value={editValue}
           onChangeText={onChangeText}
@@ -187,7 +171,7 @@ const getBMICategory = (bmiStr: string): { label: string; color: string } => {
   const bmi = parseFloat(bmiStr);
   if (isNaN(bmi)) return { label: '', color: C.outline };
   if (bmi < 18.5) return { label: 'Underweight', color: '#f59e0b' };
-  if (bmi < 25) return { label: 'Normal', color: '#22c55e' };
+  if (bmi < 25) return { label: 'Normal', color: '#10b981' }; // Emerald green
   if (bmi < 30) return { label: 'Overweight', color: '#f59e0b' };
   return { label: 'Obese', color: C.error };
 };
@@ -484,7 +468,7 @@ const ProfileScreen: React.FC = () => {
   if (loading) {
     return (
       <SafeAreaView style={st.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
         <ActivityIndicator size="large" color={C.primary} />
         <Text style={st.loadingText}>Memuat profil...</Text>
       </SafeAreaView>
@@ -493,7 +477,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
 
       {/* ═══ CUSTOM HEADER ═══ */}
       <CustomHeader title="Profil Saya" showBackButton={false} />
@@ -510,17 +494,17 @@ const ProfileScreen: React.FC = () => {
                 <Image source={{ uri: profilePhoto }} style={st.avatarImage} />
               ) : (
                 <View style={st.avatarPlaceholder}>
-                  <MaterialIcons name="person" size={32} color={C.primaryContainer} />
+                  <MaterialIcons name="person" size={32} color={C.primary} />
                 </View>
               )}
               <View style={st.verifiedBadge}>
-                <MaterialIcons name="verified" size={14} color={C.onSecondaryContainer} />
+                <MaterialIcons name="verified" size={14} color={C.onPrimaryFixed} />
               </View>
               <View style={st.cameraBadge}>
                 <MaterialIcons name="photo-camera" size={14} color={C.onPrimary} />
               </View>
             </TouchableOpacity>
-            <View style={{ flexShrink: 1 }}>
+            <View style={{ flexShrink: 1, alignItems: 'center' }}>
               <Text style={st.profileName} numberOfLines={1}>{name}</Text>
               <Text style={st.profileId} numberOfLines={1}>ID: {patientId}</Text>
               <View style={st.tagRow}>
@@ -529,8 +513,8 @@ const ProfileScreen: React.FC = () => {
                     Status: {status}
                   </Text>
                 </View>
-                <View style={[st.tag, { backgroundColor: C.secondaryFixed }]}>
-                  <Text style={[st.tagText, { color: C.onSecondaryFixed }]} numberOfLines={1}>
+                <View style={[st.tag, { backgroundColor: C.surfaceContainerHigh }]}>
+                  <Text style={[st.tagText, { color: C.onSurfaceVariant }]} numberOfLines={1}>
                     {category}
                   </Text>
                 </View>
@@ -552,15 +536,13 @@ const ProfileScreen: React.FC = () => {
           <View style={st.cardHeader}>
             <MaterialIcons name="badge" size={24} color={C.primary} />
             <Text style={st.cardTitle}>Informasi Pribadi</Text>
+            {/* Edit Profile Button Icon (when not editing) */}
+            {!isEditing && (
+              <TouchableOpacity style={st.editBtnSmall} onPress={enterEditMode} activeOpacity={0.7}>
+                <MaterialIcons name="edit" size={20} color={C.primary} />
+              </TouchableOpacity>
+            )}
           </View>
-
-          {/* Edit Profile Button (when not editing) */}
-          {!isEditing && (
-            <TouchableOpacity style={st.editBtn} onPress={enterEditMode} activeOpacity={0.7}>
-              <MaterialIcons name="edit" size={20} color={C.onPrimary} />
-              <Text style={st.editBtnText}>Edit Profil</Text>
-            </TouchableOpacity>
-          )}
 
           <View style={st.infoGrid}>
             <InfoField
@@ -697,11 +679,11 @@ const ProfileScreen: React.FC = () => {
         {role === 'pasien' && (
           <View style={st.card}>
             <View style={st.cardHeader}>
-              <MaterialIcons name="medical-information" size={24} color={C.secondary} />
+              <MaterialIcons name="medical-information" size={24} color={C.primary} />
               <Text style={st.cardTitle}>Ringkasan Medis</Text>
             </View>
             <View style={st.regimenCard}>
-              <MaterialIcons name="medication" size={24} color={C.secondary} style={{ marginTop: 2 }} />
+              <MaterialIcons name="medication" size={28} color={C.primary} style={{ marginTop: 2 }} />
               <View style={{ flex: 1 }}>
                 <Text style={st.regimenLabel}>Regimen Saat Ini</Text>
                 <Text style={st.regimenName}>{regimenName}</Text>
@@ -715,42 +697,40 @@ const ProfileScreen: React.FC = () => {
         {/* ── Security Settings Card ── */}
         <View style={st.card}>
           <View style={st.cardHeader}>
-            <MaterialIcons name="fingerprint" size={24} color={C.secondary} />
+            <MaterialIcons name="fingerprint" size={24} color={C.primary} />
             <Text style={st.cardTitle}>Pengaturan Keamanan</Text>
           </View>
           <View style={st.settingRow}>
             <View style={st.settingLeft}>
-              <MaterialIcons name="fingerprint" size={24} color="#64748b" />
               <View style={{ flex: 1 }}>
-                <Text style={st.settingTitle}>Login dengan Sidik Jari</Text>
-                <Text style={st.settingDesc}>Gunakan biometrik untuk login otomatis saat membuka aplikasi</Text>
+                <Text style={st.settingTitle}>Login Sidik Jari / Biometrik</Text>
+                <Text style={st.settingDesc}>Gunakan biometrik untuk login otomatis dengan aman</Text>
               </View>
             </View>
             <Switch
               value={isBiometricEnabled}
               onValueChange={toggleBiometric}
-              trackColor={{ false: '#cbd5e1', true: C.primaryContainer }}
-              thumbColor={isBiometricEnabled ? C.primary : '#f4f3f4'}
+              trackColor={{ false: C.outlineVariant, true: C.primaryFixed }}
+              thumbColor={isBiometricEnabled ? C.primary : C.surfaceContainerLowest}
             />
           </View>
         </View>
 
-        {/* ── Account Management ── */}
+        {/* ── Account Management (Logout) ── */}
         <View style={st.accountSection}>
-
-          <TouchableOpacity style={st.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-            <MaterialIcons name="logout" size={24} color={C.error} />
-            <Text style={st.logoutText}>Logout</Text>
+          <TouchableOpacity style={st.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+            <MaterialIcons name="logout" size={22} color={C.error} />
+            <Text style={st.logoutText}>Keluar dari Akun</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// ── Styles ──
+// ── Styles (Tema Emerald/Mint Material 3) ──
 const st = StyleSheet.create({
   /* Loading */
   loadingContainer: {
@@ -763,6 +743,7 @@ const st = StyleSheet.create({
     marginTop: S.md,
     fontSize: 16,
     color: C.outline,
+    fontWeight: '500',
   },
 
   /* Root */
@@ -772,7 +753,7 @@ const st = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: S.margin,
-    paddingTop: S.xl,
+    paddingTop: S.lg,
     paddingBottom: S.xl,
   },
 
@@ -780,7 +761,7 @@ const st = StyleSheet.create({
   profileBento: {
     flexDirection: 'row',
     gap: S.md,
-    marginBottom: S.xl,
+    marginBottom: S.lg,
   },
   avatarCard: {
     flex: 1,
@@ -788,23 +769,21 @@ const st = StyleSheet.create({
     alignItems: 'center',
     gap: S.md,
     backgroundColor: C.surfaceContainerLowest,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: S.md,
     borderWidth: 1,
     borderColor: C.outlineVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3
   },
   avatarWrap: {
     position: 'relative',
+    marginTop: 4,
   },
   avatarPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 3,
     borderColor: C.primaryFixed,
     backgroundColor: C.surfaceContainerLow,
@@ -815,16 +794,16 @@ const st = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: C.secondaryContainer,
+    backgroundColor: C.primaryFixed,
     padding: 2,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: C.surfaceContainerLowest,
   },
   avatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 3,
     borderColor: C.primaryFixed,
   },
@@ -832,37 +811,37 @@ const st = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     left: -2,
-    backgroundColor: C.primary,
+    backgroundColor: C.primaryContainer,
     padding: 4,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: C.surfaceContainerLowest,
   },
   profileName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    lineHeight: 22,
-    color: C.onBackground,
+    lineHeight: 24,
+    color: C.onSurface,
     textAlign: 'center',
   },
   profileId: {
     fontSize: 12,
     fontWeight: '500',
-    color: C.onSurfaceVariant,
+    color: C.outline,
     marginTop: 2,
     textAlign: 'center',
   },
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: S.xs,
-    marginTop: S.sm,
+    gap: S.sm,
+    marginTop: 10,
     justifyContent: 'center',
   },
   tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 9999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   tagText: {
     fontSize: 11,
@@ -872,74 +851,75 @@ const st = StyleSheet.create({
   /* Adherence Card */
   adherenceCard: {
     flex: 1,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 12,
-    padding: S.lg,
+    backgroundColor: C.surfaceContainerLowest,
+    borderRadius: 16,
+    padding: S.md,
     borderWidth: 1,
     borderColor: C.outlineVariant,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3
   },
   circleWrap: {
-    width: 96,
-    height: 96,
+    width: 88,
+    height: 88,
     alignItems: 'center',
     justifyContent: 'center',
   },
   circleTrack: {
     position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 8,
-    borderColor: C.surfaceVariant,
+    borderColor: C.surfaceContainerHigh,
   },
   circleFill: {
-    borderColor: C.secondary,
-    borderRightColor: C.surfaceVariant,
+    borderColor: C.primary,
+    borderRightColor: C.surfaceContainerHigh,
     transform: [{ rotate: '-90deg' }],
   },
   circleText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: C.secondary,
+    fontSize: 22,
+    fontWeight: '700',
+    color: C.primary,
   },
   adherenceLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: C.secondaryContainer,
-    marginTop: S.sm,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+    marginTop: 12,
+    textAlign: 'center',
   },
 
   /* Cards */
   card: {
     backgroundColor: C.surfaceContainerLowest,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: S.lg,
     borderWidth: 1,
     borderColor: C.outlineVariant,
     marginBottom: S.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: S.sm,
+    gap: 10,
     marginBottom: S.lg,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: C.onSurface,
+    flex: 1,
+  },
+  editBtnSmall: {
+    padding: 6,
+    backgroundColor: C.primaryFixed,
+    borderRadius: 8,
   },
 
   /* Info Grid */
@@ -947,19 +927,17 @@ const st = StyleSheet.create({
     gap: S.lg,
   },
   infoField: {
-    gap: S.xs,
+    gap: 6,
   },
   infoLabel: {
     fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-    letterSpacing: 0.24,
-    color: C.onSurfaceVariant,
+    fontWeight: '600',
+    color: C.outline,
   },
   infoValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: C.onBackground,
+    fontSize: 15,
+    fontWeight: '600',
+    color: C.onSurface,
   },
 
   /* Edit Input */
@@ -967,9 +945,10 @@ const st = StyleSheet.create({
     backgroundColor: C.surfaceContainerLow,
     borderWidth: 1,
     borderColor: C.outlineVariant,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
     color: C.onSurface,
   },
 
@@ -980,9 +959,9 @@ const st = StyleSheet.create({
   },
   genderPill: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: S.md,
-    borderRadius: 9999,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: C.outlineVariant,
     backgroundColor: C.surfaceContainerLow,
@@ -1010,48 +989,33 @@ const st = StyleSheet.create({
   },
   bmiTag: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 9999,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   bmiTagText: {
     fontSize: 12,
-    fontWeight: '600',
-  },
-
-  /* Edit Button */
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: S.sm,
-    backgroundColor: C.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginBottom: S.lg,
-  },
-  editBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: C.onPrimary,
+    fontWeight: '700',
   },
 
   /* Save / Cancel Buttons */
   editActions: {
-    marginTop: S.lg,
-    gap: S.sm,
+    marginTop: 24,
+    gap: 10,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: S.sm,
+    gap: 8,
     backgroundColor: C.primary,
     borderRadius: 12,
     paddingVertical: 14,
+    elevation: 2,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3
   },
   saveBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: C.onPrimary,
   },
   cancelBtn: {
@@ -1062,10 +1026,10 @@ const st = StyleSheet.create({
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: C.outlineVariant,
-    backgroundColor: 'transparent',
+    backgroundColor: C.surfaceContainerLowest,
   },
   cancelBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: C.onSurfaceVariant,
   },
@@ -1073,29 +1037,30 @@ const st = StyleSheet.create({
   /* Regimen */
   regimenCard: {
     flexDirection: 'row',
-    gap: S.md,
+    gap: 14,
     alignItems: 'flex-start',
     backgroundColor: C.surfaceContainerLow,
-    borderRadius: 8,
-    padding: S.md,
-    borderLeftWidth: 4,
-    borderLeftColor: C.secondary,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 5,
+    borderLeftColor: C.primary,
   },
   regimenLabel: {
     fontSize: 12,
-    fontWeight: '500',
-    color: C.onSurfaceVariant,
+    fontWeight: '600',
+    color: C.outline,
     marginBottom: 4,
   },
   regimenName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: C.onSurface,
+    fontWeight: '700',
+    color: C.primary,
   },
   regimenDose: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: '500',
     color: C.onSurfaceVariant,
+    marginTop: 2,
   },
 
   /* Settings */
@@ -1103,7 +1068,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   settingLeft: {
     flexDirection: 'row',
@@ -1113,77 +1078,59 @@ const st = StyleSheet.create({
     marginRight: S.md,
   },
   settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: C.onSurface,
+    marginBottom: 2,
   },
   settingDesc: {
     fontSize: 12,
-    color: C.onSurfaceVariant,
-    fontStyle: 'italic',
+    color: C.outline,
+    lineHeight: 18,
   },
 
-  /* Toggle */
+  /* Toggle Switch fallback (if Custom ToggleSwitch used) */
   toggleTrack: {
     width: 48,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#cbd5e1',
+    backgroundColor: C.outlineVariant,
     padding: 4,
     justifyContent: 'center',
   },
   toggleTrackOn: {
-    backgroundColor: C.primaryContainer,
+    backgroundColor: C.primaryFixed,
   },
   toggleThumb: {
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: C.surfaceContainerLowest,
   },
   toggleThumbOn: {
     transform: [{ translateX: 24 }],
+    backgroundColor: C.primary,
   },
 
-  /* Account Section */
+  /* Account Section / Logout */
   accountSection: {
-    gap: S.sm,
-  },
-  accountBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: C.surfaceContainerLowest,
-    borderRadius: 12,
-    padding: S.md,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-  },
-  accountBtnLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S.md,
-  },
-  accountBtnText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: C.onSurface,
+    marginTop: 8,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: S.md,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: S.md,
+    gap: 10,
+    backgroundColor: C.errorContainer,
+    borderRadius: 16,
+    paddingVertical: 16,
     borderWidth: 1,
-    borderColor: `${C.error}33`,
+    borderColor: '#ffb4ab',
   },
   logoutText: {
     fontSize: 16,
     fontWeight: '700',
-    color: C.error,
+    color: C.onErrorContainer,
   },
 });
 

@@ -50,7 +50,7 @@ const MapSection: React.FC<Props> = ({ mapHeight = 300, userLocation, faskesData
     return (
       <View style={[st.containerWrap, { height: mapHeight + 24 }]}>
         <View style={[st.mapBox, { height: mapHeight, alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="large" color="#0043a2" />
+          <ActivityIndicator size="large" color="#012D1D" />
           <Text style={st.loadingText}>Mencari lokasi Anda...</Text>
         </View>
       </View>
@@ -105,7 +105,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
-    backgroundColor: '#f0f4ff', // Matches background HI!-CARE HealthFacilityScreen
+    backgroundColor: '#f0f4ff', // Matches background WEAR HealthFacilityScreen
     alignItems: 'center',
   },
   mapBox: {
@@ -113,7 +113,7 @@ const st = StyleSheet.create({
     maxWidth: 800,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#0043a2',
+    shadowColor: '#012D1D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,

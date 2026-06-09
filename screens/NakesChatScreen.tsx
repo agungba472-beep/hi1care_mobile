@@ -7,7 +7,7 @@ import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
-  primary: '#0043a2', surface: '#ffffff', background: '#f8f9ff', outline: '#737784'
+  primary: '#012D1D', surface: '#ffffff', background: '#f8f9ff', outline: '#737784'
 };
 
 export default function NakesChatScreen() {
@@ -51,7 +51,7 @@ export default function NakesChatScreen() {
       </View>
       <View style={st.info}>
         <Text style={st.name}>
-          {item.pasien?.master?.nama || item.pasien?.user?.nama || 'Pasien HI!-CARE'}
+          {item.pasien?.master?.nama || item.pasien?.user?.nama || 'Pasien WEAR'}
         </Text>
         <Text style={st.status}>Jadwal: {item.tanggal} | {item.waktu}</Text>
       </View>

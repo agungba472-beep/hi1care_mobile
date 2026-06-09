@@ -1,27 +1,26 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Image, ActivityIndicator, Alert
+  ScrollView, StatusBar, Image, ActivityIndicator, ImageBackground
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
 import CustomHeader from '../components/CustomHeader';
 
-// ── Design Tokens ──
+// ── Design Tokens (Warna Hijau Dibuat Lebih Dominan) ──
 const C = {
-  surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff',
-  onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#0043a2', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  onPrimaryContainer: '#d1dcff',
-  secondary: '#6b4ab2', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
-  onSecondaryContainer: '#44208a',
-  tertiary: '#42495c', background: '#f8f9ff',
+  background: '#FAFAFA',       
+  surface: '#FFFFFF',          
+  primary: '#012D1D',          // Forest Green (Utama - Sangat Dominan)
+  secondary: '#00A86B',        // Mint Medical Green (Aksen)
+  outline: '#94A3B8',          
+  outlineVariant: '#E2E8F0',   
+  textPrimary: '#0F172A',      
+  textSecondary: '#64748B',    
 } as const;
 
-const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
+const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, margin: 20 } as const;
 
 // ── Types ──
 interface EdukasiItem {
@@ -31,15 +30,13 @@ interface EdukasiItem {
   kategori?: string;
   created_at: string;
   image_url?: string;
-  cover?: string; // Sesuai dengan field di database backend
+  cover?: string;
 }
 
 const getImageUrl = (path?: string) => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   
-  // Mengambil baseURL dari axios api, misal http://127.0.0.1:8000/api
-  // Menghilangkan '/api' di akhir untuk mendapatkan base URL
   const baseUrl = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://127.0.0.1:8000';
   return `${baseUrl}/storage/${path}`;
 };
@@ -51,6 +48,7 @@ const EducationScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [apiArticles, setApiArticles] = useState<EdukasiItem[]>([]);
 
+  // ── LOGIKA TIDAK DIUBAH SAMA SEKALI ──
   const fetchEdukasi = useCallback(async () => {
     try {
       setLoading(true);
@@ -72,7 +70,6 @@ const EducationScreen: React.FC = () => {
 
   useFocusEffect(useCallback(() => { fetchEdukasi(); }, [fetchEdukasi]));
 
-  // Pencarian Artikel
   const filteredArticles = apiArticles.filter(article => 
     article.judul.toLowerCase().includes(searchText.toLowerCase()) || 
     (article.konten && article.konten.toLowerCase().includes(searchText.toLowerCase()))
@@ -80,40 +77,54 @@ const EducationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <StatusBar barStyle="dark-content" backgroundColor={C.background} />
 
-      {/* ═══ CUSTOM HEADER ═══ */}
       <CustomHeader title="Edukasi Kesehatan" showBackButton={false} hideBell={false} />
 
-      {/* ═══ SCROLLABLE CONTENT ═══ */}
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {/* ── Search Bar ── */}
-        <View style={st.searchBar}>
-          <MaterialIcons name="search" size={24} color={C.outline} />
-          <TextInput 
-            style={st.searchInput} 
-            placeholder="Cari artikel atau topik..." 
-            placeholderTextColor={C.outline}
-            value={searchText} 
-            onChangeText={setSearchText} 
-          />
-        </View>
-
-        {/* ═══ ARTIKEL DARI SERVER (API) ═══ */}
-        <View style={st.section}>
-          <View style={st.sectionHeader}>
-            <View>
-              <Text style={st.sectionTitle}>Edukasi & Artikel</Text>
-              <Text style={st.sectionSub}>Dari tim medis HI!-CARE</Text>
+        {/* ── HERO SECTION HIJAU DOMINAN ── */}
+        <ImageBackground 
+          source={require('../assets/img/bg_obat.jpeg')} 
+          style={st.heroSection} 
+          imageStyle={st.heroImageStyle}
+        >
+          <View style={st.heroOverlay}>
+            <View style={st.heroHeader}>
+              <View>
+                <Text style={st.heroTitle}>Artikel Medis</Text>
+                <Text style={st.heroSub}>Pusat informasi kesehatan WEAR</Text>
+              </View>
+              <View style={st.badgeCount}>
+                <Text style={st.badgeCountText}>{filteredArticles.length}</Text>
+              </View>
             </View>
-            <Text style={st.sectionCount}>{filteredArticles.length} artikel</Text>
-          </View>
 
+            {/* ── Search Bar Modern (Di dalam area Hijau) ── */}
+            <View style={st.searchBar}>
+              <MaterialIcons name="search" size={24} color={C.primary} />
+              <TextInput 
+                style={st.searchInput} 
+                placeholder="Cari artikel atau topik..." 
+                placeholderTextColor={C.outline}
+                value={searchText} 
+                onChangeText={setSearchText} 
+              />
+              {searchText.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchText('')}>
+                  <MaterialIcons name="cancel" size={20} color={C.outline} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </ImageBackground>
+
+        {/* ── List Artikel ── */}
+        <View style={st.articleList}>
           {loading ? (
             <View style={st.loadingRow}>
-              <ActivityIndicator size="large" color={C.primary} />
-              <Text style={st.loadingText}>Memuat artikel...</Text>
+              <ActivityIndicator size="large" color={C.secondary} />
+              <Text style={st.loadingText}>Menyiapkan edukasi...</Text>
             </View>
           ) : filteredArticles.length > 0 ? (
             filteredArticles.map((item) => {
@@ -121,116 +132,144 @@ const EducationScreen: React.FC = () => {
               return (
                 <TouchableOpacity 
                   key={item.id} 
-                  style={st.apiArticleCard} 
-                  activeOpacity={0.8}
+                  style={st.card} 
+                  activeOpacity={0.9}
                   onPress={() => navigation.navigate('ArticleDetail', { article: item })}
                 >
-                  {/* Thumbnail Gambar */}
-                  <View style={st.apiArticleImgWrap}>
+                  <View style={st.cardImgWrap}>
                     {getImageUrl(imagePath) ? (
-                      <Image source={{ uri: getImageUrl(imagePath)! }} style={st.apiArticleImg} resizeMode="cover" />
+                      <Image source={{ uri: getImageUrl(imagePath)! }} style={st.cardImg} resizeMode="cover" />
                     ) : (
-                      <View style={st.apiArticleIconFallback}>
-                         <MaterialIcons name="local-hospital" size={48} color={C.primaryContainer} />
+                      <View style={st.imgFallback}>
+                         <MaterialIcons name="health-and-safety" size={56} color={C.secondary} />
                       </View>
                     )}
-                  
-                  {item.kategori && (
-                    <View style={st.apiArticleBadge}>
-                      <Text style={st.apiArticleBadgeText}>{item.kategori}</Text>
-                    </View>
-                  )}
-                </View>
-                
-                {/* Konten Text */}
-                <View style={st.apiArticleBody}>
-                  <Text style={st.apiArticleTitle} numberOfLines={2}>{item.judul}</Text>
-                  <Text style={st.apiArticleDesc} numberOfLines={3}>
-                    {item.konten?.replace(/<[^>]*>/g, '') || 'Tidak ada deskripsi.'}
-                  </Text>
-                  <View style={st.readMore}>
-                    <Text style={st.readMoreText}>Baca Selengkapnya</Text>
-                    <MaterialIcons name="arrow-forward" size={16} color={C.primary} />
+                    
+                    {/* Badge Kategori Hijau Mint */}
+                    {item.kategori && (
+                      <View style={st.cardBadge}>
+                        <Text style={st.cardBadgeText}>{item.kategori}</Text>
+                      </View>
+                    )}
                   </View>
-                </View>
-              </TouchableOpacity>
+                  
+                  <View style={st.cardBody}>
+                    <Text style={st.cardTitle} numberOfLines={2}>{item.judul}</Text>
+                    <Text style={st.cardDesc} numberOfLines={3}>
+                      {item.konten?.replace(/<[^>]*>/g, '') || 'Tidak ada deskripsi singkat tersedia.'}
+                    </Text>
+                    
+                    <View style={st.readMoreDivider} />
+                    
+                    <View style={st.readMore}>
+                      <Text style={st.readMoreText}>Baca Selengkapnya</Text>
+                      <View style={st.readMoreIconWrap}>
+                        <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               );
             })
           ) : (
             <View style={st.emptyState}>
-              <MaterialIcons name="article" size={48} color={C.outlineVariant} />
-              <Text style={st.emptyTitle}>Belum ada artikel</Text>
-              <Text style={st.emptySub}>Artikel edukasi yang Anda cari tidak ditemukan.</Text>
+              <View style={st.emptyIconWrap}>
+                <MaterialIcons name="find-in-page" size={48} color={C.secondary} />
+              </View>
+              <Text style={st.emptyTitle}>Artikel Tidak Ditemukan</Text>
+              <Text style={st.emptySub}>Coba gunakan kata kunci lain untuk mencari edukasi kesehatan.</Text>
             </View>
           )}
         </View>
 
-        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// ── Styles ──
+// ── Styles (Tema WEAR dengan Dominasi Hijau) ──
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.surface },
-  scroll: { paddingTop: S.lg },
+  safe: { flex: 1, backgroundColor: C.background },
+  scroll: { paddingTop: 0, paddingBottom: 40 },
 
-  // Header (Clean)
-  header: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: S.margin, paddingVertical: 16,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
-    shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  // Hero Section (Membuat Hijau Sangat Dominan)
+  heroSection: { 
+    backgroundColor: C.primary, 
+    borderBottomLeftRadius: 32, 
+    borderBottomRightRadius: 32, 
+    marginBottom: S.xl, 
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1d4ed8', letterSpacing: 0.5 },
+  heroImageStyle: { opacity: 0.15 },
+  heroOverlay: { 
+    paddingHorizontal: S.margin, 
+    paddingTop: S.lg, 
+    paddingBottom: S.xl,
+    backgroundColor: 'rgba(1, 45, 29, 0.4)', // Transparansi gelap agar teks putih menyala
+  },
+  
+  heroHeader: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+    marginBottom: S.lg 
+  },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
+  heroSub: { fontSize: 14, fontWeight: '500', color: C.secondary, marginTop: 4 },
+  badgeCount: { backgroundColor: C.secondary, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  badgeCountText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
 
-  // Search
+  // Search Bar Modern (Putih di atas background Hijau)
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderWidth: 1, borderColor: C.outlineVariant, borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 12, marginHorizontal: S.margin, marginBottom: S.lg,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
+    flexDirection: 'row', alignItems: 'center', 
+    backgroundColor: C.surface,
+    borderWidth: 0, 
+    borderRadius: 16,
+    paddingHorizontal: 16, paddingVertical: 14, 
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
   },
-  searchInput: { flex: 1, fontSize: 16, lineHeight: 24, color: C.onSurface, marginHorizontal: 12, paddingVertical: 0 },
+  searchInput: { flex: 1, fontSize: 16, color: C.primary, marginHorizontal: 12, paddingVertical: 0, fontWeight: '600' },
 
-  // Sections
-  section: { marginBottom: S.xl, paddingHorizontal: S.margin },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.md },
-  sectionTitle: { fontSize: 24, fontWeight: '700', lineHeight: 32, color: C.onSurface },
-  sectionSub: { fontSize: 14, fontWeight: '500', lineHeight: 20, color: C.tertiary },
-  sectionCount: { fontSize: 13, fontWeight: '700', color: C.primary },
+  articleList: { paddingHorizontal: S.margin },
 
-  // API Articles Card (Full Width with Top Image)
-  apiArticleCard: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: C.outlineVariant,
-    borderRadius: 16, overflow: 'hidden', marginBottom: S.gutter,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+  // Card Design WEAR
+  card: {
+    backgroundColor: C.surface, 
+    borderRadius: 24, 
+    marginBottom: 24,
+    borderWidth: 1, borderColor: 'rgba(1, 45, 29, 0.05)',
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5,
+    overflow: 'hidden',
   },
-  apiArticleImgWrap: { height: 180, backgroundColor: C.surfaceContainerLow, position: 'relative' },
-  apiArticleImg: { width: '100%', height: '100%' },
-  apiArticleIconFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  apiArticleBadge: {
-    position: 'absolute', top: 12, right: 12,
-    backgroundColor: C.secondaryContainer, paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 9999,
+  cardImgWrap: { height: 180, backgroundColor: 'rgba(1, 45, 29, 0.03)', position: 'relative' },
+  cardImg: { width: '100%', height: '100%' },
+  imgFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 168, 107, 0.08)' },
+  
+  cardBadge: {
+    position: 'absolute', top: 16, right: 16,
+    backgroundColor: C.primary, paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
   },
-  apiArticleBadgeText: {
-    fontSize: 11, fontWeight: '800', color: C.onSecondaryContainer,
-    textTransform: 'uppercase', letterSpacing: 1,
-  },
-  apiArticleBody: { padding: S.lg },
-  apiArticleTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, marginBottom: S.sm, lineHeight: 26 },
-  apiArticleDesc: { fontSize: 14, color: C.tertiary, lineHeight: 22, marginBottom: S.lg },
-  readMore: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  readMoreText: { fontSize: 14, fontWeight: '700', color: C.primary },
+  cardBadgeText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
+  
+  cardBody: { padding: 20 },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: C.primary, marginBottom: 8, lineHeight: 26 },
+  cardDesc: { fontSize: 14, color: C.textSecondary, lineHeight: 22 },
+  
+  readMoreDivider: { height: 1, backgroundColor: C.outlineVariant, marginVertical: 16 },
+  readMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  readMoreText: { fontSize: 14, fontWeight: '800', color: C.primary },
+  readMoreIconWrap: { backgroundColor: C.primary, padding: 6, borderRadius: 12 },
 
-  // Loading / Empty
-  loadingRow: { alignItems: 'center', justifyContent: 'center', gap: S.md, paddingVertical: S.xl * 2 },
-  loadingText: { fontSize: 16, color: C.outline, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingVertical: S.xl * 2, gap: S.sm },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface },
-  emptySub: { fontSize: 14, color: C.outline, textAlign: 'center' },
+  // State
+  loadingRow: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 16 },
+  loadingText: { fontSize: 15, color: C.primary, fontWeight: '600' },
+  
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(0, 168, 107, 0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.primary, marginBottom: 8 },
+  emptySub: { fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 22 },
 });
 
 export default EducationScreen;

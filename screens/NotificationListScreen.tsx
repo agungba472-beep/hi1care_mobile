@@ -49,7 +49,7 @@ const NotificationListScreen = () => {
           <MaterialIcons 
             name={isUnread ? "notifications-active" : "notifications-none"} 
             size={28} 
-            color={isUnread ? "#0043a2" : "#94a3b8"} 
+            color={isUnread ? "#012D1D" : "#94a3b8"} 
           />
         </View>
         <View style={st.contentContainer}>
@@ -65,7 +65,7 @@ const NotificationListScreen = () => {
     <SafeAreaView style={st.safe}>
       <CustomHeader title="Notifikasi Saya" showBackButton={true} />
       {loading ? (
-        <ActivityIndicator size="large" color="#0043a2" style={{ marginTop: 30 }} />
+        <ActivityIndicator size="large" color="#012D1D" style={{ marginTop: 30 }} />
       ) : (
         <FlatList
           data={notifications}
@@ -93,7 +93,7 @@ const st = StyleSheet.create({
   iconContainer: { marginRight: 16, justifyContent: 'center' },
   contentContainer: { flex: 1 },
   title: { fontSize: 16, fontWeight: '600', color: '#334155', marginBottom: 4 },
-  titleUnread: { color: '#0043a2', fontWeight: '800' },
+  titleUnread: { color: '#012D1D', fontWeight: '800' },
   message: { fontSize: 14, color: '#64748b', marginBottom: 8, lineHeight: 20 },
   time: { fontSize: 11, color: '#94a3b8', fontWeight: '500' },
   emptyContainer: { alignItems: 'center', marginTop: 80 },
