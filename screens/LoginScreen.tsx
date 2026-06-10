@@ -72,6 +72,7 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // ── Biometric Authentication ──
   useEffect(() => {
@@ -118,10 +119,13 @@ const LoginScreen: React.FC = () => {
   }, [navigation]);
 
   const handleLogin = async () => {
+    setErrorMessage(''); // Reset pesan error
+    
     if (!identifier.trim() || !password.trim()) {
-      Alert.alert('Peringatan', 'Username dan password tidak boleh kosong.');
+      setErrorMessage('Username dan kata sandi tidak boleh kosong.');
       return;
     }
+    
     setIsLoading(true);
     try {
       const response = await api.post('/login', { username: identifier, password: password });
@@ -145,7 +149,7 @@ const LoginScreen: React.FC = () => {
 
     } catch (error: any) {
       console.log("=== ERROR LOGIN ===", error.response?.data || error.message);
-      Alert.alert('Login Gagal', error.response?.data?.message || 'Username atau password salah.');
+      setErrorMessage(error.response?.data?.message || 'Username atau password salah.');
     } finally {
       setIsLoading(false);
     }
@@ -174,6 +178,7 @@ const LoginScreen: React.FC = () => {
               showPassword={showPassword}
               setShowPassword={setShowPassword}
               isLoading={isLoading}
+              errorMessage={errorMessage}
               handleLogin={handleLogin}
               navigation={navigation}
             />
@@ -194,6 +199,7 @@ const LoginScreen: React.FC = () => {
             showPassword={showPassword}
             setShowPassword={setShowPassword}
             isLoading={isLoading}
+            errorMessage={errorMessage}
             handleLogin={handleLogin}
             navigation={navigation}
           />
@@ -216,6 +222,7 @@ interface FormContentProps {
   showPassword: boolean;
   setShowPassword: (fn: (v: boolean) => boolean) => void;
   isLoading: boolean;
+  errorMessage: string;
   handleLogin: () => void;
   navigation: any;
 }
@@ -224,7 +231,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
   identifier, setIdentifier,
   password, setPassword,
   showPassword, setShowPassword,
-  isLoading, handleLogin, navigation,
+  isLoading, errorMessage, handleLogin, navigation,
 }) => (
   <>
     <View style={styles.container}>
@@ -250,6 +257,13 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
           <Text style={styles.bodyMdVariant}>Masuk untuk mengakses dashboard Anda</Text>
         </View>
 
+        {!!errorMessage && (
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error-outline" size={18} color={Colors.error} />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        )}
+
         {/* Username */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Username</Text>
@@ -270,7 +284,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
 
         {/* Password */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Kata Sandi</Text>
+          <Text style={styles.label}>Password</Text>
           <View style={styles.inputWrapper}>
             <MaterialIcons name="lock" size={22} color={Colors.outline} style={styles.inputIcon} />
             <TextInput
@@ -448,7 +462,7 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
 
-  /* ── Form Header ── */
+  /* ── Form Header & Error ── */
   formHeader: {
     marginBottom: Spacing.sm,
   },
@@ -463,6 +477,22 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 24,
     color: Colors.onSurfaceVariant,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.error,
+    fontWeight: '500',
   },
 
   /* ── Input Groups ── */

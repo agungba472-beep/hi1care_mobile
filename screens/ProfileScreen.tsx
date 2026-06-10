@@ -720,7 +720,7 @@ const ProfileScreen: React.FC = () => {
         <View style={st.accountSection}>
           <TouchableOpacity style={st.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <MaterialIcons name="logout" size={22} color={C.error} />
-            <Text style={st.logoutText}>Keluar dari Akun</Text>
+            <Text style={st.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
 
