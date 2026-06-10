@@ -305,6 +305,16 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
 
         {/* Utilities Row */}
         <View style={styles.utilitiesRow}>
+          <TouchableOpacity 
+            onPress={async () => {
+              await AsyncStorage.clear();
+              Alert.alert('Berhasil', 'Cache dan Token berhasil direset. Silakan tutup dan buka kembali aplikasi.');
+            }} 
+            activeOpacity={0.7}
+            style={{ marginRight: 16 }}
+          >
+            <Text style={[styles.forgotLink, { color: Colors.error }]}>Reset Cache & Token</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => Alert.alert('Lupa Password', 'Demi keamanan data rekam medis, silakan hubungi Admin Klinik atau Tenaga Kesehatan Anda untuk melakukan reset password akun.')} activeOpacity={0.7}>
             <Text style={styles.forgotLink}>Lupa Kata Sandi?</Text>
           </TouchableOpacity>

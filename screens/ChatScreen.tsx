@@ -134,6 +134,7 @@ const ChatScreen: React.FC = () => {
         nakes_id: selectedNakesId,
         tanggal: bookDate.trim(),
         waktu: bookTime.trim(),
+        kategori: 'booking',
       });
       Alert.alert('Booking Berhasil!', 'Konsultasi Anda berhasil dijadwalkan. Silakan cek riwayat di bawah.');
       setBookDate(''); setBookTime(''); setKeluhan(''); setSelectedNakesId(null);
@@ -150,13 +151,14 @@ const ChatScreen: React.FC = () => {
   const handleChatLangsung = async (schedule: NakesSchedule) => {
     setIsChatLangsung(schedule.nakes_id);
     try {
-      const today = new Date().toISOString().split('T')[0];
       const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const waktu = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       const res = await api.post('/patient/booking', {
         nakes_id: schedule.nakes_id,
         tanggal: today,
         waktu: waktu,
+        kategori: 'livechat',
       });
       const newId = res.data.data?.id;
       if (newId) {
@@ -193,7 +195,7 @@ const ChatScreen: React.FC = () => {
               <MaterialIcons name="smart-toy" size={32} color={C.onPrimary} />
             </View>
             <View style={st.aiTextBlock}>
-              <Text style={st.aiTitle}>Tanya HI!-BOT</Text>
+              <Text style={st.aiTitle}>Tanya WEAR Bot</Text>
               <Text style={st.aiSubtitle}>
                 Dapatkan jawaban instan seputar ARV dan HIV 24/7.
               </Text>

@@ -699,10 +699,26 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
           </TouchableOpacity>
         </View>
 
-        {/* Refill */}
         <View style={st.sec}>
           <Text style={st.secT}>Pengisian Ulang Obat</Text>
           <View style={st.card}>
+            {/* Contoh Foto Obat (Placeholder Statis) */}
+            <View style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <View style={{ 
+                width: '100%', height: 140, borderRadius: 12, 
+                backgroundColor: C.surfaceContainer, 
+                borderWidth: 1, borderColor: C.outlineVariant, borderStyle: 'dashed',
+                alignItems: 'center', justifyContent: 'center', gap: 6,
+                overflow: 'hidden',
+              }}>
+                <MaterialIcons name="medication" size={40} color={C.outline} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: C.outline }}>Contoh Foto Obat ARV</Text>
+                <Text style={{ fontSize: 10, color: C.outlineVariant, textAlign: 'center', paddingHorizontal: 24 }}>
+                  Foto obat akan ditampilkan di sini saat refill disetujui
+                </Text>
+              </View>
+            </View>
+
             {pendingRefill ? (
               <View style={[st.refBtn, { backgroundColor: C.outline }]}><MaterialIcons name="hourglass-top" size={20} color="#ffffff" /><Text style={st.refBtnT}>Menunggu Persetujuan Refill...</Text></View>
             ) : (

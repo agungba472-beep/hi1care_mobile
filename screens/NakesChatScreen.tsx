@@ -7,7 +7,13 @@ import CustomHeader from '../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {
-  primary: '#012D1D', surface: '#ffffff', background: '#f8f9ff', outline: '#737784'
+  primary: '#012D1D', 
+  accent: '#00A86B',
+  surface: '#ffffff', 
+  background: '#f0f4ff', 
+  outline: '#737784',
+  onSurface: '#0d1c2e',
+  outlineVariant: '#c3c6d5',
 };
 
 export default function NakesChatScreen() {
@@ -19,7 +25,6 @@ export default function NakesChatScreen() {
   const fetchChatHistory = async () => {
     try {
       setLoading(true);
-      // Memanggil API khusus Nakes untuk melihat daftar konsultasi aktif/riwayat
       const res = await api.get('/nakes/active-chats');
       
       if (res.data.status === 'success') {
@@ -39,27 +44,54 @@ export default function NakesChatScreen() {
     }, [])
   );
 
-  // ── Tampilan Setiap Kartu Pasien ──
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={st.card}
-      // Navigasi ke Ruang Obrolan Universal dengan membawa ID Konsultasi
-      onPress={() => navigation.navigate('PatientChatRoom', { konsultasiId: item.id })}
-    >
-      <View style={st.avatar}>
-        <MaterialIcons name="person" size={24} color={C.primary} />
-      </View>
-      <View style={st.info}>
-        <Text style={st.name}>
-          {item.pasien?.master?.nama || item.pasien?.user?.nama || 'Pasien WEAR'}
-        </Text>
-        <Text style={st.status}>Jadwal: {item.tanggal} | {item.waktu}</Text>
-      </View>
-      <View style={st.actionIcon}>
-        <MaterialIcons name="chat" size={20} color={C.primary} />
-      </View>
-    </TouchableOpacity>
-  );
+  // ── Tampilan Setiap Kartu Pasien (WhatsApp Style) ──
+  const renderItem = ({ item }: { item: any }) => {
+    const isLiveChat = item.kategori === 'livechat';
+    const hasUnread = item.last_sender === 'pasien';
+
+    return (
+      <TouchableOpacity
+        style={st.card}
+        onPress={() => navigation.navigate('PatientChatRoom', { konsultasiId: item.id })}
+        activeOpacity={0.7}
+      >
+        {/* Avatar */}
+        <View style={[st.avatar, hasUnread && st.avatarUnread]}>
+          <MaterialIcons name="person" size={24} color={hasUnread ? C.surface : C.primary} />
+        </View>
+
+        {/* Info Tengah */}
+        <View style={st.info}>
+          {/* Baris 1: Nama Pasien + Waktu */}
+          <View style={st.topRow}>
+            <Text style={[st.name, hasUnread && st.nameUnread]} numberOfLines={1}>
+              {item.pasien_nama || 'Pasien WEAR'}
+            </Text>
+            <Text style={[st.timeText, hasUnread && { color: C.accent }]}>
+              {item.last_message_at || ''}
+            </Text>
+          </View>
+
+          {/* Baris 2: Pesan Terakhir + Badge */}
+          <View style={st.bottomRow}>
+            <Text style={[st.lastMsg, hasUnread && st.lastMsgUnread]} numberOfLines={1}>
+              {item.last_sender === 'bot' ? '🤖 ' : item.last_sender === 'nakes' ? 'Anda: ' : ''}
+              {item.last_message || 'Belum ada pesan'}
+            </Text>
+            <View style={st.badges}>
+              {isLiveChat && (
+                <View style={st.badgeLive}>
+                  <MaterialIcons name="flash-on" size={10} color="#f59e0b" />
+                  <Text style={st.badgeLiveText}>Live</Text>
+                </View>
+              )}
+              {hasUnread && <View style={st.unreadDot} />}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -76,8 +108,11 @@ export default function NakesChatScreen() {
         </View>
       ) : chatHistory.length === 0 ? (
         <View style={st.center}>
-          <MaterialIcons name="chat-bubble-outline" size={48} color={C.outline} />
-          <Text style={st.emptyText}>Belum ada riwayat obrolan.</Text>
+          <View style={st.emptyIcon}>
+            <MaterialIcons name="chat-bubble-outline" size={40} color={C.outlineVariant} />
+          </View>
+          <Text style={st.emptyTitle}>Belum Ada Obrolan</Text>
+          <Text style={st.emptyText}>Pesan dari pasien akan muncul di sini.</Text>
         </View>
       ) : (
         <FlatList
@@ -94,29 +129,50 @@ export default function NakesChatScreen() {
 
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.background },
-  header: { padding: 16, backgroundColor: C.surface, elevation: 2, alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: C.primary },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { marginTop: 12, color: C.outline, fontSize: 16 },
-  list: { padding: 16 },
-  
-  // Desain Kartu (Card)
-  card: { 
-    flexDirection: 'row', backgroundColor: C.surface, padding: 20, 
-    borderRadius: 16, marginBottom: 16, alignItems: 'center', 
-    elevation: 3, shadowColor: C.primary, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
-    borderWidth: 1, borderColor: '#e2e8f0'
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
+  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+
+  // ── Empty State ──
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  avatar: { 
-    width: 48, height: 48, borderRadius: 24, 
-    backgroundColor: '#eff4ff', justifyContent: 'center', alignItems: 'center', marginRight: 16,
-    borderWidth: 1.5, borderColor: '#dce9ff'
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: C.onSurface, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: C.outline, textAlign: 'center' },
+
+  // ── Card (WhatsApp Style Row) ──
+  card: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.surface,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#f0f4ff',
+  },
+  avatar: {
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: '#e8f0fe', justifyContent: 'center', alignItems: 'center', marginRight: 14,
+  },
+  avatarUnread: {
+    backgroundColor: C.primary,
   },
   info: { flex: 1 },
-  name: { fontSize: 17, fontWeight: '700', color: '#0d1c2e', marginBottom: 4 },
-  status: { fontSize: 13, color: C.outline, fontWeight: '500' },
-  actionIcon: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#f1f5f9',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0'
-  }
+
+  // Baris Atas: Nama + Waktu
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  name: { fontSize: 15, fontWeight: '600', color: C.onSurface, flex: 1, marginRight: 8 },
+  nameUnread: { fontWeight: '800' },
+  timeText: { fontSize: 12, color: C.outline, fontWeight: '500' },
+
+  // Baris Bawah: Pesan + Badge
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  lastMsg: { fontSize: 13, color: C.outline, flex: 1, marginRight: 8 },
+  lastMsgUnread: { color: C.onSurface, fontWeight: '600' },
+  badges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  badgeLive: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+  },
+  badgeLiveText: { fontSize: 10, fontWeight: '700', color: '#b45309' },
+  unreadDot: {
+    width: 10, height: 10, borderRadius: 5, backgroundColor: C.accent,
+  },
 });
