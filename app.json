@@ -30,7 +30,18 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00A86B",
+          "sounds": [
+            "./assets/sounds/ceria.mp3",
+            "./assets/sounds/darurat.mp3"
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {

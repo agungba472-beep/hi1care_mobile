@@ -8,19 +8,23 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import api from '../src/api';
 
-// ── Design Tokens (DESIGN.md – Serene Assurance) ──
+// ── Design Tokens (Tema Emerald/Mint Sesuai Referensi) ──
 const C = {
-  surface: '#f8f9ff', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#eff4ff',
-  surfaceContainer: '#e6eeff', surfaceContainerHigh: '#dce9ff',
-  surfaceContainerHighest: '#d5e3fc', surfaceVariant: '#d5e3fc',
-  onSurface: '#0d1c2e', onSurfaceVariant: '#434652',
-  outline: '#737784', outlineVariant: '#c3c6d5',
-  primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',
-  onPrimaryContainer: '#d1dcff', primaryFixed: '#dae2ff',
-  secondary: '#00A86B', onSecondary: '#ffffff', secondaryContainer: '#b191fd',
-  onSecondaryContainer: '#44208a', secondaryFixed: '#eaddff',
-  onSecondaryFixed: '#24005b',
-  tertiary: '#42495c', error: '#ba1a1a', background: '#f8f9ff',
+  surface: '#f9f9f8',
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#f3f4f3',
+  surfaceContainerHigh: '#e7e8e7',
+  onSurface: '#191c1c',
+  onSurfaceVariant: '#414844',
+  outline: '#717973',
+  outlineVariant: '#c1c8c2',
+  primary: '#012d1d',
+  onPrimary: '#ffffff',
+  primaryContainer: '#1b4332',
+  onPrimaryContainer: '#86af99',
+  secondary: '#4c6452',
+  onSecondary: '#ffffff',
+  background: '#f9f9f8',
 } as const;
 
 const S = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, gutter: 16, margin: 20 } as const;
@@ -280,7 +284,7 @@ const st = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: S.margin, paddingVertical: 12,
-    backgroundColor: '#f8fafc', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.surfaceContainerHigh,
     shadowColor: C.primary, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
@@ -300,15 +304,15 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   heroTextBlock: { flex: 1 },
-  heroTitle: { fontSize: 22, fontWeight: '700', color: C.onPrimaryContainer },
-  heroSub: { fontSize: 14, color: C.onPrimaryContainer, opacity: 0.85, marginTop: 2 },
+  heroTitle: { fontSize: 22, fontWeight: '700', color: '#ffffff' },
+  heroSub: { fontSize: 14, color: '#ffffff', opacity: 0.85, marginTop: 2 },
 
   /* Form */
   formCard: {
     marginHorizontal: S.margin, marginTop: -S.sm,
     backgroundColor: C.surfaceContainerLowest, borderRadius: 12,
     padding: S.md, gap: S.md,
-    borderWidth: 1, borderColor: '#e2e8f0',
+    borderWidth: 1, borderColor: C.surfaceContainerHigh,
     shadowColor: '#1e3a5f', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
   },
@@ -344,7 +348,7 @@ const st = StyleSheet.create({
   diaryCard: {
     backgroundColor: C.surfaceContainerLowest, borderRadius: 12,
     padding: S.md, marginBottom: S.gutter,
-    borderWidth: 1, borderColor: '#e2e8f0',
+    borderWidth: 1, borderColor: C.surfaceContainerHigh,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
   },
@@ -354,7 +358,7 @@ const st = StyleSheet.create({
   diaryDateRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   diaryIconWrap: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: C.primaryFixed,
+    backgroundColor: C.surfaceContainerHigh,
     alignItems: 'center', justifyContent: 'center',
   },
   diaryDate: { fontSize: 14, fontWeight: '600', color: C.onSurface },

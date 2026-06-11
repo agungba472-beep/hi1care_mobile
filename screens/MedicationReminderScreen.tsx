@@ -88,6 +88,50 @@ const MedicationReminderScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // ── FIX 3: PUTAR NADA DERING KUSTOM VIA EXPO-AV SAAT NOTIFIKASI MASUK ──
+  // Pendekatan hybrid: saat app terbuka → suara kustom (ceria/darurat/standar)
+  //                    saat HP terkunci → suara default sistem Android
+  useEffect(() => {
+    if (Platform.OS === 'web') return; // Web sudah punya mekanisme sendiri
+
+    const subscription = Notifications.addNotificationReceivedListener(async (_notification) => {
+      try {
+        // Ambil nada dering yang terakhir dipilih user
+        const savedSoundId = await AsyncStorage.getItem('saved_sound_id');
+        const soundId = savedSoundId || 'standar';
+
+        let soundAsset;
+        if (soundId === 'ceria') soundAsset = require('../assets/sounds/ceria.mp3');
+        else if (soundId === 'darurat') soundAsset = require('../assets/sounds/darurat.mp3');
+        else soundAsset = require('../assets/sounds/standard.wav');
+
+        // Putar suara keras via expo-av!
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,   // Tetap bunyi meski HP dalam mode silent (iOS)
+          staysActiveInBackground: true, // Jangan matikan suara saat pindah app
+        });
+
+        const { sound } = await Audio.Sound.createAsync(soundAsset);
+        await sound.setVolumeAsync(1.0); // Volume maksimal!
+        await sound.playAsync();
+
+        // Auto-cleanup setelah selesai
+        sound.setOnPlaybackStatusUpdate((s) => {
+          if ('didJustFinish' in s && s.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+
+        console.log(`[Alarm] 🔊 Memutar nada "${soundId}" via expo-av`);
+      } catch (err) {
+        console.log('[Alarm] Gagal memutar suara:', err);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   const getLocalDateString = () => {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -245,7 +289,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
     return selectedDate.getFullYear() + '-' + (selectedDate.getMonth() + 1).toString().padStart(2, '0') + '-' + selectedDate.getDate().toString().padStart(2, '0');
   }, [selectedDate]);
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     const loadSavedSettings = async () => {
       try {
         const [savedTime, savedDate, savedSoundId, savedEveryday] = await Promise.all([
@@ -261,7 +305,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
       } catch (e) {}
     };
     loadSavedSettings();
-  }, []));
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -466,6 +510,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
     await initAndUnlockWebAudio();
     setSavingSettings(true);
     try {
+      // 1. Simpan ke Local Storage
       await Promise.all([
         AsyncStorage.setItem('saved_alarm_time', selectedTime.toISOString()),
         AsyncStorage.setItem('saved_alarm_date', selectedDate.toISOString()),
@@ -473,6 +518,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         AsyncStorage.setItem('saved_is_everyday', isEveryday.toString()),
       ]);
 
+      // 2. Simpan ke Server Laravel (INI YANG BERHASIL)
       await api.post('/patient/alarms/settings', { 
         waktu: fmtTime, 
         tanggal: fmtDate, 
@@ -480,14 +526,74 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         is_everyday: isEveryday 
       });
 
+      // 3. Jadwalkan Notifikasi Lokal HP (DIBUNGKUS TRY-CATCH KHUSUS)
       if (Platform.OS !== 'web') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status === 'granted') {
-          await Notifications.cancelAllScheduledNotificationsAsync();
-          await Notifications.scheduleNotificationAsync({
-            content: { title: 'Waktunya Minum ARV! 💊', body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}).`, sound: true },
-            trigger: { hour: selectedTime.getHours(), minute: selectedTime.getMinutes(), repeats: true } as any,
-          });
+        try {
+          const channelId = 'alarm-obat-bunyi-v3'; // Channel BARU — Android mengunci setting channel lama!
+
+          // WAJIB UNTUK ANDROID: Hapus channel lama yang mungkin ter-cache tanpa suara
+          if (Platform.OS === 'android') {
+            // Hapus channel-channel lama yang sudah terkunci bisu oleh Android
+            const oldChannels = [
+              'alarm-wear', 'alarm-wear-default', 'alarm-wear-standar',
+              'alarm-wear-ceria', 'alarm-wear-darurat',
+              'alarm-obat-bunyi', 'alarm-obat-bunyi-v2',
+            ];
+            for (const oldCh of oldChannels) {
+              try { await Notifications.deleteNotificationChannelAsync(oldCh); } catch (_) {}
+            }
+
+            // Buat Channel BARU yang DIJAMIN belum pernah ada di HP ini
+            await Notifications.setNotificationChannelAsync(channelId, {
+              name: 'Pengingat Obat ARV',
+              description: 'Notifikasi pengingat minum obat ARV dengan suara keras',
+              importance: Notifications.AndroidImportance.MAX,
+              vibrationPattern: [0, 500, 250, 500],
+              lightColor: '#00A86B',
+              sound: 'default',
+              enableVibrate: true,
+              enableLights: true,
+              showBadge: true,
+            });
+          }
+
+          const { status } = await Notifications.requestPermissionsAsync();
+          if (status === 'granted') {
+            await Notifications.cancelAllScheduledNotificationsAsync();
+
+            // Hitung waktu target notifikasi
+            const now = new Date();
+            const target = new Date();
+            target.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+
+            // Jika waktu target sudah lewat hari ini, jadwalkan untuk besok
+            if (target <= now) {
+              target.setDate(target.getDate() + 1);
+            }
+
+            // Hitung selisih detik dari sekarang ke waktu target
+            const secondsUntilAlarm = Math.max(1, Math.round((target.getTime() - now.getTime()) / 1000));
+
+            await Notifications.scheduleNotificationAsync({
+              content: { 
+                title: 'Waktunya Minum ARV! 💊', 
+                body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}).`, 
+                sound: 'default', 
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                vibrate: [0, 500, 250, 500],
+              },
+              trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                seconds: secondsUntilAlarm,
+                channelId: channelId,
+              } as any,
+            });
+
+            console.log(`[Notif] ✅ Dijadwalkan ${secondsUntilAlarm} detik dari sekarang (target: ${target.toLocaleTimeString()})`);
+          }
+        } catch (notifErr) {
+          console.log("Info: Gagal menyetel notifikasi lokal HP:", notifErr);
+          // Error ditahan di sini agar tidak memunculkan alert "Server error" palsu
         }
       }
 
@@ -497,6 +603,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
       
       fetchData();
     } catch (e: any) {
+      // Ini baru benar-benar error dari Server Laravel
       if (Platform.OS === 'web') window.alert('Gagal: ' + (e.response?.data?.message || 'Server error.'));
       else Alert.alert('Gagal', e.response?.data?.message || 'Server error.');
     }
@@ -555,24 +662,24 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                       <View style={st.dose}>
                         <View style={st.doseL}>
                           <View style={[st.doseIc, isTaken ? { backgroundColor: C.secondaryFixed } : { backgroundColor: C.surfaceContainer }]}>
-                            <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={24} color={isTaken ? C.onSecondaryFixed : C.onSurface} />
+                            <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={22} color={isTaken ? C.onSecondaryFixed : C.onSurface} />
                           </View>
-                          <View>
-                            <Text style={st.doseT}>ARV — {alarm.waktu}</Text>
-                            <Text style={st.doseSub}>Nada: {alarm.nada_dering || 'Standar'}</Text>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={st.doseT} numberOfLines={1}>ARV — {alarm.waktu?.substring(0, 5)}</Text>
+                            <Text style={st.doseSub} numberOfLines={1}>Nada: {alarm.nada_dering || 'Standar'}</Text>
                           </View>
                         </View>
                         
-                        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                        <View style={{ alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                           {isTaken ? (
-                            <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>SUDAH DIMINUM</Text></View>
+                            <View style={st.doseBdgTaken}><Text style={st.doseBdgTakenT}>DIMINUM ✓</Text></View>
                           ) : (
                             <View style={st.doseBdg}><Text style={st.doseBdgT}>{alarm.status || 'TERJADWAL'}</Text></View>
                           )}
                           
                           {isPending && (
                             <TouchableOpacity onPress={() => handleDeleteAlarm(alarm.id)} style={{ padding: 4 }}>
-                              <MaterialIcons name="delete-outline" size={20} color={C.error} />
+                              <MaterialIcons name="delete-outline" size={18} color={C.error} />
                             </TouchableOpacity>
                           )}
                         </View>
@@ -646,8 +753,14 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                     <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
                   </TouchableOpacity>
                 </View>
-                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={(e, d) => { setShowTimePicker(false); if(d) setSelectedTime(d); }} />}
-                {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" onChange={(e, d) => { setShowDatePicker(false); if(d) setSelectedDate(d); }} minimumDate={new Date()} />}
+                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={(e, d) => { 
+                  if (Platform.OS === 'android') setShowTimePicker(false);
+                  if (d) setSelectedTime(d); 
+                }} />}
+                {showDatePicker && <DateTimePicker value={selectedDate} mode="date" display="default" minimumDate={new Date(new Date().setHours(0,0,0,0))} onChange={(e, d) => { 
+                  if (Platform.OS === 'android') setShowDatePicker(false);
+                  if (d) setSelectedDate(d); 
+                }} />}
               </>
             )}
 
@@ -797,11 +910,11 @@ const st = StyleSheet.create({
   secD: { fontSize: 12, fontWeight: '600', color: C.outline },
   
   doseCard: { backgroundColor: C.surfaceContainerLowest, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', elevation: 1, overflow: 'hidden' }, // Border disesuaikan untuk background gelap
-  dose: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: S.md },
-  doseL: { flexDirection: 'row', alignItems: 'center', gap: S.md, flex: 1 },
-  doseIc: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  doseT: { fontSize: 16, fontWeight: '700', color: C.onSurface },
-  doseSub: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
+  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: S.md },
+  doseL: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
+  doseIc: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  doseT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  doseSub: { fontSize: 11, fontWeight: '500', color: C.outline, marginTop: 1 },
   
   doseBdg: { backgroundColor: C.surfaceContainer, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
   doseBdgT: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: C.onSurfaceVariant, textTransform: 'uppercase' },

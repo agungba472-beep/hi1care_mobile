@@ -455,7 +455,7 @@ const ChatScreen: React.FC = () => {
                   </View>
                   <View style={[st.statusBadge, active ? st.statusActive : c.status === 'pending' ? st.statusPending : st.statusDefault]}>
                     <Text style={[st.statusText, active && { color: C.onPrimary }]}>
-                      {active ? 'Aktif' : c.status === 'pending' ? 'Menunggu' : c.status}
+                      {active ? 'Sesi Terbuka' : c.status === 'pending' ? 'Menunggu' : c.status}
                     </Text>
                   </View>
                 </View>

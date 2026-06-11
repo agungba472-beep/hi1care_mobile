@@ -223,33 +223,34 @@ const DashboardScreen: React.FC = () => {
               alarmsToday.map((alarm: any, idx: number) => {
                 const isTaken = alarm.status === 'sudah' || alarm.status === 'diminum';
                 return (
-                  <View style={st.arvItem} key={alarm.id || idx}>
-                    <View style={st.arvLeft}>
+                    <View style={st.arvItem} key={alarm.id || idx}>
+                    <View style={st.arvTop}>
                       <View style={st.arvIconWrap}>
                         <MaterialIcons name={isTaken ? 'check-circle' : 'schedule'} size={18} color="#ffffff" />
                       </View>
-                      <View>
-                        <Text style={st.arvName}>{alarm.judul || 'ARV (Dolutegravir)'}</Text>
-                        <Text style={st.arvDose}>⏰ {alarm.jam || alarm.waktu} • Nada: {alarm.nada || 'standar'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <Text style={st.arvName} numberOfLines={1}>Minum Obat ARV 💊</Text>
+                          {isTaken ? (
+                            <View style={st.takenBadge}>
+                              <Text style={st.takenText}>DIMINUM ✓</Text>
+                            </View>
+                          ) : (
+                            <TouchableOpacity 
+                              style={st.arvBtn}
+                              activeOpacity={0.8}
+                              onPress={() => handleMarkAsTaken(alarm.id)}
+                              disabled={trackingLoading}
+                            >
+                              <Text style={st.arvBtnText}>
+                                {trackingLoading ? '...' : 'MINUM'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <Text style={st.arvDose}>⏰ {(alarm.jam || alarm.waktu)?.substring(0, 5)} • Nada: {alarm.nada || alarm.nada_dering || 'standar'}</Text>
                       </View>
                     </View>
-                    
-                    {isTaken ? (
-                      <View style={st.takenBadge}>
-                        <Text style={st.takenText}>SUDAH DIMINUM</Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity 
-                        style={st.arvBtn}
-                        activeOpacity={0.8}
-                        onPress={() => handleMarkAsTaken(alarm.id)}
-                        disabled={trackingLoading}
-                      >
-                        <Text style={st.arvBtnText}>
-                          {trackingLoading ? '...' : 'MINUM SEKARANG'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
                 );
               })
@@ -362,14 +363,11 @@ const DashboardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+
         {/* Bottom spacer */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB - Tombol Tambah Mengambang */}
-      <TouchableOpacity style={st.fab} activeOpacity={0.8}>
-        <MaterialIcons name="add" size={28} color="#ffffff" />
-      </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -509,14 +507,16 @@ const st = StyleSheet.create({
     color: '#ffffff',
   },
   arvItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: S.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+  arvTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
   arvLeft: {
     flexDirection: 'row',
@@ -544,27 +544,28 @@ const st = StyleSheet.create({
   },
   arvBtn: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   arvBtnText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: C.primaryContainer,
   },
   takenBadge: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#ffffff'
+    borderColor: 'rgba(255,255,255,0.4)'
   },
   takenText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 10,
+    fontSize: 9,
+    letterSpacing: 0.3,
   },
   quickCard: {
     backgroundColor: C.surfaceContainerLow,

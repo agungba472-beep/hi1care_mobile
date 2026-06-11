@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Ganti IP ini dengan IPv4 Address laptopmu
-export const API_URL = 'http://192.168.1.7:8000/api';
+export const API_URL = 'http://192.168.0.209:8000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -19,7 +19,11 @@ api.interceptors.request.use(
 
     // Tambahkan pengecekan config.headers di sini
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (typeof config.headers.set === 'function') {
+        config.headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
     return config;

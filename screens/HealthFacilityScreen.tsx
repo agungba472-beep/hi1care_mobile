@@ -199,9 +199,9 @@ const HealthFacilityScreen = () => {
         <div id="map"></div>
         <script>
             var map = L.map('map').setView([${defaultLat}, ${defaultLng}], 11);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
+            L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                attribution: '© Google Maps'
             }).addTo(map);
 
             var markers = [];

@@ -9,6 +9,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './src/navigationRef';
 import FloatingPlusButton from './components/FloatingPlusButton';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 
@@ -67,6 +68,7 @@ const Tab = createBottomTabNavigator();
 
 // 3. Buat Dunia Utama (Menu Bawah / Bottom Tabs)
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -89,7 +91,7 @@ function MainTabs() {
         },
         tabBarActiveTintColor: '#012D1D',
         tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { paddingBottom: 5, height: 60 },
+        tabBarStyle: { paddingBottom: Math.max(insets.bottom, 8), height: 60 + Math.max(insets.bottom, 8) },
       })}
     >
       <Tab.Screen name="Home" component={DashboardScreen} />
@@ -105,6 +107,7 @@ function MainTabs() {
 
 // 3b. Nakes-specific Bottom Tabs
 function NakesTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -121,7 +124,7 @@ function NakesTabs() {
         },
         tabBarActiveTintColor: '#012D1D',
         tabBarInactiveTintColor: '#737784',
-        tabBarStyle: { paddingBottom: 5, height: 60 },
+        tabBarStyle: { paddingBottom: Math.max(insets.bottom, 8), height: 60 + Math.max(insets.bottom, 8) },
       })}
     >
       <Tab.Screen 
@@ -153,32 +156,34 @@ function NakesTabs() {
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   return (
-    <View style={{ flex: 1 }}>
-      <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
-        
-        {/* --- DUNIA BELUM LOGIN --- */}
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
-        
-        {/* --- DUNIA SUDAH LOGIN (Membungkus Tabs) --- */}
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        
-        {/* --- HALAMAN EKSTRA --- */}
-        <Stack.Screen name="Education" component={EducationScreen} />
-        <Stack.Screen name="NakesChat" component={NakesChatScreen} />
-        <Stack.Screen name="NakesTabs" component={NakesTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="NakesPatientDetailScreen" component={NakesPatientDetailScreen} />
-        <Stack.Screen name="Diary" component={DiaryScreen} />
-        <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
-        <Stack.Screen name="Chatbot" component={ChatbotScreen} />
-        <Stack.Screen name="PatientChatRoom" component={PatientChatRoomScreen} />
-        <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
-        <Stack.Screen name="NotificationListScreen" component={NotificationListScreen} />
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }}>
+        <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+          
+          {/* --- DUNIA BELUM LOGIN --- */}
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
+          
+          {/* --- DUNIA SUDAH LOGIN (Membungkus Tabs) --- */}
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          
+          {/* --- HALAMAN EKSTRA --- */}
+          <Stack.Screen name="Education" component={EducationScreen} />
+          <Stack.Screen name="NakesChat" component={NakesChatScreen} />
+          <Stack.Screen name="NakesTabs" component={NakesTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="NakesPatientDetailScreen" component={NakesPatientDetailScreen} />
+          <Stack.Screen name="Diary" component={DiaryScreen} />
+          <Stack.Screen name="HealthFacility" component={HealthFacilityScreen} />
+          <Stack.Screen name="Chatbot" component={ChatbotScreen} />
+          <Stack.Screen name="PatientChatRoom" component={PatientChatRoomScreen} />
+          <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+          <Stack.Screen name="NotificationListScreen" component={NotificationListScreen} />
 
-      </Stack.Navigator>
-    </NavigationContainer>
-    </View>
+        </Stack.Navigator>
+      </NavigationContainer>
+      </View>
+    </SafeAreaProvider>
   );
 }

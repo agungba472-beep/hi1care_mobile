@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
@@ -98,7 +98,7 @@ export default function NakesChatScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       
       {/* HEADER */}
-      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={false} hideBell={false} />
+      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={navigation.canGoBack()} hideBell={false} />
 
       {/* KONTEN */}
       {loading ? (
@@ -115,13 +115,31 @@ export default function NakesChatScreen() {
           <Text style={st.emptyText}>Pesan dari pasien akan muncul di sini.</Text>
         </View>
       ) : (
-        <FlatList
-          data={chatHistory}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={st.list}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView contentContainerStyle={st.list} showsVerticalScrollIndicator={false}>
+          {/* SECTION: LIVE CHAT */}
+          {chatHistory.filter(item => item.kategori === 'livechat').length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
+                Chat Langsung (Live)
+              </Text>
+              <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
+                {chatHistory.filter(item => item.kategori === 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
+              </View>
+            </View>
+          )}
+
+          {/* SECTION: BOOKING */}
+          {chatHistory.filter(item => item.kategori !== 'livechat').length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
+                Konsultasi Booking
+              </Text>
+              <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
+                {chatHistory.filter(item => item.kategori !== 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
+              </View>
+            </View>
+          )}
+        </ScrollView>
       )}
     </SafeAreaView>
   );

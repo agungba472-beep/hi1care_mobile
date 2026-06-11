@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import api from '../src/api';
@@ -13,6 +13,7 @@ const NakesPatientDetailScreen: React.FC = () => {
   const { patientId } = route.params;
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showKepatuhanModal, setShowKepatuhanModal] = useState(false);
 
   useFocusEffect(useCallback(() => {
     const fetchDetail = async () => {
@@ -53,7 +54,7 @@ const NakesPatientDetailScreen: React.FC = () => {
             </View>
             <TouchableOpacity 
               style={[st.tag, { backgroundColor: '#f1f5f9', marginLeft: 8 }]}
-              onPress={() => Alert.alert('Riwayat Kepatuhan', 'Sedang memuat data log kepatuhan pasien dari database...')}
+              onPress={() => setShowKepatuhanModal(true)}
             >
               <MaterialIcons name="history" size={14} color={C.primary} />
               <Text style={[st.tagText, { color: C.primary }]}>Lihat Riwayat</Text>
@@ -168,6 +169,46 @@ const NakesPatientDetailScreen: React.FC = () => {
           ))
         }
       </ScrollView>
+
+      {/* MODAL KEPATUHAN */}
+      <Modal visible={showKepatuhanModal} transparent={true} animationType="slide">
+        <View style={st.modalOverlay}>
+          <View style={st.modalContent}>
+            <View style={st.modalHeader}>
+              <Text style={st.modalTitle}>Riwayat Kepatuhan Obat</Text>
+              <TouchableOpacity onPress={() => setShowKepatuhanModal(false)}>
+                <MaterialIcons name="close" size={24} color={C.outline} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {patient.kepatuhan?.length === 0 ? (
+                <Text style={st.modalEmpty}>Belum ada log kepatuhan dicatat.</Text>
+              ) : (
+                patient.kepatuhan?.map((k: any) => {
+                  const isDiminum = k.status === 'diminum';
+                  return (
+                    <View key={k.id} style={st.logItem}>
+                      <View style={[st.logIcon, { backgroundColor: isDiminum ? '#dcfce7' : '#fee2e2' }]}>
+                        <MaterialIcons name={isDiminum ? "check" : "close"} size={20} color={isDiminum ? '#16a34a' : '#ef4444'} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.logStatusText}>
+                          {isDiminum ? 'Diminum' : 'Dilewatkan / Telat'}
+                        </Text>
+                        <Text style={st.logTimeText}>
+                          {new Date(k.last_update).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                          {' - '}
+                          {new Date(k.last_update).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -247,6 +288,17 @@ const st = StyleSheet.create({
   refillDate: { fontSize: 13, color: '#64748b', marginTop: 2 },
   refillBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   refillBadgeTxt: { fontSize: 10, fontWeight: '800' },
+
+  // Modal Kepatuhan
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0d1c2e' },
+  modalEmpty: { color: C.outline, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
+  logItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  logIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  logStatusText: { fontSize: 15, fontWeight: '700', color: '#0d1c2e' },
+  logTimeText: { fontSize: 13, color: '#64748b' },
 });
 
 export default NakesPatientDetailScreen;
