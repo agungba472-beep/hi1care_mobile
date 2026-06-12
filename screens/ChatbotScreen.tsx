@@ -122,7 +122,7 @@ const ChatbotScreen: React.FC = () => {
           <MaterialIcons name="smart-toy" size={22} color={C.onPrimaryFixed} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>HI!-BOT</Text>
+          <Text style={st.headerTitle}>WEAR BOT</Text>
           <Text style={st.headerSub}>Asisten AI Otomatis</Text>
         </View>
       </View>
