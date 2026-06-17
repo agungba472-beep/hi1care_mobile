@@ -8,8 +8,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio, Video, ResizeMode } from 'expo-av';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import api from '../src/api';
-import { initEcho } from '../src/echo';
+import api from '../../src/api';
+import { initEcho } from '../../src/echo';
 
 // ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {

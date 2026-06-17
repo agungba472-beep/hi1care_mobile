@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import CustomHeader from '../components/CustomHeader';
-import api from '../src/api';
+import CustomHeader from '../../components/CustomHeader';
+import api from '../../src/api';
 import { useFocusEffect } from '@react-navigation/native';
 
 const NotificationListScreen = () => {

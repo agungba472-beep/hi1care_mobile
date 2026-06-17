@@ -7,7 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location'; // <── Mengaktifkan Radar Sensor GPS HP
-import api from '../src/api';
+import api from '../../src/api';
 
 // ── Design Tokens (WEAR Serene Assurance) ──
 const C = {

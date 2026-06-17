@@ -7,9 +7,9 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
-import api from '../src/api';
-import { initEcho } from '../src/echo';
-import CustomHeader from '../components/CustomHeader';
+import api from '../../src/api';
+import { initEcho } from '../../src/echo';
+import CustomHeader from '../../components/CustomHeader';
 
 // ── Design Tokens ──
 const C = {

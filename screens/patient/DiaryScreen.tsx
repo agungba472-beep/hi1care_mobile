@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import api from '../src/api';
+import api from '../../src/api';
 
 // ── Design Tokens (Tema Emerald/Mint Sesuai Referensi) ──
 const C = {

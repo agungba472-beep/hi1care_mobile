@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import api from '../src/api';
-import CustomHeader from '../components/CustomHeader';
+import api from '../../src/api';
+import CustomHeader from '../../components/CustomHeader';
 
 const C = {
   primary: '#012D1D', onPrimary: '#ffffff', primaryContainer: '#2a5cbe',

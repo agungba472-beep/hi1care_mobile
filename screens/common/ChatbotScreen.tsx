@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import api from '../src/api';
+import api from '../../src/api';
 
 // ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {

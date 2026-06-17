@@ -6,8 +6,8 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import api from '../src/api';
-import { initEcho } from '../src/echo';
+import api from '../../src/api';
+import { initEcho } from '../../src/echo';
 
 // ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {

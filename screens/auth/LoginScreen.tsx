@@ -17,8 +17,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../src/api';
-import { RootStackParamList } from '../App';
+import api from '../../src/api';
+import { RootStackParamList } from '../../App';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 const Colors = {
@@ -238,7 +238,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
       {/* ═══ Branding ═══ */}
       <View style={styles.brandingSection}>
         <Image 
-          source={require('../assets/img/logo_wear.jpeg')} 
+          source={require('../../assets/img/logo_wear.jpeg')} 
           style={{ width: 80, height: 80, borderRadius: 40, marginBottom: Spacing.md }} 
         />
         <Text style={styles.brandTitle}>WEAR</Text>

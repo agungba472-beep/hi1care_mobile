@@ -17,10 +17,10 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { resetToLogin } from '../src/navigationRef';
-import api from '../src/api';
+import { resetToLogin } from '../../src/navigationRef';
+import api from '../../src/api';
 import * as ImagePicker from 'expo-image-picker';
-import CustomHeader from '../components/CustomHeader';
+import CustomHeader from '../../components/CustomHeader';
 
 // ── Design Tokens (Tema Emerald/Mint Material 3) ──
 const C = {

@@ -6,8 +6,8 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../App';
-import api from '../src/api';
+import { RootStackParamList } from '../../App';
+import api from '../../src/api';
 
 // ── Design Tokens (DESIGN.md – Serene Assurance) ──
 const C = {
@@ -91,7 +91,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
       <View style={st.container}>
         <View style={st.headerSection}>
           <Image 
-            source={require('../assets/img/logo_wear.jpeg')} 
+            source={require('../../assets/img/logo_wear.jpeg')} 
             style={{ width: 80, height: 80, borderRadius: 40, marginBottom: S.sm }} 
           />
           <Text style={st.brandTitle}>WEAR</Text>

@@ -16,8 +16,8 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
-import CustomHeader from '../components/CustomHeader';
-import api from '../src/api';
+import CustomHeader from '../../components/CustomHeader';
+import api from '../../src/api';
 
 // ── Design Tokens (Tema Emerald/Mint Sesuai Referensi) ──
 const C = {

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
-import api from '../src/api';
+import api from '../../src/api';
 
 // ── Design Tokens (Tema Hijau Dominan WEAR) ──
 const C = {
@@ -45,7 +45,7 @@ const ArticleDetailScreen = () => {
   const rawContent = article.konten || '';
   const cleanContent = rawContent.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
 
-  // PERBAIKAN: Format tanggal dijadikan 1 baris agar tidak error saat di-copy
+  // Format tanggal dijadikan 1 baris agar tidak error saat di-copy
   const formattedDate = new Date(article.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (

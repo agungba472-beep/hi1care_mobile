@@ -25,24 +25,24 @@ Notifications.setNotificationHandler({
 });
 
 // 1. Import Semua Layar
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import DashboardScreen from './screens/DashboardScreen';
-import MedicationReminderScreen from './screens/MedicationReminderScreen';
-import ChatScreen from './screens/ChatScreen';
-import NakesChatScreen from './screens/NakesChatScreen';
-import NakesDashboardScreen from './screens/NakesDashboardScreen';
-import NakesPatientListScreen from './screens/NakesPatientListScreen';
-import NakesPatientDetailScreen from './screens/NakesPatientDetailScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import EducationScreen from './screens/EducationScreen';
-import BiometricAuthScreen from './screens/BiometricAuthScreen';
-import DiaryScreen from './screens/DiaryScreen';
-import HealthFacilityScreen from './screens/HealthFacilityScreen';
-import ChatbotScreen from './screens/ChatbotScreen';
-import PatientChatRoomScreen from './screens/PatientChatRoomScreen';
-import ArticleDetailScreen from './screens/ArticleDetailScreen';
-import NotificationListScreen from './screens/NotificationListScreen';
+import LoginScreen from './screens/auth/LoginScreen';
+import RegisterScreen from './screens/auth/RegisterScreen';
+import DashboardScreen from './screens/patient/PatientDashboardScreen';
+import MedicationReminderScreen from './screens/patient/MedicationReminderScreen';
+import ChatScreen from './screens/common/ChatScreen';
+import NakesChatScreen from './screens/nakes/NakesChatScreen';
+import NakesDashboardScreen from './screens/nakes/NakesDashboardScreen';
+import NakesPatientListScreen from './screens/nakes/NakesPatientListScreen';
+import NakesPatientDetailScreen from './screens/nakes/NakesPatientDetailScreen';
+import ProfileScreen from './screens/common/ProfileScreen';
+import EducationScreen from './screens/patient/EducationScreen';
+import BiometricAuthScreen from './screens/auth/BiometricAuthScreen';
+import DiaryScreen from './screens/patient/DiaryScreen';
+import HealthFacilityScreen from './screens/common/HealthFacilityScreen';
+import ChatbotScreen from './screens/common/ChatbotScreen';
+import PatientChatRoomScreen from './screens/patient/PatientChatRoomScreen';
+import ArticleDetailScreen from './screens/patient/ArticleDetailScreen';
+import NotificationListScreen from './screens/common/NotificationListScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
 export type RootStackParamList = {

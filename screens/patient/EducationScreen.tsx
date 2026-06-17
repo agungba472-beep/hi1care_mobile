@@ -5,8 +5,8 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import api from '../src/api';
-import CustomHeader from '../components/CustomHeader';
+import api from '../../src/api';
+import CustomHeader from '../../components/CustomHeader';
 
 // ── Design Tokens (Warna Hijau Dibuat Lebih Dominan) ──
 const C = {
@@ -85,7 +85,7 @@ const EducationScreen: React.FC = () => {
 
         {/* ── HERO SECTION HIJAU DOMINAN ── */}
         <ImageBackground 
-          source={require('../assets/img/bg_obat.jpeg')} 
+          source={require('../../assets/img/bg_obat.jpeg')} 
           style={st.heroSection} 
           imageStyle={st.heroImageStyle}
         >

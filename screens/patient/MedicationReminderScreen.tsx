@@ -11,8 +11,8 @@ import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
-import api from '../src/api';
-import CustomHeader from '../components/CustomHeader';
+import api from '../../src/api';
+import CustomHeader from '../../components/CustomHeader';
 
 // ── FIX 1: PAKSA NOTIFIKASI BUNYI MESKIPUN APLIKASI SEDANG DIBUKA ──
 Notifications.setNotificationHandler({
@@ -101,9 +101,9 @@ const MedicationReminderScreen: React.FC = () => {
         const soundId = savedSoundId || 'standar';
 
         let soundAsset;
-        if (soundId === 'ceria') soundAsset = require('../assets/sounds/ceria.mp3');
-        else if (soundId === 'darurat') soundAsset = require('../assets/sounds/darurat.mp3');
-        else soundAsset = require('../assets/sounds/standard.wav');
+        if (soundId === 'ceria') soundAsset = require('../../assets/sounds/ceria.mp3');
+        else if (soundId === 'darurat') soundAsset = require('../../assets/sounds/darurat.mp3');
+        else soundAsset = require('../../assets/sounds/standard.wav');
 
         // Putar suara keras via expo-av!
         await Audio.setAudioModeAsync({
@@ -154,9 +154,9 @@ const MedicationReminderScreen: React.FC = () => {
 
         // JALUR RESMI EXPO: Menggunakan require() agar file pasti ketemu
         const soundFiles = [
-          { id: 'standar', module: require('../assets/sounds/standard.wav') },
-          { id: 'ceria',   module: require('../assets/sounds/ceria.mp3') },
-          { id: 'darurat', module: require('../assets/sounds/darurat.mp3') },
+          { id: 'standar', module: require('../../assets/sounds/standard.wav') },
+          { id: 'ceria',   module: require('../../assets/sounds/ceria.mp3') },
+          { id: 'darurat', module: require('../../assets/sounds/darurat.mp3') },
         ];
 
         for (const s of soundFiles) {
@@ -485,9 +485,9 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
 
     try {
       let soundAsset;
-      if (id === 'ceria') soundAsset = require('../assets/sounds/ceria.mp3');
-      else if (id === 'darurat') soundAsset = require('../assets/sounds/darurat.mp3');
-      else soundAsset = require('../assets/sounds/standard.wav');
+      if (id === 'ceria') soundAsset = require('../../assets/sounds/ceria.mp3');
+      else if (id === 'darurat') soundAsset = require('../../assets/sounds/darurat.mp3');
+      else soundAsset = require('../../assets/sounds/standard.wav');
 
       const { sound } = await Audio.Sound.createAsync(soundAsset);
       soundRef.current = sound;
@@ -626,7 +626,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         
         {/* HERO SECTION DENGAN GAMBAR BACKGROUND (Diperpanjang membungkus Jadwal Hari Ini) */}
         <ImageBackground 
-          source={require('../assets/img/bg_obat.jpeg')} 
+          source={require('../../assets/img/bg_obat.jpeg')} 
           style={st.heroFull} 
           imageStyle={{ opacity: 0.15 }} // Opacity dinaikkan sedikit agar tekstur medis lebih terlihat
         >

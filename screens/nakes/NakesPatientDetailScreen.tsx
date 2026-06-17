@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
-import api from '../src/api';
-import CustomHeader from '../components/CustomHeader';
+import api from '../../src/api';
+import CustomHeader from '../../components/CustomHeader';
 
 const C = { primary: '#012D1D', background: '#f8f9ff', surface: '#ffffff', outline: '#737784' };
 
