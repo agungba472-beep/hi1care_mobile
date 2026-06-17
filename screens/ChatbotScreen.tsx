@@ -58,7 +58,7 @@ const ChatbotScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([
-    { id: 'welcome', text: 'Halo! Saya HI!-BOT 🤖\nSaya siap membantu menjawab pertanyaan Anda. Silakan pilih topik pertanyaan di bawah ini:', isUser: false },
+    { id: 'welcome', text: 'Halo! Saya WEAR BOT 🤖\nSaya siap membantu menjawab pertanyaan Anda. Silakan pilih topik pertanyaan di bawah ini:', isUser: false },
   ]);
 
   const [isCheckingChat, setIsCheckingChat] = useState(false);
