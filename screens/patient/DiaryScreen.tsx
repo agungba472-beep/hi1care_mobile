@@ -109,7 +109,36 @@ const DiaryScreen: React.FC = () => {
   };
 
   // ── Delete diary entry ──
+  const performDelete = async (id: number) => {
+    try {
+      setLoading(true);
+      await api.delete(`/patient/diary/${id}`);
+      if (Platform.OS === 'web') {
+        window.alert('Catatan berhasil dihapus.');
+      } else {
+        Alert.alert('Berhasil', 'Catatan berhasil dihapus.');
+      }
+      fetchDiary();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Tidak dapat menghapus catatan.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Gagal', msg);
+      }
+      setLoading(false);
+    }
+  };
+
   const handleDelete = (id: number) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Apakah Anda yakin ingin menghapus catatan ini?');
+      if (confirmed) {
+        performDelete(id);
+      }
+      return;
+    }
+
     Alert.alert(
       'Hapus Catatan',
       'Apakah Anda yakin ingin menghapus catatan ini?',
@@ -118,17 +147,7 @@ const DiaryScreen: React.FC = () => {
         { 
           text: 'Hapus', 
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await api.delete(`/patient/diary/${id}`);
-              Alert.alert('Berhasil', 'Catatan berhasil dihapus.');
-              fetchDiary();
-            } catch (err: any) {
-              Alert.alert('Gagal', err.response?.data?.message || 'Tidak dapat menghapus catatan.');
-              setLoading(false);
-            }
-          } 
+          onPress: () => performDelete(id)
         }
       ]
     );

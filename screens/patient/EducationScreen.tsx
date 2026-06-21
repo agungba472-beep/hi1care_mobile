@@ -48,7 +48,6 @@ const EducationScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [apiArticles, setApiArticles] = useState<EdukasiItem[]>([]);
 
-  // ── LOGIKA TIDAK DIUBAH SAMA SEKALI ──
   const fetchEdukasi = useCallback(async () => {
     try {
       setLoading(true);

@@ -7,6 +7,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../src/api';
 import { initEcho } from '../../src/echo';
 import CustomHeader from '../../components/CustomHeader';
@@ -41,7 +42,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 // ── Types ──
 interface MyConsultation {
   id: number; nakes_nama: string; nakes_profesi: string; nakes_user_id?: number; tanggal: string;
-  waktu: string; status: string; chat_status: string; last_message: string;
+  waktu: string; status: string; chat_status: string; last_message: string; kategori?: string;
 }
 interface NakesSchedule {
   id: number; nakes_id: number; hari: string; jam_mulai: string; jam_selesai: string;
@@ -74,12 +75,18 @@ const ChatScreen: React.FC = () => {
   const [keluhan, setKeluhan] = useState('');
   const [isBooking, setIsBooking] = useState(false);
 
+  // DateTimePicker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedDateObj, setSelectedDateObj] = useState<Date | null>(null);
+
   // Chat Langsung
   const [isChatLangsung, setIsChatLangsung] = useState<number | null>(null);
 
   // Consultations
   const [myConsultations, setMyConsultations] = useState<MyConsultation[]>([]);
   const [isLoadingConsultations, setIsLoadingConsultations] = useState(true);
+  const [filterConsultation, setFilterConsultation] = useState<'semua'|'livechat'|'booking'>('semua');
 
   // Status Online
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -131,17 +138,33 @@ const ChatScreen: React.FC = () => {
 
     setIsBooking(true);
     try {
-      await api.post('/patient/booking', {
+      const res = await api.post('/patient/booking', {
         nakes_id: selectedNakesId,
         tanggal: bookDate.trim(),
         waktu: bookTime.trim(),
         kategori: 'booking',
       });
-      Alert.alert('Booking Berhasil!', 'Konsultasi Anda berhasil dijadwalkan. Silakan cek riwayat di bawah.');
-      setBookDate(''); setBookTime(''); setKeluhan(''); setSelectedNakesId(null);
+      const apiMsg = res.data?.message;
+      if (apiMsg === 'Melanjutkan sesi chat yang sudah ada') {
+        Alert.alert('Info', 'Anda sudah memiliki jadwal/konsultasi aktif dengan tenaga kesehatan ini. Nakes harus menyelesaikan sesi sebelumnya terlebih dahulu.');
+      } else {
+        Alert.alert('Booking Berhasil!', 'Konsultasi Anda berhasil dijadwalkan. Silakan cek riwayat di bawah.');
+      }
+      setBookDate(''); setBookTime(''); setKeluhan(''); setSelectedNakesId(null); setSelectedDateObj(null);
       fetchMyConsultations();
     } catch (e: any) {
-      Alert.alert('Booking Gagal', e.response?.data?.message || 'Terjadi kesalahan, silakan coba lagi.');
+      let errorMessage = 'Terjadi kesalahan, silakan coba lagi.';
+      const rawMessage = e.response?.data?.message;
+      if (rawMessage) {
+        if (rawMessage.includes('tanggal field must be a valid date')) {
+          errorMessage = 'Format tanggal tidak valid. Silakan pilih tanggal yang benar.';
+        } else if (rawMessage.includes('waktu field is required')) {
+          errorMessage = 'Waktu tidak boleh kosong.';
+        } else {
+          errorMessage = rawMessage;
+        }
+      }
+      Alert.alert('Booking Gagal', errorMessage);
     } finally { setIsBooking(false); }
   };
 
@@ -174,6 +197,13 @@ const ChatScreen: React.FC = () => {
   };
 
   const selectedNakes = nakesSchedules.find(n => n.nakes_id === selectedNakesId);
+
+  const filteredConsultations = myConsultations.filter(c => {
+    if (filterConsultation === 'semua') return true;
+    if (filterConsultation === 'livechat') return c.kategori === 'livechat';
+    if (filterConsultation === 'booking') return c.kategori !== 'livechat';
+    return true;
+  });
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -279,31 +309,59 @@ const ChatScreen: React.FC = () => {
           <View style={st.fieldRow}>
             <View style={st.fieldHalf}>
               <Text style={st.fieldLabel}>Tanggal</Text>
-              <View style={st.inputWrap}>
+              <TouchableOpacity style={st.inputWrap} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
                 <MaterialIcons name="calendar-today" size={18} color={C.outline} />
-                <TextInput
-                  style={st.input}
-                  placeholder="2026-05-22"
-                  placeholderTextColor="#a0aec0"
-                  value={bookDate}
-                  onChangeText={setBookDate}
-                />
-              </View>
+                <Text style={[st.input, { color: bookDate ? C.onSurface : '#a0aec0', paddingVertical: 14 }]}>
+                  {bookDate || 'Pilih Tanggal'}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={st.fieldHalf}>
               <Text style={st.fieldLabel}>Waktu</Text>
-              <View style={st.inputWrap}>
+              <TouchableOpacity style={st.inputWrap} onPress={() => setShowTimePicker(true)} activeOpacity={0.7}>
                 <MaterialIcons name="schedule" size={18} color={C.outline} />
-                <TextInput
-                  style={st.input}
-                  placeholder="09:00"
-                  placeholderTextColor="#a0aec0"
-                  value={bookTime}
-                  onChangeText={setBookTime}
-                />
-              </View>
+                <Text style={[st.input, { color: bookTime ? C.onSurface : '#a0aec0', paddingVertical: 14 }]}>
+                  {bookTime || 'Pilih Waktu'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={selectedDateObj || new Date()}
+              mode="date"
+              display="default"
+              minimumDate={new Date()}
+              onChange={(e, d) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (d) {
+                  setSelectedDateObj(d);
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, '0');
+                  const dd = String(d.getDate()).padStart(2, '0');
+                  setBookDate(`${yyyy}-${mm}-${dd}`);
+                }
+              }}
+            />
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={selectedDateObj || new Date()}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(e, d) => {
+                setShowTimePicker(Platform.OS === 'ios');
+                if (d) {
+                  const hh = String(d.getHours()).padStart(2, '0');
+                  const min = String(d.getMinutes()).padStart(2, '0');
+                  setBookTime(`${hh}:${min}`);
+                }
+              }}
+            />
+          )}
 
           {/* Keluhan */}
           <Text style={st.fieldLabel}>Keluhan Singkat (Opsional)</Text>
@@ -376,9 +434,9 @@ const ChatScreen: React.FC = () => {
                       }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={st.directNakesName}>{nakesName}</Text>
-                        <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={[st.directNakesName, { flexShrink: 1 }]} numberOfLines={1}>{nakesName}</Text>
+                        <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600', flexShrink: 0 }}>
                           {isOnline ? 'Online' : 'Offline'}
                         </Text>
                       </View>
@@ -413,21 +471,33 @@ const ChatScreen: React.FC = () => {
           <Text style={st.sectionTitle}>Riwayat & Jadwal Konsultasi</Text>
         </View>
 
+        <View style={st.filterRow}>
+          <TouchableOpacity onPress={() => setFilterConsultation('semua')} style={[st.filterChip, filterConsultation === 'semua' && st.filterChipActive]}>
+            <Text style={[st.filterChipText, filterConsultation === 'semua' && st.filterChipTextActive]}>Semua</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFilterConsultation('livechat')} style={[st.filterChip, filterConsultation === 'livechat' && st.filterChipActive]}>
+            <Text style={[st.filterChipText, filterConsultation === 'livechat' && st.filterChipTextActive]}>Chat Langsung</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFilterConsultation('booking')} style={[st.filterChip, filterConsultation === 'booking' && st.filterChipActive]}>
+            <Text style={[st.filterChipText, filterConsultation === 'booking' && st.filterChipTextActive]}>Konsultasi</Text>
+          </TouchableOpacity>
+        </View>
+
         {isLoadingConsultations ? (
           <View style={st.loadingWrap}>
             <ActivityIndicator color={C.primary} size="large" />
             <Text style={st.loadingText}>Memuat jadwal...</Text>
           </View>
-        ) : myConsultations.length === 0 ? (
+        ) : filteredConsultations.length === 0 ? (
           <View style={st.emptyCard}>
             <View style={st.emptyIconCircle}>
               <MaterialIcons name="event-busy" size={36} color={C.outlineVariant} />
             </View>
             <Text style={st.emptyTitle}>Belum Ada Konsultasi</Text>
-            <Text style={st.emptySub}>Buat janji di atas untuk memulai konsultasi dengan tenaga kesehatan.</Text>
+            <Text style={st.emptySub}>Tidak ada riwayat chat atau konsultasi yang cocok.</Text>
           </View>
         ) : (
-          myConsultations.map(c => {
+          filteredConsultations.map(c => {
             const active = isConsultationActive(c);
             const isOnline = c.nakes_user_id ? onlineUsers.some(u => u.id === c.nakes_user_id) : false;
 
@@ -446,9 +516,15 @@ const ChatScreen: React.FC = () => {
                     }} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={st.consultName}>{c.nakes_nama}</Text>
-                      <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[st.consultName, { flexShrink: 1 }]} numberOfLines={1}>{c.nakes_nama}</Text>
+                      {c.kategori === 'livechat' && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, gap: 2 }}>
+                          <MaterialIcons name="flash-on" size={10} color="#b45309" />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#b45309' }}>Live</Text>
+                        </View>
+                      )}
+                      <Text style={{ fontSize: 10, color: isOnline ? '#10b981' : '#9ca3af', fontWeight: '600', flexShrink: 0 }}>
                         {isOnline ? 'Online' : 'Offline'}
                       </Text>
                     </View>
@@ -472,22 +548,24 @@ const ChatScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {c.last_message && c.last_message !== 'Belum ada pesan' && (
-                  <View style={st.lastMsgWrap}>
-                    <MaterialIcons name="chat-bubble-outline" size={12} color={C.outline} />
-                    <Text style={st.lastMsg} numberOfLines={1}>{c.last_message}</Text>
-                  </View>
-                )}
+                <View style={st.lastMsgWrap}>
+                  <MaterialIcons name="chat-bubble-outline" size={12} color={C.outline} />
+                  <Text style={st.lastMsg} numberOfLines={1}>
+                    {c.last_message && c.last_message !== 'Belum ada pesan' ? c.last_message : 'Sesi baru dikonfirmasi, silakan sapa pasien.'}
+                  </Text>
+                </View>
 
-                {active && (
+                {(active || c.status === 'selesai') && (
                   <TouchableOpacity
-                    style={st.enterChatBtn}
+                    style={[st.enterChatBtn, c.status === 'selesai' && { backgroundColor: C.outlineVariant, shadowColor: C.outlineVariant }]}
                     onPress={() => handleEnterChat(c.id)}
                     activeOpacity={0.85}
                   >
-                    <MaterialIcons name="login" size={18} color={C.onPrimary} />
-                    <Text style={st.enterChatText}>Masuk Ruang Chat</Text>
-                    <MaterialIcons name="arrow-forward" size={16} color={C.onPrimary} />
+                    <MaterialIcons name={c.status === 'selesai' ? "history" : "login"} size={18} color={c.status === 'selesai' ? C.onSurface : C.onPrimary} />
+                    <Text style={[st.enterChatText, c.status === 'selesai' && { color: C.onSurface }]}>
+                      {c.status === 'selesai' ? 'Lihat Riwayat Chat' : 'Masuk Ruang Chat'}
+                    </Text>
+                    <MaterialIcons name="arrow-forward" size={16} color={c.status === 'selesai' ? C.onSurface : C.onPrimary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -653,6 +731,19 @@ const st = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.onSurface },
   emptySub: { fontSize: 13, color: C.outline, textAlign: 'center', marginTop: 6, lineHeight: 19, maxWidth: 260 },
+
+  filterRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#e8edf5', borderWidth: 1, borderColor: '#d3dbe8',
+  },
+  filterChipActive: {
+    backgroundColor: C.primary, borderColor: C.primary,
+  },
+  filterChipText: { fontSize: 12, fontWeight: '600', color: C.outline },
+  filterChipTextActive: { color: C.onPrimary },
 
   consultCard: {
     backgroundColor: C.surface,

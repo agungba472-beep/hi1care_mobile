@@ -107,6 +107,36 @@ export default function PatientChatRoomScreen() {
     }
   };
 
+  const handleFinishConsultation = () => {
+    const msg = "Apakah Anda yakin ingin menyelesaikan sesi konsultasi ini?";
+    
+    const finishApiCall = async () => {
+      try {
+        const res = await api.post(`/nakes/consultations/${konsultasiId}/finish`);
+        if (res.data.status === 'success') {
+          if (Platform.OS !== 'web') Alert.alert("Berhasil", "Sesi konsultasi telah diselesaikan.");
+          else window.alert("Sesi konsultasi telah diselesaikan.");
+          navigation.goBack();
+        }
+      } catch (error: any) {
+        const errMsg = error.response?.data?.message || "Terjadi kesalahan.";
+        if (Platform.OS !== 'web') Alert.alert("Gagal", errMsg);
+        else window.alert("Gagal: " + errMsg);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) {
+        finishApiCall();
+      }
+    } else {
+      Alert.alert("Selesaikan Sesi", msg, [
+        { text: "Batal", style: "cancel" },
+        { text: "Selesaikan", style: "destructive", onPress: finishApiCall }
+      ]);
+    }
+  };
+
   useEffect(() => {
     if (!konsultasiId) return;
     fetchMessages();
@@ -361,6 +391,12 @@ export default function PatientChatRoomScreen() {
             <Text style={st.headerRole}>{opponentRole}</Text>
           </View>
         </View>
+        {myRole === 'nakes' && (
+          <TouchableOpacity onPress={handleFinishConsultation} style={st.finishBtn}>
+            <MaterialIcons name="check-circle" size={20} color="#10b981" />
+            <Text style={st.finishBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -548,7 +584,7 @@ export default function PatientChatRoomScreen() {
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.background },
   header: { 
-    flexDirection: 'row', alignItems: 'center', 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14, 
     backgroundColor: C.surfaceContainerLowest, 
     borderBottomWidth: 1, borderBottomColor: C.outlineVariant, 
@@ -564,6 +600,12 @@ const st = StyleSheet.create({
   headerRole: { fontSize: 12, fontWeight: '500', color: C.outline, marginTop: 2 },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8 },
   statusText: { fontSize: 11, marginLeft: 4, fontWeight: '600' },
+  finishBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#ecfdf5', paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 8, borderWidth: 1, borderColor: '#a7f3d0'
+  },
+  finishBtnText: { fontSize: 12, fontWeight: '700', color: '#10b981' },
   
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   chatScroll: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 24, gap: 16 },

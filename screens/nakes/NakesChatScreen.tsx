@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, StatusBar, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -20,6 +20,8 @@ export default function NakesChatScreen() {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [filterCategory, setFilterCategory] = useState<'semua'|'livechat'|'booking'>('semua');
+  const [refreshing, setRefreshing] = useState(false);
 
   // ── Mengambil Daftar Chat dari Backend ──
   const fetchChatHistory = async () => {
@@ -34,8 +36,14 @@ export default function NakesChatScreen() {
       console.error('Gagal mengambil riwayat chat:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchChatHistory();
+  }, []);
 
   // Refresh data setiap kali halaman ini dibuka
   useFocusEffect(
@@ -76,9 +84,12 @@ export default function NakesChatScreen() {
           <View style={st.bottomRow}>
             <Text style={[st.lastMsg, hasUnread && st.lastMsgUnread]} numberOfLines={1}>
               {item.last_sender === 'bot' ? '🤖 ' : item.last_sender === 'nakes' ? 'Anda: ' : ''}
-              {item.last_message || 'Belum ada pesan'}
+              {item.last_message && item.last_message !== 'Belum ada pesan' ? item.last_message : 'Sesi baru dikonfirmasi, silakan sapa pasien.'}
             </Text>
             <View style={st.badges}>
+              <View style={[st.statusBadge, item.status === 'selesai' ? st.statusSelesai : st.statusActive]}>
+                <Text style={st.statusText}>{item.status === 'selesai' ? 'Selesai' : 'Aktif'}</Text>
+              </View>
               {isLiveChat && (
                 <View style={st.badgeLive}>
                   <MaterialIcons name="flash-on" size={10} color="#f59e0b" />
@@ -106,38 +117,66 @@ export default function NakesChatScreen() {
           <ActivityIndicator size="large" color={C.primary} />
           <Text style={{ marginTop: 10, color: C.outline }}>Memuat daftar obrolan...</Text>
         </View>
-      ) : chatHistory.length === 0 ? (
-        <View style={st.center}>
-          <View style={st.emptyIcon}>
-            <MaterialIcons name="chat-bubble-outline" size={40} color={C.outlineVariant} />
-          </View>
-          <Text style={st.emptyTitle}>Belum Ada Obrolan</Text>
-          <Text style={st.emptyText}>Pesan dari pasien akan muncul di sini.</Text>
-        </View>
       ) : (
-        <ScrollView contentContainerStyle={st.list} showsVerticalScrollIndicator={false}>
-          {/* SECTION: LIVE CHAT */}
-          {chatHistory.filter(item => item.kategori === 'livechat').length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
-                Chat Langsung (Live)
-              </Text>
-              <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
-                {chatHistory.filter(item => item.kategori === 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
-              </View>
-            </View>
-          )}
+        <ScrollView 
+          contentContainerStyle={st.list} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />
+          }
+        >
+          {/* FILTER ROW */}
+          <View style={st.filterRow}>
+            <TouchableOpacity onPress={() => setFilterCategory('semua')} style={[st.filterChip, filterCategory === 'semua' && st.filterChipActive]}>
+              <Text style={[st.filterChipText, filterCategory === 'semua' && st.filterChipTextActive]}>Semua</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilterCategory('livechat')} style={[st.filterChip, filterCategory === 'livechat' && st.filterChipActive]}>
+              <Text style={[st.filterChipText, filterCategory === 'livechat' && st.filterChipTextActive]}>Chat Langsung</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilterCategory('booking')} style={[st.filterChip, filterCategory === 'booking' && st.filterChipActive]}>
+              <Text style={[st.filterChipText, filterCategory === 'booking' && st.filterChipTextActive]}>Konsultasi</Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* SECTION: BOOKING */}
-          {chatHistory.filter(item => item.kategori !== 'livechat').length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
-                Konsultasi Booking
-              </Text>
-              <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
-                {chatHistory.filter(item => item.kategori !== 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
+          {chatHistory.filter(c => {
+            if (filterCategory === 'semua') return true;
+            if (filterCategory === 'livechat') return c.kategori === 'livechat';
+            if (filterCategory === 'booking') return c.kategori !== 'livechat';
+            return true;
+          }).length === 0 ? (
+            <View style={[st.center, { marginTop: 100 }]}>
+              <View style={st.emptyIcon}>
+                <MaterialIcons name="chat-bubble-outline" size={40} color={C.outlineVariant} />
               </View>
+              <Text style={st.emptyTitle}>Belum Ada Obrolan</Text>
+              <Text style={st.emptyText}>Tidak ada obrolan yang cocok dengan filter.</Text>
             </View>
+          ) : (
+            <>
+              {/* SECTION: LIVE CHAT */}
+              {(filterCategory === 'semua' || filterCategory === 'livechat') && chatHistory.filter(item => item.kategori === 'livechat').length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
+                    Chat Langsung (Live)
+                  </Text>
+                  <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
+                    {chatHistory.filter(item => item.kategori === 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
+                  </View>
+                </View>
+              )}
+
+              {/* SECTION: BOOKING */}
+              {(filterCategory === 'semua' || filterCategory === 'booking') && chatHistory.filter(item => item.kategori !== 'livechat').length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b', marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' }}>
+                    Konsultasi Booking
+                  </Text>
+                  <View style={{ backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#f0f4ff' }}>
+                    {chatHistory.filter(item => item.kategori !== 'livechat').map(item => <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>)}
+                  </View>
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -157,6 +196,20 @@ const st = StyleSheet.create({
   },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: C.onSurface, marginBottom: 6 },
   emptyText: { fontSize: 13, color: C.outline, textAlign: 'center' },
+
+  // ── Filter Row ──
+  filterRow: {
+    flexDirection: 'row', gap: 8, marginBottom: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#e8edf5', borderWidth: 1, borderColor: '#d3dbe8',
+  },
+  filterChipActive: {
+    backgroundColor: C.primary, borderColor: C.primary,
+  },
+  filterChipText: { fontSize: 12, fontWeight: '600', color: C.outline },
+  filterChipTextActive: { color: C.surface },
 
   // ── Card (WhatsApp Style Row) ──
   card: {

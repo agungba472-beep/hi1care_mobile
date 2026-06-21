@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 const FloatingPlusButton = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
 
   return (
     <TouchableOpacity
@@ -12,7 +12,7 @@ const FloatingPlusButton = () => {
       onPress={() => {
         // Karena tombol ini di luar Tab.Navigator, kita harus memanggil nama Stack utama dulu,
         // baru masuk ke nama Tab-nya.
-        navigation.navigate('MainTabs' as never, { screen: 'Pengingat' } as never);
+        navigation.navigate('MainTabs', { screen: 'Pengingat' });
       }}
       activeOpacity={0.85}
     >

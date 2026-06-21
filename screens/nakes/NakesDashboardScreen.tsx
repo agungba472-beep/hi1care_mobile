@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -17,6 +17,7 @@ const NakesDashboardScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<any>(null);
   const [pending, setPending] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -31,8 +32,14 @@ const NakesDashboardScreen: React.FC = () => {
       console.log('Error fetching Nakes Dashboard:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
@@ -67,7 +74,13 @@ const NakesDashboardScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <CustomHeader title="Dashboard Tenaga Kesehatan" showBackButton={false} hideBell={false} />
       
-      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={st.scroll} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />
+        }
+      >
         {/* Welcome Card */}
         <View style={st.hero}>
           <View style={st.heroHeader}>

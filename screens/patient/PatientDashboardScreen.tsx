@@ -87,14 +87,8 @@ const DashboardScreen: React.FC = () => {
       const d = res.data.data;
       setUserName(d.user?.nama || 'Pasien');
 
-      // Hitung persentase kepatuhan dari 5 catatan terakhir
-      const kep = d.pasien_info?.kepatuhan || [];
-      if (kep.length > 0) {
-        const diminum = kep.filter((k: any) => k.status === 'diminum').length;
-        setCompliancePercent(Math.round((diminum / kep.length) * 100));
-      } else {
-        setCompliancePercent(0);
-      }
+      // Persentase kepatuhan kumulatif bulan ini dari backend
+      setCompliancePercent(d.kepatuhan_percentage || 0);
 
       setAlarmsToday(d.jadwal_hari_ini || []);
       setUnreadCount(d.unread_notif_count || 0);
@@ -111,9 +105,37 @@ const DashboardScreen: React.FC = () => {
     }, [fetchDashboard])
   );
 
-  const handleMarkAsTaken = (id?: number) => {
+  const handleMarkAsTaken = (id?: number, scheduledTimeStr?: string) => {
     if (!id) return;
     
+    // Validasi 15 menit
+    if (scheduledTimeStr) {
+      const now = new Date();
+      const [schedHour, schedMin] = scheduledTimeStr.substring(0, 5).split(':').map(Number);
+      
+      const alarmDate = new Date();
+      alarmDate.setHours(schedHour, schedMin, 0, 0);
+      
+      const diffMinutes = Math.floor((now.getTime() - alarmDate.getTime()) / 60000);
+      
+      if (diffMinutes > 15) {
+        const msg = 'Maaf, Anda telah melewati batas waktu toleransi 15 menit dari jadwal minum obat Anda. Status Anda hari ini tercatat sebagai Terlewat.';
+        if (Platform.OS === 'web') {
+          window.alert('Waktu Terlewat\n\n' + msg);
+        } else {
+          Alert.alert('Waktu Terlewat', msg);
+        }
+
+        setTrackingLoading(true);
+        api.post(`/patient/alarms/${id}/taken`, { status: 'terlewat' })
+          .then(() => fetchDashboard())
+          .catch(() => {})
+          .finally(() => setTrackingLoading(false));
+          
+        return; // Block further execution
+      }
+    }
+
     if (Platform.OS === 'web') {
       const confirm = window.confirm('Apakah Anda yakin sudah meminum obat ini?');
       if (confirm) {
@@ -199,7 +221,7 @@ const DashboardScreen: React.FC = () => {
               <Text style={st.complianceVal}>{compliancePercent}%</Text>
               <View style={st.trendRow}>
                 <MaterialIcons name="trending-up" size={14} color={C.secondary} />
-                <Text style={st.trendText}>Dari 5 catatan terakhir</Text>
+                <Text style={st.trendText}>Kumulatif bulan ini</Text>
               </View>
             </View>
             <CircularProgress percent={compliancePercent} size={80} strokeWidth={6} />
@@ -239,7 +261,7 @@ const DashboardScreen: React.FC = () => {
                             <TouchableOpacity 
                               style={st.arvBtn}
                               activeOpacity={0.8}
-                              onPress={() => handleMarkAsTaken(alarm.id)}
+                              onPress={() => handleMarkAsTaken(alarm.id, alarm.jam || alarm.waktu)}
                               disabled={trackingLoading}
                             >
                               <Text style={st.arvBtnText}>

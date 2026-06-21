@@ -84,13 +84,14 @@ const ChatbotScreen: React.FC = () => {
       const consultations = res.data.data || [];
       
       const activeConsultation = consultations.find((c: any) => {
-        if (c.status === 'diterima' || c.chat_status === 'nakes') return true;
+        if (c.kategori === 'livechat' && (c.status === 'diterima' || c.chat_status === 'nakes')) return true;
         try {
+          // Jika ada booking hari ini yang sudah masuk waktunya, boleh juga dianggap aktif
           const now = new Date();
           const [h, m] = c.waktu.split(':').map(Number);
           const consultDate = new Date(c.tanggal);
           consultDate.setHours(h, m, 0, 0);
-          return now >= consultDate;
+          return now >= consultDate && c.kategori === 'livechat';
         } catch { return false; }
       });
 

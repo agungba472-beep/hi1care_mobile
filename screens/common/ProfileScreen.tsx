@@ -248,6 +248,17 @@ const ProfileScreen: React.FC = () => {
 
       setName(user.nama || (user.role === 'nakes' ? 'Nakes' : 'Pasien'));
       setFullName(user.nama || '-');
+
+      if (user.role === 'pasien') {
+        try {
+          const dashRes = await api.get('/patient/dashboard');
+          if (dashRes.data && dashRes.data.data && dashRes.data.data.kepatuhan_percentage !== undefined) {
+            setAdherencePercent(dashRes.data.data.kepatuhan_percentage);
+          }
+        } catch (error) {
+          console.log("Error fetching profile adherence score:", error);
+        }
+      }
       setNoHp(user.no_hp || '-');
       setPatientId(user.id ? `HI-${user.id}` : '-');
       // Set role and tags

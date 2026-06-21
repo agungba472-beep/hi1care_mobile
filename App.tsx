@@ -155,6 +155,17 @@ function NakesTabs() {
 }
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
+  React.useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      if (navigationRef.isReady()) {
+        // Asumsi notifikasi alarm mengarah ke tab Pengingat
+        // @ts-ignore
+        navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1 }}>

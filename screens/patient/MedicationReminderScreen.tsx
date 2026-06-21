@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, 
-  StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground 
+  StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground, Modal, TextInput 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -59,6 +59,10 @@ const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, 
 
 const MedicationReminderScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [showSymptomModal, setShowSymptomModal] = useState(false);
+  const [symptomText, setSymptomText] = useState('');
+  const [activeAlarmId, setActiveAlarmId] = useState<number | null>(null);
+  const [isSubmittingSymptom, setIsSubmittingSymptom] = useState(false);
   const [alarms, setAlarms] = useState<any[]>([]);
   const [refills, setRefills] = useState<any[]>([]);
   const [compliancePercent, setCompliancePercent] = useState(0);
@@ -84,9 +88,10 @@ const MedicationReminderScreen: React.FC = () => {
   // ── FIX 2: TIMER UNTUK UPDATE GEMBOK WAKTU SETIAP 5 DETIK ──
   const [currentTimeForUI, setCurrentTimeForUI] = useState(new Date());
   useEffect(() => {
+    if (showTimePicker || showDatePicker) return;
     const timer = setInterval(() => setCurrentTimeForUI(new Date()), 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [showTimePicker, showDatePicker]);
 
   // ── FIX 3: PUTAR NADA DERING KUSTOM VIA EXPO-AV SAAT NOTIFIKASI MASUK ──
   // Pendekatan hybrid: saat app terbuka → suara kustom (ceria/darurat/standar)
@@ -315,10 +320,11 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
       ]);
       setAlarms(aR.data.data || []);
       setRefills(rR.data.data || []);
-      const kep = dR.data.data?.pasien_info?.kepatuhan || [];
-      if (kep.length > 0) {
-        const diminum = kep.filter((k: any) => k.status === 'diminum').length;
-        setCompliancePercent(Math.round((diminum / kep.length) * 100));
+      const kepPercentage = dR.data.data?.kepatuhan_percentage;
+      if (kepPercentage !== undefined) {
+        setCompliancePercent(kepPercentage);
+      } else {
+        setCompliancePercent(0);
       }
     } catch (e) {} finally { setLoading(false); }
   }, []);
@@ -408,18 +414,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
     }
   };
 
-  const handleMarkAsTaken = async (alarmId: number) => {
-    // 1. Minta izin akses kamera HP
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (permissionResult.granted === false) {
-      if (Platform.OS === 'web') {
-         window.alert("Aplikasi butuh izin kamera untuk mengirim bukti foto!");
-      } else {
-         Alert.alert("Izin Ditolak", "Aplikasi butuh izin kamera untuk mengirim bukti foto!");
-      }
-      return;
-    }
-
+  const launchCamera = async (alarmId: number) => {
     // 2. Buka Kamera
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -458,19 +453,88 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
            Alert.alert("Berhasil ✅", "Hebat! Bukti minum obat berhasil dikirim ke Admin.");
         }
         fetchData();
-        
-      } catch (error: any) {
-        console.log("Gagal kirim foto:", error);
-        const errorMsg = error.response?.data?.message || "Gagal mengirim bukti, periksa koneksi internet.";
+      } catch (e: any) {
         if (Platform.OS === 'web') {
-           window.alert("Gagal: " + errorMsg);
+           window.alert('Gagal: ' + (e.response?.data?.message || 'Tidak dapat menyimpan konfirmasi.'));
         } else {
-           Alert.alert("Gagal", errorMsg);
+           Alert.alert('Gagal', e.response?.data?.message || 'Tidak dapat menyimpan konfirmasi.');
         }
       }
     }
   };
 
+  const handleProceedWithoutSymptoms = () => {
+    setShowSymptomModal(false);
+    setSymptomText('');
+    if (activeAlarmId !== null) {
+      launchCamera(activeAlarmId);
+      setActiveAlarmId(null);
+    }
+  };
+
+  const handleSaveSymptomsAndProceed = async () => {
+    const trimmed = symptomText.trim();
+    if (!trimmed) {
+      if (Platform.OS === 'web') window.alert('Keluhan tidak boleh kosong.');
+      else Alert.alert('Peringatan', 'Keluhan tidak boleh kosong.');
+      return;
+    }
+    
+    setIsSubmittingSymptom(true);
+    try {
+      await api.post('/patient/diary', { kondisi: trimmed });
+      setShowSymptomModal(false);
+      setSymptomText('');
+      if (activeAlarmId !== null) {
+        launchCamera(activeAlarmId);
+        setActiveAlarmId(null);
+      }
+    } catch (err: any) {
+      if (Platform.OS === 'web') window.alert('Gagal menyimpan keluhan.');
+      else Alert.alert('Gagal', 'Tidak dapat menyimpan keluhan.');
+    } finally {
+      setIsSubmittingSymptom(false);
+    }
+  };
+
+  const handleMarkAsTaken = async (alarmId: number, scheduledTimeStr?: string) => {
+    // Validasi 15 menit timeout
+    if (scheduledTimeStr) {
+      const now = new Date();
+      const [schedHour, schedMin] = scheduledTimeStr.substring(0, 5).split(':').map(Number);
+      
+      const alarmDate = new Date();
+      alarmDate.setHours(schedHour, schedMin, 0, 0);
+      
+      const diffMinutes = Math.floor((now.getTime() - alarmDate.getTime()) / 60000);
+      
+      if (diffMinutes > 15) {
+        const msg = 'Maaf, Anda telah melewati batas waktu toleransi 15 menit dari jadwal minum obat Anda. Status Anda hari ini tercatat sebagai Terlewat.';
+        if (Platform.OS === 'web') window.alert('Waktu Terlewat\n\n' + msg);
+        else Alert.alert('Waktu Terlewat', msg);
+
+        try {
+          await api.post(`/patient/alarms/${alarmId}/taken`, { status: 'terlewat' });
+          fetchData();
+        } catch (e) {}
+        
+        return; // Blokir kamera & symptom modal
+      }
+    }
+    // 1. Minta izin akses kamera HP
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.granted === false) {
+      if (Platform.OS === 'web') {
+         window.alert("Aplikasi butuh izin kamera untuk mengirim bukti foto!");
+      } else {
+         Alert.alert("Izin Ditolak", "Aplikasi butuh izin kamera untuk mengirim bukti foto!");
+      }
+      return;
+    }
+
+    setActiveAlarmId(alarmId);
+    setShowSymptomModal(true);
+  };
   // ── MANTRA AUDIO BAWAAN ──
   const playPreviewSound = async (id: string) => {
     await initAndUnlockWebAudio();
@@ -576,8 +640,8 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
 
             await Notifications.scheduleNotificationAsync({
               content: { 
-                title: 'Waktunya Minum ARV! 💊', 
-                body: `Halo, ini pengingat jadwal minum obat Anda (${fmtTime}).`, 
+                title: 'Waktunya Minum Suplemen! 💊', 
+                body: `Halo, ini pengingat jadwal minum suplemen Anda (${fmtTime}).`, 
                 sound: 'default', 
                 priority: Notifications.AndroidNotificationPriority.MAX,
                 vibrate: [0, 500, 250, 500],
@@ -686,7 +750,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                       </View>
                       
                       {isPending && isTimePassed && (
-                        <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id)} activeOpacity={0.8}>
+                        <TouchableOpacity style={st.markTakenBtn} onPress={() => handleMarkAsTaken(alarm.id, alarm.jam || alarm.waktu)} activeOpacity={0.8}>
                           <MaterialIcons name="check-circle" size={18} color="#fff" />
                           <Text style={st.markTakenTxt}>Tandai Sudah Diminum</Text>
                         </TouchableOpacity>
@@ -718,10 +782,13 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         <View style={st.sec}>
           <Text style={st.secT}>Pengaturan Alarm</Text>
           <View style={st.card}>
-            <View style={st.cardH}>
-              <MaterialIcons name="notifications-active" size={20} color={C.primary} />
-              <Text style={st.cardHT}>Setel Waktu & Tanggal</Text>
+            <View style={st.sectionHeader}>
+              <MaterialIcons name="settings-suggest" size={20} color={C.primary} />
+              <Text style={st.sectionTitle}>Pengaturan Jadwal ARV</Text>
             </View>
+            <Text style={{ fontSize: 12, color: C.outlineVariant, marginBottom: 12, marginTop: -4 }}>
+              * Sistem saat ini mendukung 1 jadwal pengingat utama per hari.
+            </Text>
             {Platform.OS === 'web' ? (
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={[st.pickerBtn, { flex: 1 }]}>
@@ -753,7 +820,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                     <View><Text style={st.pickerLbl}>Tanggal</Text><Text style={st.pickerVal}>{fmtDate}</Text></View>
                   </TouchableOpacity>
                 </View>
-                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="default" onChange={(e, d) => { 
+                {showTimePicker && <DateTimePicker value={selectedTime} mode="time" is24Hour display="spinner" onChange={(e, d) => { 
                   if (Platform.OS === 'android') setShowTimePicker(false);
                   if (d) setSelectedTime(d); 
                 }} />}
@@ -877,6 +944,48 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         </View>
         <View style={{ height: 48 }} />
       </ScrollView>
+
+      {/* MODAL GEJALA HARIAN */}
+      <Modal visible={showSymptomModal} transparent={true} animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={st.modalContent}>
+            <Text style={st.modalTitle}>Pengecekan Gejala Harian</Text>
+            <Text style={st.modalSubtitle}>Apakah Anda merasakan gejala atau keluhan fisik hari ini?</Text>
+            
+            <TextInput
+              style={st.symptomInput}
+              placeholder="Ceritakan keluhan Anda di sini (opsional)..."
+              value={symptomText}
+              onChangeText={setSymptomText}
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+              placeholderTextColor="#94a3b8"
+            />
+            
+            <View style={st.modalBtnRow}>
+              <TouchableOpacity style={st.modalBtnSkip} onPress={handleProceedWithoutSymptoms}>
+                <Text style={st.modalBtnSkipText}>Tidak Ada Keluhan (Lanjut Foto)</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[st.modalBtnSave, !symptomText.trim() && { opacity: 0.5 }]} 
+                onPress={handleSaveSymptomsAndProceed}
+                disabled={isSubmittingSymptom || !symptomText.trim()}
+              >
+                <Text style={st.modalBtnSaveText}>
+                  {isSubmittingSymptom ? 'Menyimpan...' : 'Simpan & Lanjut Foto'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity style={st.modalCloseBtn} onPress={() => { setShowSymptomModal(false); setActiveAlarmId(null); }}>
+               <MaterialIcons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -947,6 +1056,19 @@ const st = StyleSheet.create({
   soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surfaceContainerLowest, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: C.outlineVariant },
   soundChipActive: { backgroundColor: C.primary, borderColor: C.primary },
   soundChipTxt: { fontSize: 13, fontWeight: '700', color: C.primary },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: S.lg },
+  modalContent: { backgroundColor: C.surfaceContainerLowest, width: '100%', borderRadius: 20, padding: S.lg, position: 'relative', elevation: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: C.primary, marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, color: C.onSurfaceVariant, marginBottom: S.md, lineHeight: 20 },
+  symptomInput: { backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.sm, fontSize: 14, color: C.onSurface, minHeight: 100, borderWidth: 1, borderColor: C.outlineVariant, marginBottom: S.lg },
+  modalBtnRow: { flexDirection: 'column', gap: S.sm },
+  modalBtnSkip: { backgroundColor: C.surfaceContainer, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnSkipText: { fontSize: 14, fontWeight: '700', color: C.onSurfaceVariant },
+  modalBtnSave: { backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  modalCloseBtn: { position: 'absolute', top: S.md, right: S.md, padding: 4 },
 });
 
 export default MedicationReminderScreen;
