@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -66,11 +67,11 @@ const NakesDashboardScreen: React.FC = () => {
   };
 
   if (loading) return (
-    <SafeAreaView style={st.center}><ActivityIndicator size="large" color={C.primary} /><Text>Memuat Dashboard...</Text></SafeAreaView>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.center}><ActivityIndicator size="large" color={C.primary} /><Text>Memuat Dashboard...</Text></SafeAreaView>
   );
 
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <CustomHeader title="Dashboard Tenaga Kesehatan" showBackButton={false} hideBell={false} />
       

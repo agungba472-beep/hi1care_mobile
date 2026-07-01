@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert,
   ActivityIndicator, Image
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio, Video, ResizeMode } from 'expo-av';
@@ -61,6 +62,7 @@ export default function PatientChatRoomScreen() {
   const [opponentRole, setOpponentRole] = useState<string>('-');
   const [opponentUserId, setOpponentUserId] = useState<number | null>(null);
   const [chatKategori, setChatKategori] = useState<string>('booking');
+  const [chatStatus, setChatStatus] = useState<string>('aktif');
   
   // Status Online
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -84,6 +86,7 @@ export default function PatientChatRoomScreen() {
         const role = data.current_role || 'pasien';
         setMyRole(role);
         setChatKategori(data.kategori || 'booking');
+        setChatStatus(data.status || 'aktif');
 
         // 2. Set Nama Lawan Bicara di Header
         if (role === 'nakes') {
@@ -360,7 +363,7 @@ export default function PatientChatRoomScreen() {
       
       {/* HEADER DINAMIS */}
       <View style={st.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 8 }}>
           <TouchableOpacity onPress={() => {
             if (navigation.canGoBack()) {
               navigation.goBack();
@@ -374,9 +377,9 @@ export default function PatientChatRoomScreen() {
           <View style={st.headerAvatar}>
             <MaterialIcons name={myRole === 'nakes' ? 'person' : 'medical-services'} size={22} color={C.onPrimaryFixed} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={st.headerName}>{opponentName}</Text>
+              <Text style={[st.headerName, { flexShrink: 1 }]} numberOfLines={1}>{opponentName}</Text>
               <View style={[
                 st.statusDot, 
                 { backgroundColor: isOpponentOnline ? C.online : C.offline }
@@ -391,9 +394,9 @@ export default function PatientChatRoomScreen() {
             <Text style={st.headerRole}>{opponentRole}</Text>
           </View>
         </View>
-        {myRole === 'nakes' && (
+        {myRole === 'nakes' && chatKategori === 'booking' && chatStatus !== 'selesai' && (
           <TouchableOpacity onPress={handleFinishConsultation} style={st.finishBtn}>
-            <MaterialIcons name="check-circle" size={20} color="#10b981" />
+            <MaterialIcons name="check-circle" size={16} color="#10b981" />
             <Text style={st.finishBtnText}>Selesai</Text>
           </TouchableOpacity>
         )}

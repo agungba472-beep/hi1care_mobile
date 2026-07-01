@@ -1,7 +1,7 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, StatusBar, Alert, ActivityIndicator, FlatList, Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, StatusBar, Alert, ActivityIndicator, FlatList, Platform,
   Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -209,7 +209,7 @@ const ChatScreen: React.FC = () => {
   // RENDER
   // ═══════════════════════════════════════════════════════════════
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
 
       {/* ── HEADER ── */}

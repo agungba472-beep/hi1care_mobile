@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -63,7 +64,7 @@ const NakesPatientListScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <CustomHeader title="Monitoring Pasien" showBackButton={false} hideBell={false} />
       {loading ? (
         <View style={st.center}>

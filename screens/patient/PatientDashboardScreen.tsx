@@ -1,10 +1,10 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Image,
@@ -179,7 +179,7 @@ const DashboardScreen: React.FC = () => {
   // ── Loading State ──
   if (loading) {
     return (
-      <SafeAreaView style={st.loadingContainer}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={st.loadingContainer}>
         <StatusBar barStyle="dark-content" backgroundColor={C.background} />
         <ActivityIndicator size="large" color={C.primary} />
         <Text style={st.loadingText}>Memuat dashboard...</Text>
@@ -188,7 +188,7 @@ const DashboardScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
 
       {/* ═══ TOP APP BAR ═══ */}

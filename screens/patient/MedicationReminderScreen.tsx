@@ -1,6 +1,7 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, 
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, 
   StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground, Modal, TextInput 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -678,11 +679,11 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
   const displayTodayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
   if (loading) return (
-    <SafeAreaView style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.loadWrap}><StatusBar barStyle="dark-content" /><ActivityIndicator size="large" color={C.primary} /><Text style={st.loadTxt}>Memuat pengingat...</Text></SafeAreaView>
   );
 
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
       <CustomHeader title="Pengingat Obat" />
 

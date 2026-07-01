@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import api from '../src/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface CustomHeaderProps {
   title: string;
@@ -21,7 +22,9 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ title, showBackButton, hide
       
       const fetchNotifCount = async () => {
         try {
-          const response = await api.get('/patient/dashboard');
+          const role = await AsyncStorage.getItem('userRole');
+          const endpoint = role === 'nakes' ? '/nakes/dashboard' : '/patient/dashboard';
+          const response = await api.get(endpoint);
           setUnreadCount(response.data.data.unread_notif_count || 0);
         } catch (error) {
           console.log("[Header] Gagal mengambil data notifikasi:", error);

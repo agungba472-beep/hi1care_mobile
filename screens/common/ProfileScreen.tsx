@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
@@ -5,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Alert,
@@ -330,15 +330,17 @@ const ProfileScreen: React.FC = () => {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         nama: editNama,
         no_hp: editNoHp,
-        alamat: editAlamat,
-        tanggal_lahir: editTanggalLahir,
-        jenis_kelamin: editJenisKelamin,
-        berat_badan: parseFloat(editBeratBadan) || 0,
-        tinggi_badan: parseFloat(editTinggiBadan) || 0,
       };
+      if (role === 'pasien') {
+        payload.alamat = editAlamat;
+        payload.tanggal_lahir = editTanggalLahir;
+        payload.jenis_kelamin = editJenisKelamin;
+        payload.berat_badan = parseFloat(editBeratBadan) || 0;
+        payload.tinggi_badan = parseFloat(editTinggiBadan) || 0;
+      }
       await api.post('/profile/update', payload);
       Alert.alert('Berhasil', 'Profil berhasil diperbarui');
       setIsEditing(false);
@@ -478,7 +480,7 @@ const ProfileScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={st.loadingContainer}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={st.loadingContainer}>
         <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
         <ActivityIndicator size="large" color={C.primary} />
         <Text style={st.loadingText}>Memuat profil...</Text>
@@ -487,7 +489,7 @@ const ProfileScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={st.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.surfaceContainerLowest} />
 
       {/* ═══ CUSTOM HEADER ═══ */}

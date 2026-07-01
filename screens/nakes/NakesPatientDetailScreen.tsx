@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -48,12 +49,12 @@ const NakesPatientDetailScreen: React.FC = () => {
           </View>
 
           <View style={st.tagRow}>
-            <View style={[st.tag, { backgroundColor: '#dcfce7' }]}>
+            <View style={[st.tag, { backgroundColor: '#dcfce7', flexShrink: 1 }]}>
               <MaterialIcons name="verified-user" size={14} color="#16a34a" />
-              <Text style={[st.tagText, { color: '#16a34a' }]}>Status Kepatuhan: {patient.status_kepatuhan?.toUpperCase()}</Text>
+              <Text style={[st.tagText, { color: '#16a34a', flexShrink: 1 }]} numberOfLines={1}>Status Kepatuhan: {patient.status_kepatuhan?.toUpperCase()}</Text>
             </View>
             <TouchableOpacity 
-              style={[st.tag, { backgroundColor: '#f1f5f9', marginLeft: 8 }]}
+              style={[st.tag, { backgroundColor: '#f1f5f9' }]}
               onPress={() => setShowKepatuhanModal(true)}
             >
               <MaterialIcons name="history" size={14} color={C.primary} />
@@ -63,9 +64,7 @@ const NakesPatientDetailScreen: React.FC = () => {
 
           <TouchableOpacity
             style={st.chatBtn}
-            onPress={() => navigation.navigate('NakesChat', {
-              receiver_id: patient.user?.id ?? patientId,
-            })}
+            onPress={() => navigation.navigate('NakesTabs', { screen: 'NakesChatTab' })}
             activeOpacity={0.8}
           >
             <MaterialIcons name="chat" size={20} color="#fff" />
@@ -230,7 +229,7 @@ const st = StyleSheet.create({
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#0d1c2e', marginBottom: 4 },
   heroSub: { fontSize: 14, color: '#64748b', fontWeight: '500' },
   
-  tagRow: { flexDirection: 'row', marginBottom: 20 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   tag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 6 },
   tagText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 

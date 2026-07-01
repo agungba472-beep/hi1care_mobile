@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, StatusBar, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, StatusBar, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -109,7 +110,7 @@ export default function NakesChatScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       
       {/* HEADER */}
-      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={navigation.canGoBack()} hideBell={false} />
+      <CustomHeader title="Chat Konsultasi Pasien" showBackButton={false} hideBell={false} />
 
       {/* KONTEN */}
       {loading ? (
