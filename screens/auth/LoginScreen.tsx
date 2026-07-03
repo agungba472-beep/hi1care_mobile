@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../src/api';
 import { RootStackParamList } from '../../App';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Notifications from 'expo-notifications';
 
 const Colors = {
   surface: '#f8f9ff',
@@ -128,7 +129,36 @@ const LoginScreen: React.FC = () => {
     
     setIsLoading(true);
     try {
-      const response = await api.post('/login', { username: identifier, password: password });
+      let pushToken = '';
+      try {
+        let { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') {
+          const { status: newStatus } = await Notifications.requestPermissionsAsync();
+          status = newStatus;
+        }
+        if (status === 'granted') {
+          // If you use Expo Go or bare workflow, this usually works. 
+          // If this fails with "projectId not found", you must configure eas.projectId in app.json.
+          const tokenData = await Notifications.getExpoPushTokenAsync({
+            projectId: '56729af6-eacb-4462-b9a6-b31c370a056a'
+          });
+          pushToken = tokenData.data;
+          console.log('Expo Push Token didapatkan:', pushToken);
+          // Alert.alert('Debug Token', 'Token Push Berhasil: ' + pushToken);
+        } else {
+          console.log('Izin push notification ditolak.');
+          Alert.alert('Info', 'Izin notifikasi ditolak.');
+        }
+      } catch (e: any) {
+        console.log('Gagal mengambil push token:', e.message || e);
+        Alert.alert('Debug Push Error', 'Gagal get token: ' + (e.message || e));
+      }
+
+      const response = await api.post('/login', { 
+        username: identifier, 
+        password: password,
+        expo_push_token: pushToken || undefined
+      });
       console.log("=== BALASAN SUKSES LOGIN ===", response.data);
       
       // Ambil token dan data user dari response

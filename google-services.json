@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "525971561971",
+    "project_id": "wear-6185d",
+    "storage_bucket": "wear-6185d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:525971561971:android:be39c0070c0e9c2de70686",
+        "android_client_info": {
+          "package_name": "com.anonymous.hi1caremobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxMzPr_4miyAOZPNc7vjC5jpOwqhfXkK8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

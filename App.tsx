@@ -156,11 +156,38 @@ function NakesTabs() {
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   React.useEffect(() => {
+    // 1. Tangani kondisi jika aplikasi mati total lalu dibuka lewat notifikasi
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response && navigationRef.isReady()) {
+        const data = response.notification.request.content.data;
+        if (data?.type === 'chat') {
+          // @ts-ignore
+          navigationRef.navigate('PatientChatRoom', { konsultasiId: data.chat_room_id });
+        } else if (data?.type === 'alarm') {
+          // @ts-ignore
+          navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        }
+      }
+    });
+
+    // 2. Tangani kondisi jika aplikasi sedang berjalan (Background/Foreground)
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
       if (navigationRef.isReady()) {
-        // Asumsi notifikasi alarm mengarah ke tab Pengingat
-        // @ts-ignore
-        navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        const data = response.notification.request.content.data;
+        
+        if (data?.type === 'chat') {
+          // Arahkan ke halaman ChatRoom dengan membawa parameter chat_room_id (sebagai konsultasiId)
+          // @ts-ignore
+          navigationRef.navigate('PatientChatRoom', { konsultasiId: data.chat_room_id });
+        } else if (data?.type === 'alarm') {
+          // Asumsi notifikasi alarm mengarah ke tab Pengingat
+          // @ts-ignore
+          navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        } else {
+          // Default action jika tidak ada type spesifik (fallback)
+          // @ts-ignore
+          navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        }
       }
     });
     return () => subscription.remove();
