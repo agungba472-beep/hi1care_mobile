@@ -67,6 +67,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     alarmManager: { allowWhileIdle: true },
   };
   await notifee.createTriggerNotification({
+    id: 'weker_arv_utama',
     title: '⚠️ WAKTUNYA MINUM OBAT!',
     body: `Silakan minum ${namaObat} Anda sekarang untuk menjaga kesehatan.`,
     data: { type: 'alarm' },
@@ -82,6 +83,24 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
       pressAction: { id: 'default', launchActivity: 'default' },
     },
   }, trigger);
+
+  // FALLBACK: Jadwalkan juga via Expo Notifications (sebagai cadangan jika Notifee gagal)
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '⚠️ WAKTUNYA MINUM OBAT!',
+        body: `(Cadangan) Silakan minum ${namaObat} Anda sekarang.`,
+        data: { type: 'alarm_cadangan' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: waktuMinum,
+      },
+    });
+  } catch (expoErr) {
+    console.log("Gagal set expo fallback", expoErr);
+  }
 };
 
 
@@ -100,11 +119,11 @@ Notifications.setNotificationHandler({
 const C = {
   surface: '#f9f9f8', surfaceContainerLowest: '#ffffff', surfaceContainerLow: '#f3f4f3',
   surfaceContainer: '#edeeed', surfaceContainerHigh: '#e7e8e7',
-  onSurface: '#191c1c', onSurfaceVariant: '#414844',
+  onSurface: '#191c1c', onSurfaceVariant: '#414844', surfaceVariant: '#dfe5df',
   outline: '#717973', outlineVariant: '#c1c8c2',
   primary: '#012d1d', onPrimary: '#ffffff', primaryContainer: '#1b4332',
   onPrimaryContainer: '#86af99', primaryFixed: '#c1ecd4', onPrimaryFixed: '#012d1d', primaryFixedDim: '#a5d0b9',
-  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0',
+  secondary: '#4c6452', onSecondary: '#ffffff', secondaryContainer: '#cce6d0', onSecondaryContainer: '#052111',
   secondaryFixed: '#cee9d3', onSecondaryFixed: '#092012', secondaryFixedDim: '#b3cdb7',
   tertiary: '#002d1b', error: '#ba1a1a', background: '#f9f9f8', onBackground: '#191c1c',
 } as const;
@@ -219,6 +238,7 @@ const MedicationReminderScreen: React.FC = () => {
 
         const { sound } = await Audio.Sound.createAsync(soundAsset);
         await sound.setVolumeAsync(1.0); // Volume maksimal!
+        await sound.setIsLoopingAsync(true); // Pastikan sound terus looping!
         await sound.playAsync();
 
         // Auto-cleanup setelah selesai
@@ -1218,6 +1238,10 @@ const st = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'flex-start', gap: 8, alignItems: 'center', marginBottom: S.sm, paddingHorizontal: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: C.onSurface, letterSpacing: -0.5 },
   listSubText: { fontSize: 10, color: C.outline, marginTop: 4 },
+  
+  // Custom Modal Button Styles added for the permission guide
+  btnPri: { backgroundColor: C.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  btnPriT: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
 });
 
 export default MedicationReminderScreen;

@@ -27,6 +27,7 @@
       "permissions": [
         "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.WAKE_LOCK"
       ]
@@ -36,6 +37,7 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
+      "@notifee/react-native",
       [
         "expo-asset",
         {
@@ -62,6 +64,12 @@
       "eas": {
         "projectId": "56729af6-eacb-4462-b9a6-b31c370a056a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/56729af6-eacb-4462-b9a6-b31c370a056a"
     }
   }
 }
