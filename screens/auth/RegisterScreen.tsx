@@ -91,7 +91,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onRegister, onLogin }) 
       <View style={st.container}>
         <View style={st.headerSection}>
           <Image 
-            source={require('../../assets/img/logo_wear.jpeg')} 
+            source={require('../../assets/img/logo_wear.png')} 
             style={{ width: 80, height: 80, borderRadius: 40, marginBottom: S.sm }} 
           />
           <Text style={st.brandTitle}>WEAR</Text>

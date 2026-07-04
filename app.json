@@ -1,15 +1,14 @@
 {
   "expo": {
     "name": "WEAR",
-    "displayName": "WEAR",
     "slug": "hi1care-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/img/logo_wear.jpeg",
+    "icon": "./assets/img/logo_wear.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/img/logo_wear.jpeg",
+      "image": "./assets/img/logo_wear.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,28 +17,43 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/img/logo_wear.jpeg",
+        "foregroundImage": "./assets/img/logo_wear.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.hi1caremobile",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-asset",
+      [
+        "expo-asset",
+        {
+          "assets": [
+            "./assets/sounds/ceria.mp3",
+            "./assets/sounds/darurat.mp3"
+          ]
+        }
+      ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/img/logo_wear.jpeg",
+          "icon": "./assets/img/logo_wear.png",
           "color": "#00A86B",
           "sounds": [
             "./assets/sounds/ceria.mp3",
-            "./assets/sounds/darurat.mp3"
+            "./assets/sounds/darurat.mp3",
+            "./assets/sounds/standard.wav"
           ]
         }
       ]

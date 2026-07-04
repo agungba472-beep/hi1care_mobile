@@ -247,4 +247,8 @@ const st = StyleSheet.create({
   unreadDot: {
     width: 10, height: 10, borderRadius: 5, backgroundColor: C.accent,
   },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 },
+  statusActive: { backgroundColor: '#e8f0fe' },
+  statusSelesai: { backgroundColor: '#e6f4ea' },
+  statusText: { fontSize: 10, fontWeight: '700', color: '#5f6368' },
 });

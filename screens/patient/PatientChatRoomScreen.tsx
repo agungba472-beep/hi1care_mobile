@@ -64,8 +64,8 @@ export default function PatientChatRoomScreen() {
   const [chatKategori, setChatKategori] = useState<string>('booking');
   const [chatStatus, setChatStatus] = useState<string>('aktif');
   
-  // Status Online
-  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  // Status Online (Polling)
+  const [isOpponentOnlinePolled, setIsOpponentOnlinePolled] = useState<boolean>(false);
 
   // ── HELPER AJAIB UNTUK URL MEDIA ──
   const getMediaUrl = (url?: string) => {
@@ -99,7 +99,10 @@ export default function PatientChatRoomScreen() {
           setOpponentUserId(data.nakes_user_id);
         }
 
-        // 3. Filter pesan bot
+        // 3. Set Status Online Lawan Bicara
+        setIsOpponentOnlinePolled(data.is_opponent_online || false);
+
+        // 4. Filter pesan bot
         const humanMessages = res.data.data.messages.filter((m: any) => m.sender !== 'bot');
         setMessages(humanMessages || []);
       }
@@ -164,11 +167,7 @@ export default function PatientChatRoomScreen() {
             setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 200);
           });
           
-        // Presence Channel
-        echoInstance.join('presence-klinik')
-          .here((users: any[]) => setOnlineUsers(users))
-          .joining((user: any) => setOnlineUsers((prev) => [...prev, user]))
-          .leaving((user: any) => setOnlineUsers((prev) => prev.filter((u) => u.id !== user.id)));
+        // Presence Channel (Dihapus karena sudah diganti sistem Polling di getMessages)
 
       } catch (err) { console.log('WebSocket error:', err); }
     };
@@ -176,7 +175,6 @@ export default function PatientChatRoomScreen() {
     return () => { 
       if (echoInstance) {
         echoInstance.leave(`konsultasi.${konsultasiId}`);
-        echoInstance.leave('presence-klinik');
       }
     };
   }, [konsultasiId]);
@@ -355,7 +353,7 @@ export default function PatientChatRoomScreen() {
     }
   };
 
-  const isOpponentOnline = onlineUsers.some((u) => u.id === opponentUserId);
+  const isOpponentOnline = isOpponentOnlinePolled;
 
   return (
     <SafeAreaView style={st.safe}>
@@ -512,8 +510,20 @@ export default function PatientChatRoomScreen() {
           </ScrollView>
         )}
 
-        {/* INPUT BAR (Tetap Sama) */}
-        <View style={st.inputBar}>
+        {chatStatus === 'selesai' ? (
+          <View style={[st.inputBar, { justifyContent: 'center', paddingVertical: 16 }]}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: C.outline, textAlign: 'center' }}>
+              Sesi konsultasi ini telah diselesaikan. Anda hanya dapat membaca riwayat chat.
+            </Text>
+          </View>
+        ) : (chatStatus === 'pending' || chatStatus === 'dijadwalkan') ? (
+          <View style={[st.inputBar, { justifyContent: 'center', paddingVertical: 16 }]}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#b45309', textAlign: 'center' }}>
+              ⏳ Menunggu konfirmasi dari tenaga kesehatan. Anda belum bisa mengirim pesan.
+            </Text>
+          </View>
+        ) : (
+          <View style={st.inputBar}>
           {recordedAudioUri ? (
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.surfaceContainerLow, borderRadius: 24, paddingHorizontal: 4, paddingVertical: 4 }}>
                <TouchableOpacity onPress={cancelPreview} style={{ padding: 12 }}>
@@ -576,8 +586,9 @@ export default function PatientChatRoomScreen() {
                 ) : null
               )}
             </>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

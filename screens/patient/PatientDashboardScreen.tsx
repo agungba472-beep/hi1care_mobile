@@ -242,7 +242,7 @@ const DashboardScreen: React.FC = () => {
             </View>
 
             {alarmsToday.length > 0 ? (
-              alarmsToday.map((alarm: any, idx: number) => {
+              alarmsToday.slice(0, 5).map((alarm: any, idx: number) => {
                 const isTaken = alarm.status === 'sudah' || alarm.status === 'diminum';
                 return (
                     <View style={st.arvItem} key={alarm.id || idx}>

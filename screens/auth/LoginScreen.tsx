@@ -268,7 +268,7 @@ const FormContent: React.FC<FormContentProps> = React.memo(({
       {/* ═══ Branding ═══ */}
       <View style={styles.brandingSection}>
         <Image 
-          source={require('../../assets/img/logo_wear.jpeg')} 
+          source={require('../../assets/img/logo_wear.png')} 
           style={{ width: 80, height: 80, borderRadius: 40, marginBottom: Spacing.md }} 
         />
         <Text style={styles.brandTitle}>WEAR</Text>

@@ -89,7 +89,7 @@ const BiometricAuthScreen: React.FC<BiometricAuthScreenProps> = ({
       {/* ═══ TOP APP BAR (CLEAN) ═══ */}
       <View style={st.header}>
         <Image 
-          source={require('../../assets/img/logo_wear.jpeg')} 
+          source={require('../../assets/img/logo_wear.png')} 
           style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} 
         />
         <Text style={st.headerTitle}>WEAR</Text>

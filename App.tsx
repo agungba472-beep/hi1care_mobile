@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import notifee, { EventType } from '@notifee/react-native';
 import { navigationRef } from './src/navigationRef';
 import FloatingPlusButton from './components/FloatingPlusButton';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -153,10 +154,41 @@ function NakesTabs() {
     </Tab.Navigator>
   );
 }
+// Listener untuk menangani event saat aplikasi di background / HP terkunci
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  const { notification, pressAction } = detail;
+
+  // Jika pasien menekan tombol "Konfirmasi Minum" pada alarm
+  if (type === EventType.ACTION_PRESS && pressAction?.id === 'stop_alarm') {
+    if (notification?.id) {
+      // Matikan bunyi dan hilangkan notifikasi weker
+      await notifee.cancelNotification(notification.id);
+    }
+    console.log('Obat dikonfirmasi dari background!');
+  }
+
+  // Jika pasien mengklik body notifikasi (bukan tombol action)
+  if (type === EventType.PRESS) {
+    if (notification?.id) {
+      await notifee.cancelNotification(notification.id);
+    }
+    // Notifee secara otomatis akan membuka aplikasi saat diklik.
+    // Navigasi akan ditangani oleh getInitialNotification() di dalam App.
+    console.log('[Notifee BG] Notifikasi diklik, membuka aplikasi...');
+  }
+
+  // Jika notifikasi dikirim/muncul saat background
+  if (type === EventType.DELIVERED) {
+    console.log('[Notifee BG] Notifikasi alarm terkirim.');
+  }
+});
+
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
   React.useEffect(() => {
-    // 1. Tangani kondisi jika aplikasi mati total lalu dibuka lewat notifikasi
+    // ═══ EXPO-NOTIFICATIONS HANDLERS (untuk notif chat dari Laravel) ═══
+
+    // 1. Tangani kondisi jika aplikasi mati total lalu dibuka lewat notifikasi expo
     Notifications.getLastNotificationResponseAsync().then(response => {
       if (response && navigationRef.isReady()) {
         const data = response.notification.request.content.data;
@@ -170,27 +202,64 @@ export default function App() {
       }
     });
 
-    // 2. Tangani kondisi jika aplikasi sedang berjalan (Background/Foreground)
-    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    // 2. Tangani expo-notifications saat aplikasi sedang berjalan
+    const expoSubscription = Notifications.addNotificationResponseReceivedListener(response => {
       if (navigationRef.isReady()) {
         const data = response.notification.request.content.data;
-        
         if (data?.type === 'chat') {
-          // Arahkan ke halaman ChatRoom dengan membawa parameter chat_room_id (sebagai konsultasiId)
           // @ts-ignore
           navigationRef.navigate('PatientChatRoom', { konsultasiId: data.chat_room_id });
         } else if (data?.type === 'alarm') {
-          // Asumsi notifikasi alarm mengarah ke tab Pengingat
           // @ts-ignore
           navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
         } else {
-          // Default action jika tidak ada type spesifik (fallback)
           // @ts-ignore
           navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
         }
       }
     });
-    return () => subscription.remove();
+
+    // ═══ NOTIFEE HANDLERS (untuk alarm obat lokal) ═══
+
+    // 3. Tangani Notifee saat app mati total → dibuka lewat klik notifikasi alarm
+    notifee.getInitialNotification().then(initialNotification => {
+      if (initialNotification && navigationRef.isReady()) {
+        const data = initialNotification.notification.data;
+        if (data?.type === 'alarm') {
+          // @ts-ignore
+          navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        }
+      }
+    });
+
+    // 4. Tangani Notifee saat app di foreground (alarm berbunyi saat app aktif)
+    const notifeeUnsubscribe = notifee.onForegroundEvent(async ({ type, detail }) => {
+        if (type === EventType.PRESS) {
+          // Klik body notifikasi -> navigasi ke Pengingat
+          if (navigationRef.isReady()) {
+            const data = detail.notification?.data;
+            if (data?.type === 'alarm') {
+              // @ts-ignore
+              navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+            }
+          }
+        }
+        if (type === EventType.ACTION_PRESS && detail.pressAction?.id === 'stop_alarm') {
+        // Klik tombol "Konfirmasi Minum" → matikan notif + navigasi
+        if (detail.notification?.id) {
+          notifee.cancelNotification(detail.notification.id);
+        }
+        if (navigationRef.isReady()) {
+          // @ts-ignore
+          navigationRef.navigate('MainTabs', { screen: 'Pengingat' });
+        }
+      }
+    });
+
+    return () => {
+      expoSubscription.remove();
+      notifeeUnsubscribe();
+    };
   }, []);
 
   return (

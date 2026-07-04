@@ -2,7 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
   View, Text, TouchableOpacity, StyleSheet, ScrollView, 
-  StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground, Modal, TextInput 
+  StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground, Modal, TextInput, Linking 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +14,76 @@ import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../src/api';
 import CustomHeader from '../../components/CustomHeader';
+import notifee, { TriggerType, AndroidImportance, AndroidVisibility, AndroidNotificationSetting, AndroidCategory } from '@notifee/react-native';
+
+export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nadaDering: string = 'ceria') => {
+  await notifee.requestPermission();
+  
+  if (Platform.OS === 'android') {
+    // 1. Cek Exact Alarm Permission (Android 12+)
+    const settings = await notifee.getNotificationSettings();
+    if (settings.android.alarm === AndroidNotificationSetting.DISABLED) {
+      Alert.alert(
+        'Izin Alarm Weker Diperlukan',
+        'Agar alarm bisa berbunyi tepat waktu meski aplikasi ditutup, mohon izinkan akses "Alarms & reminders" di pengaturan.',
+        [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Buka Pengaturan', onPress: async () => await notifee.openAlarmPermissionSettings() }
+        ]
+      );
+      return; // Jangan lanjut jadwalkan jika tidak diizinkan, biarkan user atur dulu
+    }
+
+    // 2. Cek Battery Optimization (Penyebab utama alarm mati saat sleep)
+    const isBatteryOptimized = await notifee.isBatteryOptimizationEnabled();
+    if (isBatteryOptimized) {
+      Alert.alert(
+        'Izin Latar Belakang',
+        'Sistem HP mendeteksi aplikasi ini dibatasi baterainya. Agar weker tetap berbunyi saat layar mati/sleep, mohon matikan optimasi baterai (Pilih "Unrestricted" / "Tidak Dibatasi").',
+        [
+          { text: 'Nanti Saja', style: 'cancel' },
+          { text: 'Matikan Pembatasan', onPress: async () => await notifee.openBatteryOptimizationSettings() }
+        ]
+      );
+    }
+  }
+
+  // Android membuang ekstensi dan butuh nama file yang persis sama.
+  // Karena file kita namanya "standard.wav" tapi state di UI adalah "standar", kita mapping.
+  const soundFile = nadaDering === 'standar' ? 'standard' : nadaDering;
+
+  const channelId = await notifee.createChannel({
+    id: `alarm_obat_${soundFile}_v3`,
+    name: `Pengingat Obat (${soundFile}) V3`,
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    sound: soundFile,
+    vibration: true,
+    vibrationPattern: [300, 500, 300, 500, 300, 500],
+  });
+  const trigger: any = {
+    type: TriggerType.TIMESTAMP,
+    timestamp: waktuMinum.getTime(),
+    alarmManager: { allowWhileIdle: true },
+  };
+  await notifee.createTriggerNotification({
+    title: '⚠️ WAKTUNYA MINUM OBAT!',
+    body: `Silakan minum ${namaObat} Anda sekarang untuk menjaga kesehatan.`,
+    data: { type: 'alarm' },
+    android: {
+      channelId,
+      category: AndroidCategory.ALARM,
+      loopSound: true,
+      ongoing: true,
+      autoCancel: false,
+      importance: AndroidImportance.HIGH,
+      sound: soundFile,
+      fullScreenAction: { id: 'default' },
+      pressAction: { id: 'default', launchActivity: 'default' },
+    },
+  }, trigger);
+};
+
 
 // ── FIX 1: PAKSA NOTIFIKASI BUNYI MESKIPUN APLIKASI SEDANG DIBUKA ──
 Notifications.setNotificationHandler({
@@ -79,6 +149,35 @@ const MedicationReminderScreen: React.FC = () => {
   const [selectedSoundId, setSelectedSoundId] = useState('standar');
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const [permBatteryOk, setPermBatteryOk] = useState(false);
+  const [permAutoStartOk, setPermAutoStartOk] = useState(false);
+  const [permOverlayOk, setPermOverlayOk] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const checkPermissionsOnFocus = async () => {
+        if (Platform.OS === 'android') {
+          try {
+            const isBatteryOptimized = await notifee.isBatteryOptimizationEnabled();
+            const powerInfo = await notifee.getPowerManagerInfo();
+            
+            setPermBatteryOk(!isBatteryOptimized);
+            setPermAutoStartOk(!powerInfo.activity);
+
+            // Jika salah satu dari izin utama belum diberikan, tampilkan Modal Panduan
+            if (isBatteryOptimized || powerInfo.activity) {
+              setShowPermissionGuide(true);
+            }
+          } catch (e) {
+            console.log(e);
+          }
+        }
+      };
+      checkPermissionsOnFocus();
+    }, [])
+  );
+
   const soundRef = useRef<Audio.Sound | null>(null);
 
   // ── WEB AUDIO API: REFS UNTUK BYPASS AUTOPLAY POLICY ──
@@ -499,6 +598,11 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
   };
 
   const handleMarkAsTaken = async (alarmId: number, scheduledTimeStr?: string) => {
+    // 0. Matikan semua suara notifikasi yang sedang looping
+    try {
+      await notifee.cancelAllNotifications();
+    } catch (e) {}
+
     // Validasi 15 menit timeout
     if (scheduledTimeStr) {
       const now = new Date();
@@ -594,38 +698,6 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
       // 3. Jadwalkan Notifikasi Lokal HP (DIBUNGKUS TRY-CATCH KHUSUS)
       if (Platform.OS !== 'web') {
         try {
-          const channelId = 'alarm-obat-bunyi-v3'; // Channel BARU — Android mengunci setting channel lama!
-
-          // WAJIB UNTUK ANDROID: Hapus channel lama yang mungkin ter-cache tanpa suara
-          if (Platform.OS === 'android') {
-            // Hapus channel-channel lama yang sudah terkunci bisu oleh Android
-            const oldChannels = [
-              'alarm-wear', 'alarm-wear-default', 'alarm-wear-standar',
-              'alarm-wear-ceria', 'alarm-wear-darurat',
-              'alarm-obat-bunyi', 'alarm-obat-bunyi-v2',
-            ];
-            for (const oldCh of oldChannels) {
-              try { await Notifications.deleteNotificationChannelAsync(oldCh); } catch (_) {}
-            }
-
-            // Buat Channel BARU yang DIJAMIN belum pernah ada di HP ini
-            await Notifications.setNotificationChannelAsync(channelId, {
-              name: 'Pengingat Obat ARV',
-              description: 'Notifikasi pengingat minum obat ARV dengan suara keras',
-              importance: Notifications.AndroidImportance.MAX,
-              vibrationPattern: [0, 500, 250, 500],
-              lightColor: '#00A86B',
-              sound: 'default',
-              enableVibrate: true,
-              enableLights: true,
-              showBadge: true,
-            });
-          }
-
-          const { status } = await Notifications.requestPermissionsAsync();
-          if (status === 'granted') {
-            await Notifications.cancelAllScheduledNotificationsAsync();
-
             // Hitung waktu target notifikasi
             const now = new Date();
             const target = new Date();
@@ -636,26 +708,8 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
               target.setDate(target.getDate() + 1);
             }
 
-            // Hitung selisih detik dari sekarang ke waktu target
-            const secondsUntilAlarm = Math.max(1, Math.round((target.getTime() - now.getTime()) / 1000));
-
-            await Notifications.scheduleNotificationAsync({
-              content: { 
-                title: 'Waktunya Minum Suplemen! 💊', 
-                body: `Halo, ini pengingat jadwal minum suplemen Anda (${fmtTime}).`, 
-                sound: 'default', 
-                priority: Notifications.AndroidNotificationPriority.MAX,
-                vibrate: [0, 500, 250, 500],
-              },
-              trigger: {
-                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                seconds: secondsUntilAlarm,
-                channelId: channelId,
-              } as any,
-            });
-
-            console.log(`[Notif] ✅ Dijadwalkan ${secondsUntilAlarm} detik dari sekarang (target: ${target.toLocaleTimeString()})`);
-          }
+            await jadwalkanWekerObat(target, 'ARV', selectedSoundId);
+            console.log(`[Notif] ✅ Dijadwalkan weker Notifee pada ${target.toLocaleTimeString()}`);
         } catch (notifErr) {
           console.log("Info: Gagal menyetel notifikasi lokal HP:", notifErr);
           // Error ditahan di sini agar tidak memunculkan alert "Server error" palsu
@@ -713,7 +767,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
             
             <View style={{ gap: S.md, marginTop: 8 }}>
               {todayAlarms.length > 0 ? (
-                todayAlarms.map((alarm: any, idx: number) => {
+                todayAlarms.slice(0, 5).map((alarm: any, idx: number) => {
                   const isTaken = alarm.status === 'sudah';
                   const isPending = !alarm.status || alarm.status === 'belum';
 
@@ -871,12 +925,21 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={{ fontSize: 10, color: C.outline, marginTop: 4 }}>*Klik untuk pratinjau suara.</Text>
+            <Text style={st.listSubText}>*Klik untuk pratinjau suara.</Text>
           </View>
 
           <TouchableOpacity style={st.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={savingSettings}>
             <MaterialIcons name="save" size={20} color="#ffffff" />
             <Text style={st.saveTxt}>{savingSettings ? 'Menyimpan...' : 'Simpan Alarm & Nada Dering'}</Text>
+          </TouchableOpacity>
+
+          {/* Tombol Cek Panduan Izin Alarm Secara Manual */}
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 15, padding: 10 }} 
+            onPress={() => setShowPermissionGuide(true)}
+          >
+            <MaterialIcons name="info-outline" size={18} color={C.primary} />
+            <Text style={{ color: C.primary, marginLeft: 6, fontWeight: 'bold' }}>Lihat Panduan Izin Weker (Wajib)</Text>
           </TouchableOpacity>
         </View>
 
@@ -945,6 +1008,88 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         </View>
         <View style={{ height: 48 }} />
       </ScrollView>
+
+      {/* MODAL PANDUAN IZIN ALARM */}
+      <Modal visible={showPermissionGuide} transparent={true} animationType="slide">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, { maxHeight: '85%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+              <Text style={[st.modalTitle, { color: C.error, marginBottom: 0 }]}>⚠️ Izin Sistem Terbatas</Text>
+              <TouchableOpacity onPress={() => setShowPermissionGuide(false)}>
+                <MaterialIcons name="close" size={24} color={C.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={{ fontSize: 14, color: C.onSurfaceVariant, marginBottom: 15 }}>
+              Agar weker bisa menyala otomatis saat layar HP terkunci, mohon ikuti 3 langkah wajib ini:
+            </Text>
+
+            <ScrollView style={{ marginBottom: 15 }} showsVerticalScrollIndicator={false}>
+              <View style={{ marginBottom: 20, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>1. Baterai (Wajib)</Text>
+                  {permBatteryOk && <MaterialIcons name="check-circle" size={20} color={C.primary} />}
+                </View>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Pilih "Tidak Dibatasi" / "Unrestricted" agar weker tetap jalan saat aplikasi ditutup.</Text>
+                {!permBatteryOk ? (
+                  <TouchableOpacity onPress={() => notifee.openBatteryOptimizationSettings()} style={{ backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan Baterai</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ marginBottom: 20, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>2. Tampil di Atas Aplikasi</Text>
+                  {permOverlayOk && <MaterialIcons name="check-circle" size={20} color={C.primary} />}
+                </View>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Aktifkan "Display over other apps" agar notifikasi bisa membongkar lock screen.</Text>
+                {!permOverlayOk ? (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity onPress={() => Linking.openSettings()} style={{ flex: 1, backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setPermOverlayOk(true)} style={{ backgroundColor: C.surfaceVariant, padding: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                      <MaterialIcons name="check" size={18} color={C.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>3. Mulai Otomatis</Text>
+                  {permAutoStartOk && <MaterialIcons name="check-circle" size={20} color={C.primary} />}
+                </View>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Khusus Oppo/Vivo/Xiaomi: nyalakan "Auto-start" agar sistem tidak mematikan weker.</Text>
+                {!permAutoStartOk ? (
+                  <TouchableOpacity onPress={() => notifee.openPowerManagerSettings()} style={{ backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan Auto-start</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur / Tidak Perlu</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[st.btnPri, { flex: 1, backgroundColor: C.error }]} onPress={() => setShowPermissionGuide(false)}>
+                <Text style={st.btnPriT}>Saya Sudah Mengatur Semuanya</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL GEJALA HARIAN */}
       <Modal visible={showSymptomModal} transparent={true} animationType="fade">
@@ -1070,6 +1215,9 @@ const st = StyleSheet.create({
   modalBtnSave: { backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   modalBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
   modalCloseBtn: { position: 'absolute', top: S.md, right: S.md, padding: 4 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'flex-start', gap: 8, alignItems: 'center', marginBottom: S.sm, paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: C.onSurface, letterSpacing: -0.5 },
+  listSubText: { fontSize: 10, color: C.outline, marginTop: 4 },
 });
 
 export default MedicationReminderScreen;

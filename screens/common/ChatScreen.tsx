@@ -51,6 +51,7 @@ interface NakesSchedule {
 
 // ── Helpers ──
 const isConsultationActive = (c: MyConsultation): boolean => {
+  if (c.status === 'selesai') return false;
   if (c.status === 'diterima' || c.chat_status === 'nakes') return true;
   try {
     const now = new Date();
