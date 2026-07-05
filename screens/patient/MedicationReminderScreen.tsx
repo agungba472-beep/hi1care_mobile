@@ -16,7 +16,7 @@ import api from '../../src/api';
 import CustomHeader from '../../components/CustomHeader';
 import notifee, { TriggerType, AndroidImportance, AndroidVisibility, AndroidNotificationSetting, AndroidCategory } from '@notifee/react-native';
 
-export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nadaDering: string = 'ceria') => {
+export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nadaDering: string = 'ceria', isEveryday: boolean = true) => {
   await notifee.requestPermission();
   
   if (Platform.OS === 'android') {
@@ -61,30 +61,43 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     vibration: true,
     vibrationPattern: [300, 500, 300, 500, 300, 500],
   });
-  const trigger: any = {
-    type: TriggerType.TIMESTAMP,
-    timestamp: waktuMinum.getTime(),
-    alarmManager: { allowWhileIdle: true },
-  };
-  await notifee.createTriggerNotification({
-    id: 'weker_arv_utama',
-    title: '⚠️ WAKTUNYA MINUM OBAT!',
-    body: `Silakan minum ${namaObat} Anda sekarang untuk menjaga kesehatan.`,
-    data: { type: 'alarm' },
-    android: {
-      channelId,
-      category: AndroidCategory.ALARM,
-      loopSound: true,
-      ongoing: true,
-      autoCancel: false,
-      importance: AndroidImportance.HIGH,
-      sound: soundFile,
-      fullScreenAction: { id: 'default' },
-      pressAction: { id: 'default', launchActivity: 'default' },
-    },
-  }, trigger);
 
-  // FALLBACK: Jadwalkan juga via Expo Notifications (sebagai cadangan jika Notifee gagal)
+  // 1. Batalkan alarm lama dulu (id lama 'weker_arv_utama' + id harian sebelumnya)
+  const existingIds = await notifee.getTriggerNotificationIds();
+  await notifee.cancelTriggerNotifications(existingIds.filter(id => id.startsWith('weker_arv_')));
+
+  // 2. Jadwalkan berulang untuk 30 hari ke depan (lebih reliable daripada repeatFrequency saja)
+  const totalHari = isEveryday ? 30 : 1;
+  for (let i = 0; i < totalHari; i++) {
+    const tgl = new Date(waktuMinum);
+    tgl.setDate(tgl.getDate() + i);
+
+    const trigger: any = {
+      type: TriggerType.TIMESTAMP,
+      timestamp: tgl.getTime(),
+      alarmManager: { allowWhileIdle: true },
+    };
+
+    await notifee.createTriggerNotification({
+      id: `weker_arv_${i}`,
+      title: '⚠️ WAKTUNYA MINUM OBAT!',
+      body: `Silakan minum ${namaObat} Anda sekarang untuk menjaga kesehatan.`,
+      data: { type: 'alarm' },
+      android: {
+        channelId,
+        category: AndroidCategory.ALARM,
+        loopSound: true,
+        ongoing: true,
+        autoCancel: false,
+        importance: AndroidImportance.HIGH,
+        sound: soundFile,
+        fullScreenAction: { id: 'default' },
+        pressAction: { id: 'default', launchActivity: 'default' },
+      },
+    }, trigger);
+  }
+
+  // FALLBACK: Jadwalkan juga via Expo Notifications (sebagai cadangan jika Notifee gagal) untuk hari ini saja
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
     await Notifications.scheduleNotificationAsync({

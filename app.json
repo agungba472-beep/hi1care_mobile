@@ -37,7 +37,6 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "@notifee/react-native",
       [
         "expo-asset",
         {
