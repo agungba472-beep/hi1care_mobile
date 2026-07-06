@@ -58,7 +58,8 @@
             "./assets/sounds/standard.wav"
           ]
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
