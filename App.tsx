@@ -155,33 +155,7 @@ function NakesTabs() {
   );
 }
 // Listener untuk menangani event saat aplikasi di background / HP terkunci
-notifee.onBackgroundEvent(async ({ type, detail }) => {
-  const { notification, pressAction } = detail;
 
-  // Jika pasien menekan tombol "Konfirmasi Minum" pada alarm
-  if (type === EventType.ACTION_PRESS && pressAction?.id === 'stop_alarm') {
-    if (notification?.id) {
-      // Matikan bunyi dan hilangkan notifikasi weker
-      await notifee.cancelNotification(notification.id);
-    }
-    console.log('Obat dikonfirmasi dari background!');
-  }
-
-  // Jika pasien mengklik body notifikasi (bukan tombol action)
-  if (type === EventType.PRESS) {
-    if (notification?.id) {
-      await notifee.cancelNotification(notification.id);
-    }
-    // Notifee secara otomatis akan membuka aplikasi saat diklik.
-    // Navigasi akan ditangani oleh getInitialNotification() di dalam App.
-    console.log('[Notifee BG] Notifikasi diklik, membuka aplikasi...');
-  }
-
-  // Jika notifikasi dikirim/muncul saat background
-  if (type === EventType.DELIVERED) {
-    console.log('[Notifee BG] Notifikasi alarm terkirim.');
-  }
-});
 
 // 4. Buat Navigasi Utama (Root Stack)
 export default function App() {
