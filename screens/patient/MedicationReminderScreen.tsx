@@ -53,8 +53,8 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
   const soundFile = nadaDering === 'standar' ? 'standard' : nadaDering;
 
   const channelId = await notifee.createChannel({
-    id: `alarm_obat_${soundFile}_v3`,
-    name: `Pengingat Obat (${soundFile}) V3`,
+    id: `alarm_obat_${soundFile}_v4`,
+    name: `Pengingat Obat (${soundFile}) V4`,
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
     sound: soundFile,
@@ -81,7 +81,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     await notifee.createTriggerNotification({
       id: `weker_arv_${i}`,
       title: '⚠️ WAKTUNYA MINUM OBAT!',
-      body: `Silakan minum ${namaObat} Anda sekarang untuk menjaga kesehatan.`,
+      body: `Segera minum suplemen Anda`,
       data: { type: 'alarm' },
       android: {
         channelId,

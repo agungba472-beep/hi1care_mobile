@@ -42,7 +42,8 @@
         {
           "assets": [
             "./assets/sounds/ceria.mp3",
-            "./assets/sounds/darurat.mp3"
+            "./assets/sounds/darurat.mp3",
+            "./assets/sounds/standard.wav"
           ]
         }
       ],
@@ -61,7 +62,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "56729af6-eacb-4462-b9a6-b31c370a056a"
+        "projectId": "c1ff5aa5-5093-46c4-87c2-d35900862569"
       }
     },
     "runtimeVersion": {
