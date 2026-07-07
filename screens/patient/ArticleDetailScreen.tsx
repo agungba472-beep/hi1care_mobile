@@ -1,6 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, StatusBar, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, useWindowDimensions, Platform } from 'react-native';
+import { Image } from 'expo-image'; // Ganti dari 'react-native' agar gambar cover ter-cache di disk
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import api from '../../src/api';
@@ -58,7 +59,13 @@ const ArticleDetailScreen = () => {
         {/* GAMBAR COVER (FULL WIDTH) */}
         <View style={st.coverWrap}>
           {imageSource ? (
-            <Image source={{ uri: imageSource }} style={[st.coverImage, { width }]} resizeMode="cover" />
+            <Image
+              source={{ uri: imageSource }}
+              style={[st.coverImage, { width }]}
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
+            />
           ) : (
             <View style={[st.coverPlaceholder, { width }]}>
               <MaterialIcons name="health-and-safety" size={72} color={C.secondary} />

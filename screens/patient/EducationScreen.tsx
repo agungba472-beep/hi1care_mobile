@@ -1,8 +1,9 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, StatusBar, Image, ActivityIndicator, ImageBackground
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, StatusBar, ActivityIndicator, ImageBackground
 } from 'react-native';
+import { Image } from 'expo-image'; // Ganti dari 'react-native' agar gambar cover ter-cache di disk (tidak download ulang tiap buka tab)
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import api from '../../src/api';
@@ -137,7 +138,13 @@ const EducationScreen: React.FC = () => {
                 >
                   <View style={st.cardImgWrap}>
                     {getImageUrl(imagePath) ? (
-                      <Image source={{ uri: getImageUrl(imagePath)! }} style={st.cardImg} resizeMode="cover" />
+                      <Image
+                        source={{ uri: getImageUrl(imagePath)! }}
+                        style={st.cardImg}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        transition={200}
+                      />
                     ) : (
                       <View style={st.imgFallback}>
                          <MaterialIcons name="health-and-safety" size={56} color={C.secondary} />
