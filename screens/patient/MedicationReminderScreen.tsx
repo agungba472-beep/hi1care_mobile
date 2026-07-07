@@ -194,6 +194,44 @@ const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, 
       }} />
       <Text style={{ position: 'absolute', color: '#ffffff', fontWeight: 'bold', fontSize: 14 }}>{percent}%</Text>
     </View>
+    );
+  };
+
+const TutorialVideo = () => {
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadVideo = async () => {
+      try {
+        const asset = Asset.fromModule(require('../../assets/vid/contoh_swipe.mp4'));
+        await asset.downloadAsync();
+        setVideoUri(asset.localUri || asset.uri);
+      } catch (e) {
+        console.log("Gagal memuat video:", e);
+      }
+    };
+    loadVideo();
+  }, []);
+
+  if (!videoUri) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#16a34a" />
+        <Text style={{ color: '#fff', marginTop: 10, fontSize: 12 }}>Memuat Video...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Video
+      source={{ uri: videoUri }}
+      style={{ width: '100%', height: '100%' }}
+      resizeMode={ResizeMode.CONTAIN}
+      shouldPlay={true}
+      isLooping={true}
+      isMuted={true}
+      useNativeControls={true}
+    />
   );
 };
 
@@ -1225,15 +1263,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                   </View>
                   <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib swipe aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
                   <View style={{ height: 350, width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
-                    <Video
-                      source={require('../../assets/vid/contoh_swipe.mp4')}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode={ResizeMode.CONTAIN}
-                      shouldPlay={true}
-                      isLooping={true}
-                      isMuted={true}
-                      useNativeControls={true}
-                    />
+                    <TutorialVideo />
                   </View>
                 </View>
               )}
