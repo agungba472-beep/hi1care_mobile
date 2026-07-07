@@ -14,7 +14,7 @@ import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../src/api';
 import CustomHeader from '../../components/CustomHeader';
-import notifee, { TriggerType, AndroidImportance, AndroidVisibility, AndroidNotificationSetting, AndroidCategory } from '@notifee/react-native';
+import notifee, { TriggerType, AndroidImportance, AndroidVisibility, AndroidNotificationSetting, AndroidCategory, AlarmType } from '@notifee/react-native';
 
 export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nadaDering: string = 'ceria', isEveryday: boolean = true) => {
   await notifee.requestPermission();
@@ -75,7 +75,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     const trigger: any = {
       type: TriggerType.TIMESTAMP,
       timestamp: tgl.getTime(),
-      alarmManager: { allowWhileIdle: true },
+      alarmManager: { type: AlarmType.SET_ALARM_CLOCK },
     };
 
     await notifee.createTriggerNotification({
