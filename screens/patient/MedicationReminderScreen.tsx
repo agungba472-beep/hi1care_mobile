@@ -4,6 +4,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, 
   StatusBar, ActivityIndicator, Alert, Platform, Switch, ImageBackground, Modal, TextInput, Linking 
 } from 'react-native';
+import * as Device from 'expo-device';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -15,6 +16,16 @@ import * as ImagePicker from 'expo-image-picker';
 import api from '../../src/api';
 import CustomHeader from '../../components/CustomHeader';
 import notifee, { TriggerType, AndroidImportance, AndroidVisibility, AndroidNotificationSetting, AndroidCategory, AlarmType } from '@notifee/react-native';
+
+// Deteksi HP dari OEM yang diketahui punya sistem manajemen baterai ketat
+// (MIUI, ColorOS, FuntouchOS, Hiber/Transsion, dst.) - dipakai untuk
+// menampilkan banner edukasi ke user yang benar-benar membutuhkannya.
+const STRICT_OEM_BRANDS = ['xiaomi', 'redmi', 'poco', 'oppo', 'vivo', 'realme', 'huawei', 'honor', 'infinix', 'tecno', 'itel', 'transsion'];
+export const isAggressiveOEM = (): boolean => {
+  if (Platform.OS !== 'android') return false;
+  const manufacturer = (Device.manufacturer || Device.brand || '').toString().toLowerCase();
+  return STRICT_OEM_BRANDS.some((b) => manufacturer.includes(b));
+};
 
 export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nadaDering: string = 'ceria', isEveryday: boolean = true) => {
   await notifee.requestPermission();
@@ -208,6 +219,8 @@ const MedicationReminderScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const [showDeviceWarning, setShowDeviceWarning] = useState(false);
+  const [deviceBrandLabel, setDeviceBrandLabel] = useState('');
   const [permBatteryOk, setPermBatteryOk] = useState(false);
   const [permAutoStartOk, setPermAutoStartOk] = useState(false);
   const [permOverlayOk, setPermOverlayOk] = useState(false);
@@ -489,6 +502,59 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
   }, []);
   
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  // Deteksi merek HP untuk banner peringatan OEM ketat (Xiaomi/Oppo/Vivo/dst).
+  // Tidak menyentuh logika Notifee/jadwalkanWekerObat - murni UI edukatif.
+  useEffect(() => {
+    const cekBrandHP = async () => {
+      try {
+        if (isAggressiveOEM()) {
+          const label = Device.manufacturer || Device.brand || 'HP Anda';
+          setDeviceBrandLabel(label);
+          setShowDeviceWarning(true);
+        }
+      } catch (e) {
+        console.log('Gagal deteksi brand HP:', e);
+      }
+    };
+    cekBrandHP();
+  }, []);
+
+  // PENGAMAN REBOOT: AlarmManager (termasuk SET_ALARM_CLOCK) menghapus semua
+  // alarm terjadwal saat HP restart. Tanpa BroadcastReceiver native khusus,
+  // kita tutup celah ini secara ringan: setiap kali app dibuka, cek apakah
+  // alarm weker masih terdaftar di sistem; kalau kosong padahal user
+  // sebelumnya sudah mengatur jadwal (tersimpan di AsyncStorage), jadwalkan
+  // ulang otomatis secara senyap (tanpa modal/alert, supaya tidak mengganggu).
+  useEffect(() => {
+    const cekDanJadwalkanUlangJikaHilang = async () => {
+      if (Platform.OS === 'web') return;
+      try {
+        const existingIds = await notifee.getTriggerNotificationIds();
+        const masihAda = existingIds.some((id) => id.startsWith('weker_arv_'));
+        if (masihAda) return; // Masih ada, tidak perlu apa-apa
+
+        const [savedTime, savedSound, savedEveryday] = await Promise.all([
+          AsyncStorage.getItem('saved_alarm_time'),
+          AsyncStorage.getItem('saved_sound_id'),
+          AsyncStorage.getItem('saved_is_everyday'),
+        ]);
+        if (!savedTime) return; // Belum pernah ada jadwal tersimpan
+
+        const savedDate = new Date(savedTime);
+        const now = new Date();
+        const target = new Date();
+        target.setHours(savedDate.getHours(), savedDate.getMinutes(), 0, 0);
+        if (target <= now) target.setDate(target.getDate() + 1);
+
+        await jadwalkanWekerObat(target, 'ARV', savedSound || 'standar', savedEveryday !== 'false');
+        console.log('[Notif] Alarm dijadwalkan ulang otomatis (kemungkinan setelah HP restart).');
+      } catch (e) {
+        console.log('Gagal cek/reschedule alarm setelah restart:', e);
+      }
+    };
+    cekDanJadwalkanUlangJikaHilang();
+  }, []);
 
   const handleDeleteAlarm = async (alarmId: number) => {
     if (Platform.OS === 'web') {
@@ -799,6 +865,19 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
     <SafeAreaView edges={['top', 'left', 'right']} style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.background} />
       <CustomHeader title="Pengingat Obat" />
+
+      {/* BANNER PERINGATAN OEM KETAT (Xiaomi/Oppo/Vivo/Poco/Realme/Huawei/dst) */}
+      {showDeviceWarning && (
+        <View style={st.deviceWarningBanner}>
+          <MaterialIcons name="warning-amber" size={20} color="#92400e" style={{ marginRight: 8 }} />
+          <Text style={st.deviceWarningText}>
+            ⚠️ Info untuk pengguna {deviceBrandLabel}: Sistem HP Anda mungkin memblokir alarm saat layar mati. Pastikan Anda mengaktifkan izin "Mulai Otomatis" (Auto-Start) dan mengubah Penghemat Baterai menjadi "Tidak Dibatasi" di pengaturan HP Anda.
+          </Text>
+          <TouchableOpacity onPress={() => setShowDeviceWarning(false)} style={{ padding: 4 }}>
+            <MaterialIcons name="close" size={20} color="#92400e" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         
@@ -1197,9 +1276,11 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
 
 // ── Styles (Tema Material 3 / Emerald-Mint) ──
 const st = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.background },
+  deviceWarningBanner: { backgroundColor: '#fef3c7', padding: 12, flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: S.margin, marginTop: S.md, borderRadius: 12, borderWidth: 1, borderColor: '#fde68a' },
+  deviceWarningText: { flex: 1, color: '#92400e', fontSize: 13, lineHeight: 18 },
   loadWrap: { flex: 1, backgroundColor: C.background, justifyContent: 'center', alignItems: 'center' },
   loadTxt: { marginTop: S.md, fontSize: 16, color: C.outline },
-  safe: { flex: 1, backgroundColor: C.background },
   scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
   
   // Hero Image Background Style (Diperpanjang)
