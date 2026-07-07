@@ -73,7 +73,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
         importance: AndroidImportance.LOW, // LOW: tidak bunyi/getar, cuma ikon diam di status bar
       });
 
-      await notifee.startForegroundService({
+      await notifee.displayNotification({
         id: 'hicare_fg_notification',
         title: 'HI!-CARE Pemantauan Aktif',
         body: 'Menjaga pengingat jadwal obat Anda tetap berjalan.',
@@ -101,10 +101,6 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     const trigger: any = {
       type: TriggerType.TIMESTAMP,
       timestamp: tgl.getTime(),
-      // Pakai SET_ALARM_CLOCK, bukan allowWhileIdle: OS memperlakukan ini
-      // setara alarm-clock bawaan sehingga hampir kebal Doze/App Standby/
-      // pembekuan proses OEM (mis. Transsion "Zombie State"). Prasyaratnya
-      // battery optimization untuk app ini tetap harus Unrestricted.
       alarmManager: { type: AlarmType.SET_ALARM_CLOCK },
     };
 
@@ -1099,140 +1095,192 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan Baterai</Text>
                   </TouchableOpacity>
                 ) : (
-                  <View style={{ backgroundColor: '#cce6d0', padding: 8, borderRadius: 8, alignItems: 'center' }}>
-                    <Text style={{ color: '#052111', fontWeight: 'bold' }}>Sudah Diizinkan</Text>
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur</Text>
                   </View>
                 )}
               </View>
 
               <View style={{ marginBottom: 20, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>2. Mulai Otomatis (Auto-Start)</Text>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>2. Tampil di Atas Aplikasi</Text>
+                  {permOverlayOk && <MaterialIcons name="check-circle" size={20} color={C.primary} />}
+                </View>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Aktifkan "Display over other apps" agar notifikasi bisa membongkar lock screen.</Text>
+                {!permOverlayOk ? (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity onPress={() => Linking.openSettings()} style={{ flex: 1, backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setPermOverlayOk(true)} style={{ backgroundColor: C.surfaceVariant, padding: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                      <MaterialIcons name="check" size={18} color={C.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>3. Mulai Otomatis</Text>
                   {permAutoStartOk && <MaterialIcons name="check-circle" size={20} color={C.primary} />}
                 </View>
-                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Izinkan aplikasi berjalan di latar belakang agar weker tidak mati sendiri.</Text>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Khusus Oppo/Vivo/Xiaomi: nyalakan "Auto-start" agar sistem tidak mematikan weker.</Text>
                 {!permAutoStartOk ? (
                   <TouchableOpacity onPress={() => notifee.openPowerManagerSettings()} style={{ backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Izin Mulai Otomatis</Text>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan Auto-start</Text>
                   </TouchableOpacity>
                 ) : (
-                  <View style={{ backgroundColor: '#cce6d0', padding: 8, borderRadius: 8, alignItems: 'center' }}>
-                    <Text style={{ color: '#052111', fontWeight: 'bold' }}>Sudah Diizinkan</Text>
+                  <View style={{ backgroundColor: C.secondaryContainer, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: C.onSecondaryContainer, fontWeight: 'bold' }}>Selesai Diatur / Tidak Perlu</Text>
                   </View>
                 )}
               </View>
             </ScrollView>
 
-            <TouchableOpacity style={[st.saveBtn, { width: '100%', paddingVertical: 12 }]} onPress={() => setShowPermissionGuide(false)}>
-              <Text style={st.saveTxt}>Tutup Panduan</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[st.btnPri, { flex: 1, backgroundColor: C.error }]} onPress={() => setShowPermissionGuide(false)}>
+                <Text style={st.btnPriT}>Saya Sudah Mengatur Semuanya</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL GEJALA HARIAN */}
+      <Modal visible={showSymptomModal} transparent={true} animationType="fade">
+        <View style={st.modalOverlay}>
+          <View style={st.modalContent}>
+            <Text style={st.modalTitle}>Pengecekan Gejala Harian</Text>
+            <Text style={st.modalSubtitle}>Apakah Anda merasakan gejala atau keluhan fisik hari ini?</Text>
+            
+            <TextInput
+              style={st.symptomInput}
+              placeholder="Ceritakan keluhan Anda di sini (opsional)..."
+              value={symptomText}
+              onChangeText={setSymptomText}
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+              placeholderTextColor="#94a3b8"
+            />
+            
+            <View style={st.modalBtnRow}>
+              <TouchableOpacity style={st.modalBtnSkip} onPress={handleProceedWithoutSymptoms}>
+                <Text style={st.modalBtnSkipText}>Tidak Ada Keluhan (Lanjut Foto)</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[st.modalBtnSave, !symptomText.trim() && { opacity: 0.5 }]} 
+                onPress={handleSaveSymptomsAndProceed}
+                disabled={isSubmittingSymptom || !symptomText.trim()}
+              >
+                <Text style={st.modalBtnSaveText}>
+                  {isSubmittingSymptom ? 'Menyimpan...' : 'Simpan & Lanjut Foto'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity style={st.modalCloseBtn} onPress={() => { setShowSymptomModal(false); setActiveAlarmId(null); }}>
+               <MaterialIcons name="close" size={24} color="#64748b" />
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* SYMPTOM DIARY MODAL */}
-      <Modal visible={showSymptomModal} transparent={true} animationType="fade">
-        <View style={st.modalOverlay}>
-          <View style={st.modalContent}>
-            <View style={{ alignItems: 'center', marginBottom: S.md }}>
-              <MaterialIcons name="medical-information" size={48} color={C.primary} />
-              <Text style={st.modalTitle}>Buku Harian Kesehatan</Text>
-              <Text style={st.modalDesc}>Sebelum mengirim bukti, adakah keluhan kesehatan yang Anda rasakan hari ini?</Text>
-            </View>
-            <TextInput style={st.inputArea} placeholder="Contoh: Saya merasa pusing dan mual setelah minum obat kemarin..." placeholderTextColor={C.outline} multiline numberOfLines={4} value={symptomText} onChangeText={setSymptomText} textAlignVertical="top" />
-            <View style={{ gap: S.sm }}>
-              <TouchableOpacity style={st.saveBtn} onPress={handleSaveSymptomsAndProceed} disabled={isSubmittingSymptom}>
-                <Text style={st.saveTxt}>{isSubmittingSymptom ? 'Menyimpan...' : 'Simpan & Lanjut Foto'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={st.outlineBtn} onPress={handleProceedWithoutSymptoms} disabled={isSubmittingSymptom}>
-                <Text style={st.outlineBtnTxt}>Tidak Ada Keluhan (Lewati)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[st.outlineBtn, { borderColor: 'transparent', marginTop: 8 }]} onPress={() => { setShowSymptomModal(false); setActiveAlarmId(null); setSymptomText(''); }}>
-                <Text style={[st.outlineBtnTxt, { color: C.outline }]}>Batal Minum Obat</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
 
+// ── Styles (Tema Material 3 / Emerald-Mint) ──
 const st = StyleSheet.create({
+  loadWrap: { flex: 1, backgroundColor: C.background, justifyContent: 'center', alignItems: 'center' },
+  loadTxt: { marginTop: S.md, fontSize: 16, color: C.outline },
   safe: { flex: 1, backgroundColor: C.background },
-  loadWrap: { flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' },
-  loadTxt: { marginTop: S.md, color: C.onSurfaceVariant, fontSize: 14, fontWeight: '500' },
-  scroll: { paddingBottom: 100 },
+  scroll: { paddingHorizontal: S.margin, paddingTop: S.lg },
   
-  heroFull: {
-    paddingHorizontal: S.margin,
-    paddingTop: S.xl,
-    paddingBottom: S.lg,
-    backgroundColor: C.primary, 
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+  // Hero Image Background Style (Diperpanjang)
+  heroFull: { 
+    backgroundColor: C.primaryContainer, 
+    borderRadius: 16, 
+    marginBottom: S.lg, 
     overflow: 'hidden',
+    elevation: 4,
+    shadowColor: C.primaryContainer, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 
   },
-  heroOverlayFull: {
-    // Spacer jika dibutuhkan
+  heroOverlayFull: { 
+    padding: S.lg,
+    backgroundColor: 'rgba(27, 67, 50, 0.5)', // Dibuat sedikit lebih gelap agar elemen di dalamnya sangat kontras
   },
-  heroT: { fontSize: 32, fontWeight: '800', color: C.onPrimary, letterSpacing: -0.5, marginBottom: 4 },
-  heroS: { fontSize: 14, color: C.primaryFixedDim, fontWeight: '500' },
+  heroT: { fontSize: 24, fontWeight: '700', lineHeight: 32, color: '#ffffff', marginBottom: S.xs },
+  heroS: { fontSize: 14, lineHeight: 20, color: C.primaryFixedDim, opacity: 0.9 },
   
-  secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
-  secT: { fontSize: 18, fontWeight: '800', color: C.onSurface, letterSpacing: -0.5 },
-  secD: { fontSize: 13, color: C.primary, fontWeight: '600' },
-  sec: { paddingHorizontal: S.margin, marginTop: S.xl },
+  sec: { gap: S.md, marginBottom: S.lg },
+  secH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 },
+  secT: { fontSize: 20, fontWeight: '700', lineHeight: 28, color: C.onBackground },
+  secD: { fontSize: 12, fontWeight: '600', color: C.outline },
   
-  card: { backgroundColor: C.surfaceContainerLowest, borderRadius: 24, padding: S.lg, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 12, elevation: 2 },
+  doseCard: { backgroundColor: C.surfaceContainerLowest, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', elevation: 1, overflow: 'hidden' }, // Border disesuaikan untuk background gelap
+  dose: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: S.md },
+  doseL: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
+  doseIc: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  doseT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  doseSub: { fontSize: 11, fontWeight: '500', color: C.outline, marginTop: 1 },
   
-  doseCard: { backgroundColor: C.surfaceContainerLowest, borderRadius: 20, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  dose: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  doseL: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  doseIc: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  doseT: { fontSize: 16, fontWeight: '700', color: C.onSurface, marginBottom: 2 },
-  doseSub: { fontSize: 13, color: C.onSurfaceVariant },
-  doseBdg: { backgroundColor: C.surfaceContainer, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  doseBdgT: { fontSize: 10, fontWeight: '800', color: C.onSurfaceVariant, textTransform: 'uppercase' },
-  doseBdgTaken: { backgroundColor: '#cce6d0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  doseBdgTakenT: { fontSize: 10, fontWeight: '800', color: '#052111', textTransform: 'uppercase' },
+  doseBdg: { backgroundColor: C.surfaceContainer, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  doseBdgT: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: C.onSurfaceVariant, textTransform: 'uppercase' },
+  doseBdgTaken: { backgroundColor: C.secondaryFixed, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  doseBdgTakenT: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: C.onSecondaryFixed, textTransform: 'uppercase' },
   
-  markTakenBtn: { backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, marginTop: 12 },
-  markTakenTxt: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  markTakenBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, paddingVertical: 12, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
+  markTakenTxt: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+  
+  refBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12 },
+  refBtnT: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  logC: { flexDirection: 'column', alignItems: 'stretch', backgroundColor: C.surfaceContainerLowest, padding: S.sm, borderRadius: 12, borderWidth: 1, borderColor: C.outlineVariant },
+  logT: { fontSize: 12, color: C.onSurface, flex: 1 },
+  
+  privCard: { backgroundColor: C.surfaceContainer, borderRadius: 16, padding: S.xl, borderWidth: 1, borderColor: C.outlineVariant, alignItems: 'center', gap: S.md },
+  privImgWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.outlineVariant },
+  privTxt: { fontSize: 12, color: C.primary, textAlign: 'center', maxWidth: 220 },
+  
+  card: { backgroundColor: C.surfaceContainerLow, borderRadius: 16, padding: S.md, borderWidth: 1, borderColor: C.outlineVariant, gap: 12 },
+  cardH: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  cardHT: { fontSize: 14, fontWeight: '700', color: C.onSurface },
+  
+  pickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryFixed, paddingVertical: 12, paddingHorizontal: S.sm, borderRadius: 12 },
+  pickerLbl: { fontSize: 10, fontWeight: '600', color: C.onPrimaryFixed, opacity: 0.8 },
+  pickerVal: { fontSize: 16, fontWeight: '700', color: C.primary },
+  
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, backgroundColor: C.secondary, paddingVertical: 14, borderRadius: 12 },
+  saveTxt: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  
+  soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surfaceContainerLowest, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: C.outlineVariant },
+  soundChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  soundChipTxt: { fontSize: 13, fontWeight: '700', color: C.primary },
 
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: C.onSurface },
-  pickerBtn: { backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  pickerLbl: { fontSize: 12, color: C.onSurfaceVariant, marginBottom: 2 },
-  pickerVal: { fontSize: 16, fontWeight: '700', color: C.onSurface },
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: S.lg },
+  modalContent: { backgroundColor: C.surfaceContainerLowest, width: '100%', borderRadius: 20, padding: S.lg, position: 'relative', elevation: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: C.primary, marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, color: C.onSurfaceVariant, marginBottom: S.md, lineHeight: 20 },
+  symptomInput: { backgroundColor: C.surfaceContainerLow, borderRadius: 12, padding: S.sm, fontSize: 14, color: C.onSurface, minHeight: 100, borderWidth: 1, borderColor: C.outlineVariant, marginBottom: S.lg },
+  modalBtnRow: { flexDirection: 'column', gap: S.sm },
+  modalBtnSkip: { backgroundColor: C.surfaceContainer, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnSkipText: { fontSize: 14, fontWeight: '700', color: C.onSurfaceVariant },
+  modalBtnSave: { backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  modalCloseBtn: { position: 'absolute', top: S.md, right: S.md, padding: 4 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'flex-start', gap: 8, alignItems: 'center', marginBottom: S.sm, paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: C.onSurface, letterSpacing: -0.5 },
+  listSubText: { fontSize: 10, color: C.outline, marginTop: 4 },
   
-  cardH: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  cardHT: { fontSize: 16, fontWeight: '700', color: C.onSurface },
-  
-  soundChip: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: C.surfaceContainer, borderWidth: 1, borderColor: 'transparent' },
-  soundChipActive: { backgroundColor: C.primary, borderColor: C.primaryContainer },
-  soundChipTxt: { fontSize: 14, fontWeight: '600', color: C.onSurface },
-  listSubText: { fontSize: 12, color: C.outlineVariant, marginTop: 12 },
-  
-  saveBtn: { backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 16, marginTop: S.md },
-  saveTxt: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  
-  refBtn: { backgroundColor: C.secondary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 16 },
-  refBtnT: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  logC: { flexDirection: 'column', paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.surfaceContainer },
-  logT: { fontSize: 13, color: C.onSurface, flex: 1 },
-  
-  privCard: { marginHorizontal: S.margin, marginTop: S.xl, backgroundColor: C.surfaceContainer, padding: S.lg, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: S.md },
-  privImgWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' },
-  privTxt: { flex: 1, fontSize: 12, color: C.onSurfaceVariant, lineHeight: 18 },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: S.margin },
-  modalContent: { backgroundColor: C.surfaceContainerLowest, width: '100%', borderRadius: 28, padding: S.lg, elevation: 4 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: C.onSurface, marginBottom: 8, textAlign: 'center' },
-  modalDesc: { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', marginBottom: S.lg, lineHeight: 20 },
-  inputArea: { backgroundColor: C.surfaceContainer, borderRadius: 16, padding: S.md, fontSize: 14, color: C.onSurface, minHeight: 120, marginBottom: S.xl },
-  outlineBtn: { paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: C.outlineVariant, alignItems: 'center' },
-  outlineBtnTxt: { color: C.onSurfaceVariant, fontSize: 15, fontWeight: '700' }
+  // Custom Modal Button Styles added for the permission guide
+  btnPri: { backgroundColor: C.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  btnPriT: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
 });
 
 export default MedicationReminderScreen;
