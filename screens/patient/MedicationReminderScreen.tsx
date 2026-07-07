@@ -8,7 +8,7 @@ import * as Device from 'expo-device';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Audio } from 'expo-av';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
@@ -868,28 +868,14 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
 
       {/* BANNER PERINGATAN OEM KETAT (Xiaomi/Oppo/Vivo/Poco/Realme/Huawei/dst) */}
       {showDeviceWarning && (
-        <View style={st.deviceWarningBanner}>
-          <MaterialIcons name="warning-amber" size={20} color="#92400e" style={{ marginRight: 8 }} />
+        <TouchableOpacity activeOpacity={0.8} onPress={() => setShowPermissionGuide(true)} style={[st.deviceWarningBanner, { alignItems: 'center' }]}>
+          <MaterialIcons name="warning-amber" size={28} color="#92400e" style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={st.deviceWarningText}>
-              ⚠️ Perhatian pengguna {deviceBrandLabel}: Alarm tidak akan bekerja bila tidak swipe aplikasi di recent apps (wajib KUNCI/Gembok 🔒). Jika bingung mencari pengaturan izin, tekan tahan ikon aplikasi di layar utama HP -> pilih "Info Aplikasi" untuk menyalakan izin Baterai (Tidak Dibatasi) & Tampil di Atas Aplikasi Lain.
-            </Text>
-            
-            {/* Ilustrasi Gembok */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#fde68a', padding: 8, borderRadius: 8 }}>
-              <View style={{ width: 40, height: 60, borderWidth: 2, borderColor: '#92400e', borderRadius: 6, backgroundColor: '#ffffff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                <MaterialIcons name="lock" size={16} color="#16a34a" />
-                <MaterialIcons name="arrow-downward" size={14} color="#92400e" style={{ marginTop: 4 }} />
-              </View>
-              <Text style={{ flex: 1, marginLeft: 12, fontSize: 12, color: '#92400e', fontWeight: 'bold' }}>
-                Geser (Swipe) aplikasi ini ke BAWAH di layar Recent Apps sampai muncul ikon Gembok.
-              </Text>
-            </View>
+            <Text style={[st.deviceWarningText, { fontWeight: 'bold', fontSize: 14 }]}>⚠️ Weker Berisiko Mati Sendiri!</Text>
+            <Text style={{ color: '#92400e', fontSize: 12, marginTop: 4 }}>Pengguna {deviceBrandLabel}, sistem HP Anda dapat mematikan weker. Ketuk di sini untuk melihat Panduan Video Anti-Mati (Wajib).</Text>
           </View>
-          <TouchableOpacity onPress={() => setShowDeviceWarning(false)} style={{ padding: 4 }}>
-            <MaterialIcons name="close" size={20} color="#92400e" />
-          </TouchableOpacity>
-        </View>
+          <MaterialIcons name="play-circle-fill" size={24} color="#92400e" style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
       )}
 
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
@@ -1172,7 +1158,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
             </View>
             
             <Text style={{ fontSize: 14, color: C.onSurfaceVariant, marginBottom: 15 }}>
-              Agar weker bisa menyala otomatis saat layar HP terkunci, mohon ikuti 3 langkah wajib ini:
+              Agar weker bisa menyala otomatis saat layar HP terkunci, mohon ikuti panduan wajib ini:
             </Text>
 
             <ScrollView style={{ marginBottom: 15 }} showsVerticalScrollIndicator={false}>
@@ -1231,6 +1217,25 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                   </View>
                 )}
               </View>
+
+              {isAggressiveOEM() && (
+                <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.error }}>4. Kunci Aplikasi (PENTING!)</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib mengunci aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
+                  <View style={{ height: 350, width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
+                    <Video
+                      source={require('../../assets/vid/contoh_swipe.mp4')}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay
+                      isLooping
+                      isMuted={true}
+                    />
+                  </View>
+                </View>
+              )}
             </ScrollView>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
