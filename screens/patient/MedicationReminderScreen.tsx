@@ -1221,17 +1221,18 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
               {isAggressiveOEM() && (
                 <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.error }}>4. Kunci Aplikasi (PENTING!)</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.error }}>4. Swipe Aplikasi (PENTING!)</Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib mengunci aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
+                  <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib swipe aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
                   <View style={{ height: 350, width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
                     <Video
                       source={require('../../assets/vid/contoh_swipe.mp4')}
                       style={{ width: '100%', height: '100%' }}
                       resizeMode={ResizeMode.CONTAIN}
-                      shouldPlay
-                      isLooping
+                      shouldPlay={true}
+                      isLooping={true}
                       isMuted={true}
+                      useNativeControls={true}
                     />
                   </View>
                 </View>
