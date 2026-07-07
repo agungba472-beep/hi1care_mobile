@@ -871,7 +871,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         <View style={st.deviceWarningBanner}>
           <MaterialIcons name="warning-amber" size={20} color="#92400e" style={{ marginRight: 8 }} />
           <Text style={st.deviceWarningText}>
-            ⚠️ Info untuk pengguna {deviceBrandLabel}: Sistem HP Anda mungkin memblokir alarm saat layar mati. Pastikan Anda mengaktifkan izin "Mulai Otomatis" (Auto-Start) dan mengubah Penghemat Baterai menjadi "Tidak Dibatasi" di pengaturan HP Anda.
+            ⚠️ Perhatian pengguna {deviceBrandLabel}: HP Anda sering mematikan weker secara sepihak. Wajib KUNCI aplikasi ini di layar Recent Apps (geser/tekan tahan aplikasi lalu pilih ikon Gembok 🔒). Jika bingung mencari pengaturan izin, tekan tahan ikon aplikasi di layar utama HP -> pilih "Info Aplikasi" untuk menyalakan izin Baterai (Tidak Dibatasi) & Tampil di Atas Aplikasi Lain.
           </Text>
           <TouchableOpacity onPress={() => setShowDeviceWarning(false)} style={{ padding: 4 }}>
             <MaterialIcons name="close" size={20} color="#92400e" />

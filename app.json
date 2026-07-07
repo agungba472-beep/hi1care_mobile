@@ -68,14 +68,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "c1ff5aa5-5093-46c4-87c2-d35900862569"
+        "projectId": "34442018-02f6-4e68-90d3-39707606656b"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/c1ff5aa5-5093-46c4-87c2-d35900862569"
-    }
+      "url": "https://u.expo.dev/34442018-02f6-4e68-90d3-39707606656b"
+    },
+    "owner": "sevrcxz"
   }
 }
