@@ -29,7 +29,10 @@
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
@@ -37,6 +40,7 @@
     },
     "plugins": [
       "./plugins/withAlarmFullScreen.js",
+      "./plugins/withForegroundServiceType.js",
       "@react-native-community/datetimepicker",
       [
         "expo-asset",

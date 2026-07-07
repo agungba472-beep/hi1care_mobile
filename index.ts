@@ -28,5 +28,16 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   }
 });
 
+// Daftarkan "penjaga" Foreground Service. Promise ini sengaja tidak pernah
+// di-resolve agar Android menganggap app sedang bekerja aktif dan tidak
+// membekukan prosesnya (menambal celah "Zombie State" di HP OEM seperti
+// Transsion/XOS). Ini pelengkap, bukan pengganti, dari trigger alarm
+// SET_ALARM_CLOCK yang dijadwalkan di MedicationReminderScreen.tsx.
+notifee.registerForegroundService(() => {
+  return new Promise(() => {
+    // Sengaja dibiarkan menggantung selama service belum di-stop.
+  });
+});
+
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 registerRootComponent(App);
