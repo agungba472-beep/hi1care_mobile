@@ -8,7 +8,8 @@ import * as Device from 'expo-device';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Audio, Video, ResizeMode } from 'expo-av';
+import { Audio } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Asset } from 'expo-asset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
@@ -197,44 +198,6 @@ const CircleProgress: React.FC<{ percent: number; size: number }> = ({ percent, 
     );
   };
 
-const TutorialVideo = () => {
-  const [videoUri, setVideoUri] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadVideo = async () => {
-      try {
-        const asset = Asset.fromModule(require('../../assets/vid/contoh_swipe.mp4'));
-        await asset.downloadAsync();
-        setVideoUri(asset.localUri || asset.uri);
-      } catch (e) {
-        console.log("Gagal memuat video:", e);
-      }
-    };
-    loadVideo();
-  }, []);
-
-  if (!videoUri) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#16a34a" />
-        <Text style={{ color: '#fff', marginTop: 10, fontSize: 12 }}>Memuat Video...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <Video
-      source={{ uri: videoUri }}
-      style={{ width: '100%', height: '100%' }}
-      resizeMode={ResizeMode.CONTAIN}
-      shouldPlay={true}
-      isLooping={true}
-      isMuted={true}
-      useNativeControls={true}
-    />
-  );
-};
-
 const MedicationReminderScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showSymptomModal, setShowSymptomModal] = useState(false);
@@ -257,6 +220,15 @@ const MedicationReminderScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+
+  // Player untuk video panduan swipe (expo-video). Hook wajib dipanggil
+  // unconditional di top-level - render VideoView-nya baru dikondisikan.
+  const swipeGuideVideoPlayer = useVideoPlayer(require('../../assets/vid/contoh_swipe.mp4'), (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
   const [deviceBrandLabel, setDeviceBrandLabel] = useState('');
   const [permBatteryOk, setPermBatteryOk] = useState(false);
@@ -1263,7 +1235,12 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                   </View>
                   <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib swipe aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
                   <View style={{ height: 350, width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
-                    <TutorialVideo />
+                    <VideoView
+                      player={swipeGuideVideoPlayer}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="contain"
+                      nativeControls={true}
+                    />
                   </View>
                 </View>
               )}
