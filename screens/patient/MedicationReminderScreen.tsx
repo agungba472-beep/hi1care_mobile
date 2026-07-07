@@ -870,9 +870,22 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
       {showDeviceWarning && (
         <View style={st.deviceWarningBanner}>
           <MaterialIcons name="warning-amber" size={20} color="#92400e" style={{ marginRight: 8 }} />
-          <Text style={st.deviceWarningText}>
-            ⚠️ Perhatian pengguna {deviceBrandLabel}: HP Anda sering mematikan weker secara sepihak. Wajib KUNCI aplikasi ini di layar Recent Apps (geser/tekan tahan aplikasi lalu pilih ikon Gembok 🔒). Jika bingung mencari pengaturan izin, tekan tahan ikon aplikasi di layar utama HP -> pilih "Info Aplikasi" untuk menyalakan izin Baterai (Tidak Dibatasi) & Tampil di Atas Aplikasi Lain.
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={st.deviceWarningText}>
+              ⚠️ Perhatian pengguna {deviceBrandLabel}: Alarm tidak akan bekerja bila tidak swipe aplikasi di recent apps (wajib KUNCI/Gembok 🔒). Jika bingung mencari pengaturan izin, tekan tahan ikon aplikasi di layar utama HP -> pilih "Info Aplikasi" untuk menyalakan izin Baterai (Tidak Dibatasi) & Tampil di Atas Aplikasi Lain.
+            </Text>
+            
+            {/* Ilustrasi Gembok */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#fde68a', padding: 8, borderRadius: 8 }}>
+              <View style={{ width: 40, height: 60, borderWidth: 2, borderColor: '#92400e', borderRadius: 6, backgroundColor: '#ffffff', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialIcons name="lock" size={16} color="#16a34a" />
+                <MaterialIcons name="arrow-downward" size={14} color="#92400e" style={{ marginTop: 4 }} />
+              </View>
+              <Text style={{ flex: 1, marginLeft: 12, fontSize: 12, color: '#92400e', fontWeight: 'bold' }}>
+                Geser (Swipe) aplikasi ini ke BAWAH di layar Recent Apps sampai muncul ikon Gembok.
+              </Text>
+            </View>
+          </View>
           <TouchableOpacity onPress={() => setShowDeviceWarning(false)} style={{ padding: 4 }}>
             <MaterialIcons name="close" size={20} color="#92400e" />
           </TouchableOpacity>
