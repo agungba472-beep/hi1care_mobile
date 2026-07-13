@@ -788,6 +788,13 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
     if (isPlaying && selectedSoundId === id) return;
 
     try {
+      // Pastikan mode audio bisa bermain di background dan tidak ter-mute oleh silent switch (iOS/Android)
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+
       let soundAsset;
       if (id === 'ceria') soundAsset = require('../../assets/sounds/ceria.mp3');
       else if (id === 'darurat') soundAsset = require('../../assets/sounds/darurat.mp3');
