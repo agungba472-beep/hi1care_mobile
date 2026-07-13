@@ -106,7 +106,10 @@ const ChatScreen: React.FC = () => {
     };
     setupWebSocket();
     return () => {
-      if (echoInstance) echoInstance.leave('presence-klinik');
+      if (echoInstance) {
+        echoInstance.leave('presence-klinik');
+        echoInstance.disconnect(); // Tutup socket-nya juga, bukan cuma leave channel
+      }
     };
   }, []);
 

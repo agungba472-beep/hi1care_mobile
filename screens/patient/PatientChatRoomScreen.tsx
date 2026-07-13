@@ -175,6 +175,13 @@ export default function PatientChatRoomScreen() {
     return () => { 
       if (echoInstance) {
         echoInstance.leave(`konsultasi.${konsultasiId}`);
+        // PENTING: leave() cuma berhenti dengerin channel, socket-nya sendiri
+        // tetap terbuka kalau tidak di-disconnect(). Tanpa ini, tiap kali
+        // pasien buka-tutup layar chat, 1 koneksi Pusher "bocor" dan tetap
+        // makan kuota (100-200 koneksi bersamaan di plan gratis) selamanya
+        // sampai app di-kill total - bisa bikin kuota abis sia-sia walau
+        // yang benar-benar chat cuma sedikit orang.
+        echoInstance.disconnect();
       }
     };
   }, [konsultasiId]);
