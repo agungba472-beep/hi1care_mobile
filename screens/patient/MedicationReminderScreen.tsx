@@ -209,6 +209,27 @@ const MedicationReminderScreen: React.FC = () => {
   const [compliancePercent, setCompliancePercent] = useState(0);
   const [refillLoading, setRefillLoading] = useState(false);
 
+  // --- KALENDER ALARM ---
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+  
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(todayStr);
+
+  const calendarDays = useMemo(() => {
+    return Array.from({ length: 30 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const fullDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return {
+        fullDate,
+        dayName: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][d.getDay()],
+        dateNum: d.getDate(),
+      };
+    });
+  }, []);
+
   // Alarm settings
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -326,6 +347,13 @@ const MedicationReminderScreen: React.FC = () => {
 
   const localTodayStr = getLocalDateString();
   const todayAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal.substring(0, 10) === localTodayStr);
+  const selectedDateAlarms = alarms.filter((a: any) => !a.tanggal || a.tanggal.substring(0, 10) === selectedCalendarDate);
+
+  const formatIndoDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
 
   // ── WEB AUDIO: AUTO PRELOAD MENGGUNAKAN JALUR RESMI EXPO ──
   useEffect(() => {
@@ -913,15 +941,54 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
               <CircleProgress percent={compliancePercent} size={72} />
             </View>
 
-            {/* Bagian Bawah: JADWAL HARI INI di dalam Background */}
+            {/* --- KALENDER HORIZONTAL 30 HARI --- */}
+            <View style={{ marginBottom: S.lg }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -S.margin }} contentContainerStyle={{ paddingHorizontal: S.margin }}>
+                {calendarDays.map((day) => {
+                  const isSelected = selectedCalendarDate === day.fullDate;
+                  const isToday = todayStr === day.fullDate;
+                  const hasAlarm = alarms.some((a: any) => (!a.tanggal && isToday) || (a.tanggal && a.tanggal.substring(0, 10) === day.fullDate));
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={day.fullDate} 
+                      onPress={() => setSelectedCalendarDate(day.fullDate)}
+                      style={{
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: 54, 
+                        height: 70, 
+                        borderRadius: 12,
+                        backgroundColor: isSelected ? C.primaryFixed : 'transparent',
+                        marginRight: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? C.primaryFixed : (isToday ? C.primaryFixed : 'rgba(255,255,255,0.2)'),
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: isSelected ? C.onPrimaryFixed : (isToday ? C.primaryFixed : '#ffffff') }}>{day.dayName}</Text>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: isSelected ? C.onPrimaryFixed : (isToday ? C.primaryFixed : '#ffffff'), marginTop: 2 }}>{day.dateNum}</Text>
+                      {hasAlarm && (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isSelected ? C.onPrimaryFixed : (isToday ? C.primaryFixed : '#ffffff'), marginTop: 4 }} />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Bagian Bawah: JADWAL (HARI INI ATAU TANGGAL PILIHAN) */}
             <View style={st.secH}>
-              <Text style={[st.secT, { color: '#ffffff' }]}>Jadwal Hari Ini</Text>
-              <Text style={[st.secD, { color: C.primaryFixedDim }]}>{displayTodayStr}</Text>
+              <Text style={[st.secT, { color: '#ffffff' }]}>
+                {selectedCalendarDate === todayStr ? 'Jadwal Hari Ini' : `Jadwal ${formatIndoDate(selectedCalendarDate)}`}
+              </Text>
+              {selectedCalendarDate === todayStr && (
+                <Text style={[st.secD, { color: C.primaryFixedDim }]}>{displayTodayStr}</Text>
+              )}
             </View>
             
             <View style={{ gap: S.md, marginTop: 8 }}>
-              {todayAlarms.length > 0 ? (
-                todayAlarms.slice(0, 5).map((alarm: any, idx: number) => {
+              {selectedDateAlarms.length > 0 ? (
+                selectedDateAlarms.slice(0, 5).map((alarm: any, idx: number) => {
                   const isTaken = alarm.status === 'sudah';
                   const isPending = !alarm.status || alarm.status === 'belum';
 
