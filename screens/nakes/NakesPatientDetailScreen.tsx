@@ -15,12 +15,24 @@ const NakesPatientDetailScreen: React.FC = () => {
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showKepatuhanModal, setShowKepatuhanModal] = useState(false);
+  const [riwayatRegimen, setRiwayatRegimen] = useState<any[]>([]);
+  const [riwayatIo, setRiwayatIo] = useState<any[]>([]);
 
   useFocusEffect(useCallback(() => {
     const fetchDetail = async () => {
       try {
         const res = await api.get(`/nakes/patients/${patientId}`);
         setPatient(res.data.data);
+
+        const regimenRes = await api.get(`/nakes/patients/${patientId}/riwayat-regimen`);
+        if (regimenRes.data && regimenRes.data.data) {
+          setRiwayatRegimen(regimenRes.data.data);
+        }
+
+        const ioRes = await api.get(`/nakes/patients/${patientId}/riwayat-io`);
+        if (ioRes.data && ioRes.data.data) {
+          setRiwayatIo(ioRes.data.data);
+        }
       } catch (e) { console.log(e); } 
       finally { setLoading(false); }
     };
@@ -131,6 +143,39 @@ const NakesPatientDetailScreen: React.FC = () => {
             </View>
           </View>
         )}
+
+        {/* Regimen dan IO */}
+        <Text style={[st.sectionTitle, {marginTop: 12}]}>Data Klinis Saat Ini</Text>
+        <View style={st.infoBox}>
+          <Text style={{fontWeight: '700', fontSize: 14, color: C.outline, marginBottom: 8}}>Regimen ARV Aktif</Text>
+          {riwayatRegimen.length > 0 && !riwayatRegimen[0].tanggal_selesai ? (
+            <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 16}}>
+              <MaterialIcons name="medication" size={24} color={C.primary} style={{marginRight: 12}} />
+              <View>
+                <Text style={{fontWeight: '700', fontSize: 16, color: C.primary}}>{riwayatRegimen[0].master_obat?.kode_regimen || 'Regimen Aktif'}</Text>
+                <Text style={{fontSize: 13, color: '#64748b'}}>Mulai: {riwayatRegimen[0].tanggal_mulai}</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={{fontSize: 14, color: '#64748b', fontStyle: 'italic', marginBottom: 16}}>Tidak ada regimen aktif</Text>
+          )}
+
+          <View style={st.infoDivider} />
+          <Text style={{fontWeight: '700', fontSize: 14, color: C.outline, marginVertical: 8}}>Riwayat Infeksi Oportunistik (IO)</Text>
+          {riwayatIo.length > 0 ? (
+            riwayatIo.map((io, idx) => (
+              <View key={io.id || idx} style={{flexDirection: 'row', alignItems: 'flex-start', marginVertical: 6}}>
+                <MaterialIcons name="coronavirus" size={20} color={io.status === 'aktif' ? '#ef4444' : '#16a34a'} style={{marginRight: 12, marginTop: 2}} />
+                <View style={{flex: 1}}>
+                  <Text style={{fontWeight: '700', fontSize: 15, color: '#0d1c2e'}}>{io.master_io?.nama_io || 'IO'}</Text>
+                  <Text style={{fontSize: 13, color: '#64748b'}}>Diagnosis: {io.tanggal_diagnosis} - Status: {io.status === 'aktif' ? 'Aktif' : 'Sembuh'}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={{fontSize: 14, color: '#64748b', fontStyle: 'italic'}}>Belum ada riwayat IO</Text>
+          )}
+        </View>
 
         {/* Diary History */}
         <Text style={[st.sectionTitle, {marginTop: 12}]}>Catatan Keluhan Terbaru</Text>
