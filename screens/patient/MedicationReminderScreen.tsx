@@ -993,7 +993,7 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                   const isPending = !alarm.status || alarm.status === 'belum';
 
                   const [h, m] = alarm.waktu.split(':').map(Number);
-                  const alarmTimeObj = new Date();
+                  const alarmTimeObj = new Date(selectedDate);
                   alarmTimeObj.setHours(h, m, 0, 0);
                   const isTimePassed = currentTimeForUI >= alarmTimeObj;
 
