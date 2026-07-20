@@ -226,6 +226,8 @@ const ProfileScreen: React.FC = () => {
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [riwayatRegimen, setRiwayatRegimen] = useState<any[]>([]);
+  const [riwayatIo, setRiwayatIo] = useState<any[]>([]);
 
   // Editable fields
   const [editNama, setEditNama] = useState('');
@@ -255,8 +257,18 @@ const ProfileScreen: React.FC = () => {
           if (dashRes.data && dashRes.data.data && dashRes.data.data.kepatuhan_percentage !== undefined) {
             setAdherencePercent(dashRes.data.data.kepatuhan_percentage);
           }
+          
+          const regimenRes = await api.get('/patient/regimen-aktif');
+          if (regimenRes.data && regimenRes.data.data) {
+            setRiwayatRegimen([regimenRes.data.data]);
+          }
+
+          const ioRes = await api.get('/patient/riwayat-io');
+          if (ioRes.data && ioRes.data.data) {
+            setRiwayatIo(ioRes.data.data);
+          }
         } catch (error) {
-          console.log("Error fetching profile adherence score:", error);
+          console.log("Error fetching profile clinical data:", error);
         }
       }
       setNoHp(user.no_hp || '-');
@@ -699,8 +711,43 @@ const ProfileScreen: React.FC = () => {
               <MaterialIcons name="medication" size={28} color={C.primary} style={{ marginTop: 2 }} />
               <View style={{ flex: 1 }}>
                 <Text style={st.regimenLabel}>Regimen Saat Ini</Text>
-                <Text style={st.regimenName}>{regimenName}</Text>
-                <Text style={st.regimenDose}>{regimenDose}</Text>
+                {riwayatRegimen.length > 0 ? (
+                  <>
+                    <Text style={st.regimenName}>{riwayatRegimen[0].master_obat?.kode_regimen || regimenName}</Text>
+                    <Text style={st.regimenDose}>{riwayatRegimen[0].master_obat?.nama_lengkap || regimenDose}</Text>
+                    <Text style={{ fontSize: 12, color: C.onSurfaceVariant, marginTop: 4 }}>
+                      Sejak: {riwayatRegimen[0].tanggal_mulai}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={st.regimenName}>{regimenName}</Text>
+                    <Text style={st.regimenDose}>{regimenDose}</Text>
+                  </>
+                )}
+              </View>
+            </View>
+
+            <View style={[st.regimenCard, { marginTop: 12, borderLeftColor: C.error }]}>
+              <MaterialIcons name="coronavirus" size={28} color={C.error} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={st.regimenLabel}>Riwayat Infeksi Oportunistik (IO)</Text>
+                {riwayatIo.length > 0 ? (
+                  riwayatIo.map((io, index) => (
+                    <View key={io.id || index} style={{ marginBottom: 8 }}>
+                      <Text style={[st.regimenName, { color: C.error, fontSize: 14 }]}>
+                        {io.master_io?.nama_io || 'IO'}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: C.onSurfaceVariant }}>
+                        Status: {io.status === 'aktif' ? 'Aktif' : 'Sembuh'} ({io.tanggal_diagnosis})
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 14, color: C.onSurfaceVariant, fontStyle: 'italic' }}>
+                    Belum ada riwayat IO terdaftar.
+                  </Text>
+                )}
               </View>
             </View>
           </View>
