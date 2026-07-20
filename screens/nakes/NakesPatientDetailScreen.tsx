@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
@@ -18,6 +18,15 @@ const NakesPatientDetailScreen: React.FC = () => {
   const [riwayatRegimen, setRiwayatRegimen] = useState<any[]>([]);
   const [riwayatIo, setRiwayatIo] = useState<any[]>([]);
 
+  // Form States
+  const [masterKlinis, setMasterKlinis] = useState<{obats: any[], ios: any[]}>({obats: [], ios: []});
+  const [showRegimenModal, setShowRegimenModal] = useState(false);
+  const [showIoModal, setShowIoModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [rForm, setRForm] = useState({ master_obat_id: '', tanggal_mulai: new Date().toISOString().split('T')[0], alasan_ganti: '' });
+  const [ioForm, setIoForm] = useState({ master_io_id: '', nama_io_baru: '', tanggal_diagnosis: new Date().toISOString().split('T')[0], status: 'aktif', tanggal_sembuh: '', catatan: '' });
+
   useFocusEffect(useCallback(() => {
     const fetchDetail = async () => {
       try {
@@ -33,6 +42,11 @@ const NakesPatientDetailScreen: React.FC = () => {
         if (ioRes.data && ioRes.data.data) {
           setRiwayatIo(ioRes.data.data);
         }
+
+        const masterRes = await api.get(`/nakes/master-klinis`);
+        if (masterRes.data && masterRes.data.data) {
+          setMasterKlinis(masterRes.data.data);
+        }
       } catch (e) { console.log(e); } 
       finally { setLoading(false); }
     };
@@ -42,6 +56,38 @@ const NakesPatientDetailScreen: React.FC = () => {
   if (loading || !patient) return (
     <SafeAreaView style={st.safe}><ActivityIndicator size="large" color={C.primary} style={{marginTop: 50}} /></SafeAreaView>
   );
+
+  const handleSaveRegimen = async () => {
+    if (!rForm.master_obat_id || !rForm.tanggal_mulai) return Alert.alert('Error', 'Obat dan Tanggal wajib diisi');
+    setSubmitting(true);
+    try {
+      await api.post(`/nakes/patients/${patientId}/riwayat-regimen`, rForm);
+      Alert.alert('Sukses', 'Regimen berhasil ditambahkan');
+      setShowRegimenModal(false);
+      setRForm({ master_obat_id: '', tanggal_mulai: new Date().toISOString().split('T')[0], alasan_ganti: '' });
+      const res = await api.get(`/nakes/patients/${patientId}/riwayat-regimen`);
+      setRiwayatRegimen(res.data.data);
+    } catch (e: any) { Alert.alert('Error', e.response?.data?.message || 'Gagal menyimpan regimen'); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleSaveIo = async () => {
+    if (!ioForm.master_io_id || !ioForm.tanggal_diagnosis) return Alert.alert('Error', 'IO dan Tanggal wajib diisi');
+    if (ioForm.master_io_id === 'lainnya' && !ioForm.nama_io_baru) return Alert.alert('Error', 'Nama IO Baru wajib diisi');
+    setSubmitting(true);
+    try {
+      await api.post(`/nakes/patients/${patientId}/riwayat-io`, ioForm);
+      Alert.alert('Sukses', 'Riwayat IO berhasil ditambahkan');
+      setShowIoModal(false);
+      setIoForm({ master_io_id: '', nama_io_baru: '', tanggal_diagnosis: new Date().toISOString().split('T')[0], status: 'aktif', tanggal_sembuh: '', catatan: '' });
+      const res = await api.get(`/nakes/patients/${patientId}/riwayat-io`);
+      setRiwayatIo(res.data.data);
+      // Refresh master klinis to get newly added IO
+      const masterRes = await api.get(`/nakes/master-klinis`);
+      if (masterRes.data && masterRes.data.data) setMasterKlinis(masterRes.data.data);
+    } catch (e: any) { Alert.alert('Error', e.response?.data?.message || 'Gagal menyimpan IO'); }
+    finally { setSubmitting(false); }
+  };
 
   return (
     <SafeAreaView style={st.safe}>
@@ -147,7 +193,13 @@ const NakesPatientDetailScreen: React.FC = () => {
         {/* Regimen dan IO */}
         <Text style={[st.sectionTitle, {marginTop: 12}]}>Data Klinis Saat Ini</Text>
         <View style={st.infoBox}>
-          <Text style={{fontWeight: '700', fontSize: 14, color: C.outline, marginBottom: 8}}>Regimen ARV Aktif</Text>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+            <Text style={{fontWeight: '700', fontSize: 14, color: C.outline}}>Regimen ARV Aktif</Text>
+            <TouchableOpacity onPress={() => setShowRegimenModal(true)} style={st.addBtnSm}>
+              <MaterialIcons name="add" size={16} color="#fff" />
+              <Text style={st.addBtnSmTxt}>Tambah</Text>
+            </TouchableOpacity>
+          </View>
           {riwayatRegimen.length > 0 && !riwayatRegimen[0].tanggal_selesai ? (
             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 16}}>
               <MaterialIcons name="medication" size={24} color={C.primary} style={{marginRight: 12}} />
@@ -161,7 +213,13 @@ const NakesPatientDetailScreen: React.FC = () => {
           )}
 
           <View style={st.infoDivider} />
-          <Text style={{fontWeight: '700', fontSize: 14, color: C.outline, marginVertical: 8}}>Riwayat Infeksi Oportunistik (IO)</Text>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 8}}>
+            <Text style={{fontWeight: '700', fontSize: 14, color: C.outline}}>Riwayat Infeksi Oportunistik (IO)</Text>
+            <TouchableOpacity onPress={() => setShowIoModal(true)} style={st.addBtnSm}>
+              <MaterialIcons name="add" size={16} color="#fff" />
+              <Text style={st.addBtnSmTxt}>Tambah</Text>
+            </TouchableOpacity>
+          </View>
           {riwayatIo.length > 0 ? (
             riwayatIo.map((io, idx) => (
               <View key={io.id || idx} style={{flexDirection: 'row', alignItems: 'flex-start', marginVertical: 6}}>
@@ -253,6 +311,113 @@ const NakesPatientDetailScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* MODAL TAMBAH REGIMEN */}
+      <Modal visible={showRegimenModal} transparent={true} animationType="slide">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, {maxHeight: '90%'}]}>
+            <View style={st.modalHeader}>
+              <Text style={st.modalTitle}>Tambah Riwayat Regimen</Text>
+              <TouchableOpacity onPress={() => setShowRegimenModal(false)}>
+                <MaterialIcons name="close" size={24} color={C.outline} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={st.inputLabel}>Pilih Obat / Regimen</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 16}}>
+                {masterKlinis.obats.map(obat => (
+                  <TouchableOpacity 
+                    key={obat.id} 
+                    style={[st.pillBtn, rForm.master_obat_id === obat.id && st.pillBtnActive]}
+                    onPress={() => setRForm({...rForm, master_obat_id: obat.id})}
+                  >
+                    <Text style={[st.pillBtnTxt, rForm.master_obat_id === obat.id && st.pillBtnTxtActive]}>{obat.kode_regimen}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={st.inputLabel}>Tanggal Mulai (YYYY-MM-DD)</Text>
+              <TextInput style={st.input} value={rForm.tanggal_mulai} onChangeText={t => setRForm({...rForm, tanggal_mulai: t})} placeholder="Contoh: 2026-07-20" />
+
+              <Text style={st.inputLabel}>Alasan Ganti (Opsional)</Text>
+              <TextInput style={[st.input, {height: 80}]} multiline value={rForm.alasan_ganti} onChangeText={t => setRForm({...rForm, alasan_ganti: t})} placeholder="Misal: Efek samping" />
+
+              <TouchableOpacity style={st.submitBtn} onPress={handleSaveRegimen} disabled={submitting}>
+                <Text style={st.submitBtnTxt}>{submitting ? 'Menyimpan...' : 'Simpan Regimen'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL TAMBAH IO */}
+      <Modal visible={showIoModal} transparent={true} animationType="slide">
+        <View style={st.modalOverlay}>
+          <View style={[st.modalContent, {maxHeight: '90%'}]}>
+            <View style={st.modalHeader}>
+              <Text style={st.modalTitle}>Tambah Riwayat IO</Text>
+              <TouchableOpacity onPress={() => setShowIoModal(false)}>
+                <MaterialIcons name="close" size={24} color={C.outline} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={st.inputLabel}>Infeksi Oportunistik</Text>
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16}}>
+                {masterKlinis.ios.map(io => (
+                  <TouchableOpacity 
+                    key={io.id} 
+                    style={[st.pillBtn, ioForm.master_io_id === io.id && st.pillBtnActive]}
+                    onPress={() => setIoForm({...ioForm, master_io_id: io.id})}
+                  >
+                    <Text style={[st.pillBtnTxt, ioForm.master_io_id === io.id && st.pillBtnTxtActive]}>{io.nama_io}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity 
+                  style={[st.pillBtn, ioForm.master_io_id === 'lainnya' && st.pillBtnActive]}
+                  onPress={() => setIoForm({...ioForm, master_io_id: 'lainnya'})}
+                >
+                  <Text style={[st.pillBtnTxt, ioForm.master_io_id === 'lainnya' && st.pillBtnTxtActive]}>Lainnya (Input Manual)</Text>
+                </TouchableOpacity>
+              </View>
+
+              {ioForm.master_io_id === 'lainnya' && (
+                <View>
+                  <Text style={st.inputLabel}>Nama IO Baru</Text>
+                  <TextInput style={st.input} value={ioForm.nama_io_baru} onChangeText={t => setIoForm({...ioForm, nama_io_baru: t})} placeholder="Masukkan nama infeksi..." />
+                </View>
+              )}
+
+              <Text style={st.inputLabel}>Tanggal Diagnosis (YYYY-MM-DD)</Text>
+              <TextInput style={st.input} value={ioForm.tanggal_diagnosis} onChangeText={t => setIoForm({...ioForm, tanggal_diagnosis: t})} placeholder="Contoh: 2026-07-20" />
+
+              <Text style={st.inputLabel}>Status</Text>
+              <View style={{flexDirection: 'row', gap: 12, marginBottom: 16}}>
+                <TouchableOpacity style={[st.pillBtn, ioForm.status === 'aktif' && st.pillBtnActive]} onPress={() => setIoForm({...ioForm, status: 'aktif'})}>
+                  <Text style={[st.pillBtnTxt, ioForm.status === 'aktif' && st.pillBtnTxtActive]}>Aktif</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[st.pillBtn, ioForm.status === 'sembuh' && st.pillBtnActive]} onPress={() => setIoForm({...ioForm, status: 'sembuh'})}>
+                  <Text style={[st.pillBtnTxt, ioForm.status === 'sembuh' && st.pillBtnTxtActive]}>Sembuh</Text>
+                </TouchableOpacity>
+              </View>
+
+              {ioForm.status === 'sembuh' && (
+                <View>
+                  <Text style={st.inputLabel}>Tanggal Sembuh (YYYY-MM-DD)</Text>
+                  <TextInput style={st.input} value={ioForm.tanggal_sembuh} onChangeText={t => setIoForm({...ioForm, tanggal_sembuh: t})} placeholder="Contoh: 2026-07-20" />
+                </View>
+              )}
+
+              <Text style={st.inputLabel}>Catatan Tambahan (Opsional)</Text>
+              <TextInput style={[st.input, {height: 80}]} multiline value={ioForm.catatan} onChangeText={t => setIoForm({...ioForm, catatan: t})} placeholder="Tulis catatan..." />
+
+              <TouchableOpacity style={st.submitBtn} onPress={handleSaveIo} disabled={submitting}>
+                <Text style={st.submitBtnTxt}>{submitting ? 'Menyimpan...' : 'Simpan IO'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -343,6 +508,20 @@ const st = StyleSheet.create({
   logIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   logStatusText: { fontSize: 15, fontWeight: '700', color: '#0d1c2e' },
   logTimeText: { fontSize: 13, color: '#64748b' },
+
+  addBtnSm: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
+  addBtnSmTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  inputLabel: { fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 6, marginTop: 12 },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 15, color: '#0f172a' },
+  
+  pillBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0', marginRight: 8, marginBottom: 8 },
+  pillBtnActive: { backgroundColor: '#dbeafe', borderColor: '#3b82f6' },
+  pillBtnTxt: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  pillBtnTxtActive: { color: '#2563eb' },
+
+  submitBtn: { backgroundColor: C.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 24, marginBottom: 12 },
+  submitBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 
 export default NakesPatientDetailScreen;
