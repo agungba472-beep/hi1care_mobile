@@ -118,7 +118,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
 
     await notifee.createTriggerNotification({
       id: `weker_arv_${i}`,
-      title: '⚠️ WAKTUNYA MINUM OBAT!',
+      title: '⚠️ WAKTUNYA MINUM SUPLEMEN!',
       body: `Segera minum suplemen Anda`,
       data: { type: 'alarm' },
       android: {
@@ -133,24 +133,6 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
         pressAction: { id: 'default', launchActivity: 'default' },
       },
     }, trigger);
-  }
-
-  // FALLBACK: Jadwalkan juga via Expo Notifications (sebagai cadangan jika Notifee gagal) untuk hari ini saja
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⚠️ WAKTUNYA MINUM OBAT!',
-        body: `(Cadangan) Silakan minum ${namaObat} Anda sekarang.`,
-        data: { type: 'alarm_cadangan' },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: waktuMinum,
-      },
-    });
-  } catch (expoErr) {
-    console.log("Gagal set expo fallback", expoErr);
   }
 };
 
