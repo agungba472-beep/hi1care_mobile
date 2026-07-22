@@ -73,7 +73,7 @@ export default function PatientChatRoomScreen() {
     if (url.startsWith('http') || url.startsWith('file')) return url;
     // Hapus baseUrl API dan ganti dengan storage (Sesuaikan dengan backend Laragon-mu)
     const baseUrl = api.defaults.baseURL?.replace('/api', '') || 'http://127.0.0.1:8000';
-    return `${baseUrl}/storage/${url}`;
+    return `${baseUrl}/file/${url}`;
   };
 
   const fetchMessages = async () => {

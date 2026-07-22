@@ -39,7 +39,7 @@ const getImageUrl = (path?: string) => {
   if (path.startsWith('http')) return path;
   
   const baseUrl = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://127.0.0.1:8000';
-  return `${baseUrl}/storage/${path}`;
+  return `${baseUrl}/file/${path}`;
 };
 
 // ── Component ──
