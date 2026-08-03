@@ -26,6 +26,7 @@ Notifications.setNotificationHandler({
 });
 
 // 1. Import Semua Layar
+import SplashCheckScreen from './screens/auth/SplashCheckScreen';
 import LoginScreen from './screens/auth/LoginScreen';
 import RegisterScreen from './screens/auth/RegisterScreen';
 import DashboardScreen from './screens/patient/PatientDashboardScreen';
@@ -47,6 +48,7 @@ import NotificationListScreen from './screens/common/NotificationListScreen';
 
 // 2. Tipe Data Navigasi (SANGAT PENTING agar TypeScript tidak cerewet)
 export type RootStackParamList = {
+  SplashCheck: undefined;
   Login: undefined;
   Register: undefined;
   BiometricAuth: undefined;
@@ -240,9 +242,10 @@ export default function App() {
     <SafeAreaProvider>
       <View style={{ flex: 1 }}>
         <NavigationContainer ref={navigationRef}>
-        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="SplashCheck" screenOptions={{ headerShown: false }}>
           
           {/* --- DUNIA BELUM LOGIN --- */}
+          <Stack.Screen name="SplashCheck" component={SplashCheckScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />

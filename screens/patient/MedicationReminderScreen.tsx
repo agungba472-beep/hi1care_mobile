@@ -72,6 +72,7 @@ export const jadwalkanWekerObat = async (waktuMinum: Date, namaObat: string, nad
     sound: soundFile,
     vibration: true,
     vibrationPattern: [300, 500, 300, 500, 300, 500],
+    bypassDnd: true,
   });
 
   // 1a. Jalankan Foreground Service "penjaga" (senyap, importance LOW) agar
@@ -898,10 +899,19 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
         <TouchableOpacity activeOpacity={0.8} onPress={() => setShowPermissionGuide(true)} style={[st.deviceWarningBanner, { alignItems: 'center' }]}>
           <MaterialIcons name="warning-amber" size={28} color="#92400e" style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={[st.deviceWarningText, { fontWeight: 'bold', fontSize: 14 }]}>⚠️ Weker Berisiko Mati Sendiri!</Text>
-            <Text style={{ color: '#92400e', fontSize: 12, marginTop: 4 }}>Pengguna {deviceBrandLabel}, sistem HP Anda dapat mematikan weker. Ketuk di sini untuk melihat Panduan Video Anti-Mati (Wajib).</Text>
+            <Text style={{ fontWeight: 'bold', color: '#92400e', marginBottom: 2 }}>Penting untuk pengguna {deviceBrandLabel}</Text>
+            <Text style={st.deviceWarningText}>Sistem HP Anda bisa mematikan alarm pengingat secara sepihak. Klik di sini untuk melihat 4 langkah wajib agar weker selalu berbunyi.</Text>
+            <TouchableOpacity 
+              style={{ marginTop: 8, backgroundColor: '#d97706', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, alignSelf: 'flex-start' }}
+              onPress={async () => {
+                try {
+                  await notifee.openBatteryOptimizationSettings();
+                } catch(e) {}
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>Buka Pengaturan Baterai</Text>
+            </TouchableOpacity>
           </View>
-          <MaterialIcons name="play-circle-fill" size={24} color="#92400e" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       )}
 
@@ -1284,10 +1294,26 @@ Nada: ${activeAlarm.nada_dering || 'standar'}`);
                 )}
               </View>
 
+              <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.primary }}>4. Akses Jangan Ganggu (DND)</Text>
+                </View>
+                <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Izinkan "Do Not Disturb access" agar alarm tetap berbunyi saat HP mode hening.</Text>
+                <TouchableOpacity onPress={() => {
+                  if (Platform.OS === 'android') {
+                    Linking.sendIntent('android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS');
+                  } else {
+                    Linking.openSettings();
+                  }
+                }} style={{ backgroundColor: C.primary, padding: 8, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Buka Pengaturan DND</Text>
+                </TouchableOpacity>
+              </View>
+
               {isAggressiveOEM() && (
                 <View style={{ marginBottom: 10, backgroundColor: C.surfaceContainer, padding: 12, borderRadius: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.error }}>4. Swipe Aplikasi (PENTING!)</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: C.error }}>5. Swipe Aplikasi (PENTING!)</Text>
                   </View>
                   <Text style={{ fontSize: 13, color: C.onSurface, marginBottom: 10 }}>Wajib swipe aplikasi ini di layar Recent Apps (seperti contoh video di bawah) agar alarm tidak dimatikan paksa oleh sistem HP.</Text>
                   <View style={{ height: 350, width: '100%', borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
